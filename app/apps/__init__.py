@@ -4,6 +4,7 @@ import importlib
 from fastapi import APIRouter
 from gino_starlette import Gino
 from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 
 import config
 
@@ -18,6 +19,10 @@ db = Gino(
     retry_interval=config.DB_RETRY_INTERVAL,
 )
 router = APIRouter()
+
+
+def init_static(app):
+    app.mount("/static", StaticFiles(directory=config.STATIC_PATH), name="static")
 
 
 def init_db(app):

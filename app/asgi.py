@@ -1,11 +1,18 @@
 from fastapi import FastAPI
 
-from apps import init_db, init_routes, init_cors
+from apps import init_db, init_routes, init_cors, init_static
 from apps.middleware.middleware import load_middleware
+from config import DEBUG
 
 
 def create_app():
-    app = FastAPI(title="GINO FastAPI Demo")
+    app = FastAPI(
+        title="FastAPI Demo",
+        description="This is a demo project for FastAPI",
+        version="0.1",
+        debug=DEBUG
+    )
+    init_static(app)
     init_db(app)
     init_cors(app)
     init_routes(app)

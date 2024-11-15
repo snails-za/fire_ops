@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy.engine.url import URL, make_url
 from starlette.config import Config
 from pydantic import Secret
@@ -6,6 +8,7 @@ from apps.utils.common import Base64Util
 
 config = Config()
 
+DEBUG = config("DEBUG", cast=bool, default=False)
 DB_DRIVER = config("DB_DRIVER", default="postgresql")
 DB_HOST = config("POSTGRES_HOST", default="localhost")
 DB_PORT = config("POSTGRES_PORT", cast=int, default=15432)
@@ -33,3 +36,6 @@ DB_USE_CONNECTION_FOR_REQUEST = config(
 )
 DB_RETRY_LIMIT = config("DB_RETRY_LIMIT", cast=int, default=1)
 DB_RETRY_INTERVAL = config("DB_RETRY_INTERVAL", cast=int, default=1)
+
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+STATIC_PATH = os.path.join(BASE_PATH, "static")

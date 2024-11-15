@@ -1,8 +1,9 @@
-import importlib
 import os
+import importlib
 
 from fastapi import APIRouter
 from gino_starlette import Gino
+from starlette.middleware.cors import CORSMiddleware
 
 import config
 
@@ -23,11 +24,14 @@ def init_db(app):
     db.init_app(app)
 
 
-import os
-import importlib
-
-import os
-import importlib
+def init_cors(app):
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 def init_routes(app):

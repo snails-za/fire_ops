@@ -17,7 +17,9 @@ RUN set -ex && \
 
 COPY ./app /app
 WORKDIR /app
-RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN python -m venv venv &&  \
+    source venv/bin/activate && \
+    pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 运行阶段
 FROM base
@@ -33,4 +35,5 @@ RUN set -ex && \
 
 COPY --from=builder /app /app
 WORKDIR /app
-CMD ["gunicorn", "asgi:app", "-b", "0.0.0.0:80", "-k", "uvicorn.workers.UvicornWorker"]
+RUN venv/bin/pip freeze
+CMD ["venv/bin/gunicorn", "asgi:app", "-b", "0.0.0.0:8000", "-k", "uvicorn.workers.UvicornWorker"]

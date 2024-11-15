@@ -2,7 +2,7 @@ from sqlalchemy.engine.url import URL, make_url
 from starlette.config import Config
 from starlette.datastructures import Secret
 
-config = Config("global_conf.env")
+config = Config()
 
 DB_DRIVER = config("DB_DRIVER", default="postgresql")
 DB_HOST = config("POSTGRES_HOST", default="postgres")

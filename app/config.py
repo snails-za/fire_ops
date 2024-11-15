@@ -2,14 +2,14 @@ from sqlalchemy.engine.url import URL, make_url
 from starlette.config import Config
 from starlette.datastructures import Secret
 
-config = Config(".env")
+config = Config("global_conf.env")
 
 DB_DRIVER = config("DB_DRIVER", default="postgresql")
-DB_HOST = config("DB_HOST", default="postgres")
-DB_PORT = config("DB_PORT", cast=int, default=5432)
-DB_USER = config("DB_USER", default="postgres")
-DB_PASSWORD = config("DB_PASSWORD", cast=Secret, default="971011")
-DB_DATABASE = config("DB_DATABASE", default="demo")
+DB_HOST = config("POSTGRES_HOST", default="postgres")
+DB_PORT = config("POSTGRES_PORT", cast=int, default=5432)
+DB_USER = config("POSTGRES_USER", default="postgres")
+DB_PASSWORD = config("POSTGRES_PASSWORD", cast=Secret, default="971011")
+DB_DATABASE = config("POSTGRES_DB", default="fastapi_demo")
 DB_DSN = config(
     "DB_DSN",
     cast=make_url,

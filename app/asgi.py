@@ -24,7 +24,6 @@ def create_app():
     init_cors(app)
     init_db(app)
     init_routes(app)
-    load_middleware(app)
     return app
 
 

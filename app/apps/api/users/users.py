@@ -3,7 +3,6 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 
 from apps.form.users.form import UserCreate
 from apps.models.user import User
-from apps.tasks.task import write_notification
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 

@@ -4,10 +4,21 @@ import importlib
 from fastapi import APIRouter
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
+from tortoise.contrib.fastapi import register_tortoise
 
 import config
 
 router = APIRouter()
+
+
+def init_db(app):
+    print(config.TORTOISE_ORM)
+    register_tortoise(
+        app,
+        config=config.TORTOISE_ORM,
+        add_exception_handlers=True
+    )
+
 
 
 def init_static(app):

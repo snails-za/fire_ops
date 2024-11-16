@@ -19,7 +19,6 @@ def init_db(app):
     )
 
 
-
 def init_static(app):
     app.mount("/static", StaticFiles(directory=config.STATIC_PATH), name="static")
 

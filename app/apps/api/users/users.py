@@ -23,3 +23,24 @@ async def read_user(user_id: int):
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+@router.get("/users/list", response_model=list[User_Pydantic])
+async def user_list(username: str = None):
+    if username:
+        users = await User_Pydantic.from_queryset(User.filter(username=username))
+    else:
+        users = await User_Pydantic.from_queryset(User.all())
+    return users
+
+
+@router.put("/users/{user_id}", response_model=User_Pydantic)
+async def update_user(user_id: int, user: UserCreate):
+    await User.filter(id=user_id).update(username=user.username, email=user.email, hashed_password=user.password)
+    return await User_Pydantic.from_queryset_single(User.get(id=user_id))
+
+
+@router.delete("/users/{user_id}", response_model=dict)
+async def delete_user(user_id: int):
+    deleted_count = await User.filter(id=user_id).delete()
+    return {"deleted": deleted_count}

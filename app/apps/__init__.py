@@ -12,7 +12,6 @@ router = APIRouter()
 
 
 def init_db(app):
-    print(config.TORTOISE_ORM)
     register_tortoise(
         app,
         config=config.TORTOISE_ORM,

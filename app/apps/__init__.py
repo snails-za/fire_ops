@@ -2,32 +2,16 @@ import os
 import importlib
 
 from fastapi import APIRouter
-from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html, get_redoc_html
-from gino_starlette import Gino
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 import config
 
-db = Gino(
-    dsn=config.DB_DSN,
-    pool_min_size=config.DB_POOL_MIN_SIZE,
-    pool_max_size=config.DB_POOL_MAX_SIZE,
-    echo=config.DB_ECHO,
-    ssl=config.DB_SSL,
-    use_connection_for_request=config.DB_USE_CONNECTION_FOR_REQUEST,
-    retry_limit=config.DB_RETRY_LIMIT,
-    retry_interval=config.DB_RETRY_INTERVAL,
-)
 router = APIRouter()
 
 
 def init_static(app):
     app.mount("/static", StaticFiles(directory=config.STATIC_PATH), name="static")
-
-
-def init_db(app):
-    db.init_app(app)
 
 
 def init_cors(app):

@@ -7,7 +7,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html, get_redoc_html
 
-from apps import init_db, init_routes, init_cors, init_static
+from apps import init_routes, init_cors, init_static
 from apps.middleware.middleware import load_middleware
 from config import DEBUG
 
@@ -22,7 +22,6 @@ def create_app():
         redoc_url=None
     )
     init_static(app)
-    init_db(app)
     init_cors(app)
     init_routes(app)
     load_middleware(app)

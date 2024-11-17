@@ -15,7 +15,8 @@ def init_db(app):
     register_tortoise(
         app,
         config=config.TORTOISE_ORM,
-        add_exception_handlers=True
+        # generate_schemas=True if config.DEBUG else False,
+        add_exception_handlers=True if config.DEBUG else False
     )
 
 

@@ -1,10 +1,10 @@
 from typing import Union, Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from fastapi.responses import JSONResponse, Response
 from tortoise.contrib.pydantic import pydantic_model_creator
 
 from apps.form.users.form import UserCreate
 from apps.models.user import User
+from apps.utils import response
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
@@ -45,15 +45,16 @@ async def update_user(user_id: int, user: UserCreate):
 @router.delete("/delete/{user_id}", response_model=dict, summary="删除用户")
 async def delete_user(user_id: int):
     deleted_count = await User.filter(id=user_id).delete()
-    return {"deleted": deleted_count}
+    return response(data={"deleted_count": deleted_count})
 
 
 @router.post("/uploadfile", summary="上传文件测试")
 async def upload_file(filename: Union[str, None] = None, file: UploadFile = File(...)):
     print(filename)
-    return {"filename": file.filename}
+    return response(data={"filename": file.filename})
 
 
 @router.get("/form", summary="获取表单数据")
-async def get_form(username: Optional[str] = Form(default=None, description="用户名"), email: Optional[str] = Form(...)):
-    return JSONResponse(content={"username": username, "email": email}, status_code=200)
+async def get_form(username, email):
+    print(username, email)
+    return response(data={"username": username, "email": email})

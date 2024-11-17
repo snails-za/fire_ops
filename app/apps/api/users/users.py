@@ -54,7 +54,7 @@ async def upload_file(filename: Union[str, None] = None, file: UploadFile = File
     return response(data={"filename": file.filename})
 
 
-@router.get("/form", summary="获取表单数据")
-async def get_form(username, email):
+@router.post("/form", summary="获取表单数据")
+async def get_form(username: str = Form(...), email: str = Form(...)):
     print(username, email)
     return response(data={"username": username, "email": email})

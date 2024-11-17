@@ -36,9 +36,9 @@ async def custom_swagger_ui_html():
         openapi_url=app.openapi_url,
         title=app.title + " - Swagger UI",
         oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
-        swagger_js_url="static/swagger-ui-bundle.js",
-        swagger_css_url="static/swagger-ui.css",
-        swagger_favicon_url="static/favicon.ico",
+        swagger_js_url="static/js/swagger-ui-bundle.js",
+        swagger_css_url="static/css/swagger-ui.css",
+        swagger_favicon_url="static/images/favicon.ico",
     )
 
 
@@ -52,8 +52,8 @@ async def redoc_html():
     return get_redoc_html(
         openapi_url=app.openapi_url,
         title=app.title + " - ReDoc",
-        redoc_js_url="static/redoc.standalone.js",
-        redoc_favicon_url="static/favicon.ico",
+        redoc_js_url="static/js/redoc.standalone.js",
+        redoc_favicon_url="static/images/favicon.ico",
         with_google_fonts=False,
     )
 

@@ -35,7 +35,5 @@ RUN set -ex && \
 
 COPY --from=builder /app /app
 WORKDIR /app
-RUN aerich init-db && \
-    aerich migrate && \
-    aerich upgrade
+
 CMD ["venv/bin/gunicorn", "asgi:app", "-b", "0.0.0.0:8000", "-k", "uvicorn.workers.UvicornWorker"]

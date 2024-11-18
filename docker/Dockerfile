@@ -29,7 +29,7 @@ RUN set -ex && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
     apt-get update  && \
-    apt-get install -y libpq5 && \
+    apt-get install -y libpq5 vim && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

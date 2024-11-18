@@ -23,6 +23,10 @@ RUN python -m venv venv &&  \
 
 # 运行阶段
 FROM base
+
+COPY --from=builder /app /app
+WORKDIR /app
+
 RUN set -ex && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
@@ -32,8 +36,5 @@ RUN set -ex && \
     apt-get install -y libpq5 vim ncurses-bin && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-COPY --from=builder /app /app
-WORKDIR /app
 
 CMD ["venv/bin/gunicorn", "asgi:app", "-b", "0.0.0.0:8000", "-k", "uvicorn.workers.UvicornWorker"]

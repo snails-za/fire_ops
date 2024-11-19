@@ -37,17 +37,18 @@ fastapi-demo
 pip install -r requirements.txt
 ```
 
-## 数据库迁移
+## 数据库迁移【需手动执行，自动迁移暂未开发】
 ```shell
-# 初始化
+# 初始化Aerich 配置
 aerich init -t config.TORTOISE_ORM
-# 第一次迁移【只有第一次执行】
+# 首次迁移【初始化数据库，这一步只需要在第一次迁移时执行。】
 aerich init-db
 # 生成迁移文件
 aerich migrate
 # 更新数据库
 aerich upgrade
 ```
+![migrate.png](static/images/migrate.png)
 
 ## 启动项目
 ### 1. 使用FastApi自带的命令启动

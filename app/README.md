@@ -52,19 +52,21 @@ aerich upgrade
 
 ## 启动项目
 ### 1. 使用FastApi自带的命令启动
+#### a. 测试环境
 ```shell
-# 测试环境
 fastapi dev asgi.py
-# 生产环境
+```
+#### b. 生产环境
+```shell
 fastapi run asgi.py
 ```
 ### 2. 使用uvicorn启动
 ```shell
-uvicorn app.asgi:app --reload
+uvicorn asgi:app --reload
 ```
 ### 3. 使用gunicorn启动
 ```shell
-gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.asgi:app
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker asgi:app
 ```
 
 ## 构建镜像

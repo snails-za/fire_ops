@@ -16,15 +16,17 @@ UserIn_Pydantic = pydantic_model_creator(User, name="UserIn", exclude_readonly=T
 async def create_user(user: UserCreate):
     user_obj = await User.create(username=user.username, email=user.email,
                                  hashed_password=user.password + "notreallyhashed")
-    return await User_Pydantic.from_tortoise_orm(user_obj)
+    data = await User_Pydantic.from_tortoise_orm(user_obj)
+    return response(data=data)
 
 
 @router.get("/detail/{user_id}", response_model=User_Pydantic, summary="用户详情", description="获取用户详情")
 async def read_user(user_id: int):
-    user = await User_Pydantic.from_queryset_single(User.get(id=user_id))
+    user = User.get(id=user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return user
+    data = await User_Pydantic.from_queryset_single(user)
+    return response(data=data)
 
 
 @router.get("/list", response_model=list[User_Pydantic], summary="用户列表", description="获取用户列表")
@@ -33,13 +35,14 @@ async def user_list(username: Optional[str] = None):
         users = await User_Pydantic.from_queryset(User.filter(username=username))
     else:
         users = await User_Pydantic.from_queryset(User.all())
-    return users
+    return response(data=users)
 
 
 @router.put("/update/{user_id}", response_model=User_Pydantic, summary="更新用户", description="更新用户信息")
 async def update_user(user_id: int, user: UserCreate):
     await User.filter(id=user_id).update(username=user.username, email=user.email, hashed_password=user.password)
-    return await User_Pydantic.from_queryset_single(User.get(id=user_id))
+    data = await User_Pydantic.from_queryset_single(User.get(id=user_id))
+    return response(data=data)
 
 
 @router.delete("/delete/{user_id}", response_model=dict, summary="删除用户", description="删除用户")

@@ -1,5 +1,5 @@
 from typing import Union, Optional
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request
 from tortoise.contrib.pydantic import pydantic_model_creator
 
 from apps.form.users.form import UserCreate
@@ -30,7 +30,8 @@ async def read_user(user_id: int):
 
 
 @router.get("/list", response_model=list[User_Pydantic], summary="用户列表", description="获取用户列表")
-async def user_list(username: Optional[str] = None):
+async def user_list(requests: Request, username: Optional[str] = None):
+    print(requests.url)
     if username:
         users = await User_Pydantic.from_queryset(User.filter(username=username))
     else:

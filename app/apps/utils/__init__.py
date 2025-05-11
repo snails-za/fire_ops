@@ -1,15 +1,8 @@
-from typing import Any, Optional
+from datetime import datetime, date
+from typing import Optional, Any
 
-from fastapi.responses import JSONResponse
-
-
-def serialize_data(data: Any) -> Any:
-    # 自动处理 Pydantic 模型或模型列表
-    if isinstance(data, list):
-        return [d.model_dump() if hasattr(d, "model_dump") else d for d in data]
-    if hasattr(data, "model_dump"):
-        return data.model_dump()
-    return data
+from fastapi.encoders import jsonable_encoder
+from starlette.responses import JSONResponse
 
 
 def response(
@@ -21,6 +14,10 @@ def response(
     resp = {
         "code": code,
         "message": message,
-        "data": serialize_data(data)
+        "data": jsonable_encoder(data,
+                                 custom_encoder={
+                                     datetime: lambda dt: dt.strftime("%Y-%m-%d %H:%M:%S"),
+                                     date: lambda d: d.strftime("%Y-%m-%d")
+                                 })
     }
     return JSONResponse(content=resp, status_code=status_code)

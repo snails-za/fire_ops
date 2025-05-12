@@ -38,6 +38,10 @@ async def create_device(device: DeviceIn):
     :param device:
     :return:
     """
+    # 检查设备是否存在
+    if await Device.filter(name=device.name).exists():
+        return response(code=400, message="设备已存在")
+    # 创建设备
     device_obj = await Device.create(**device.model_dump(exclude_unset=True))
     data = await Device_Pydantic.from_tortoise_orm(device_obj)
     return response(data=data.model_dump())

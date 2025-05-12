@@ -27,5 +27,10 @@ TORTOISE_ORM = {
     },
 }
 
+REDIS_HOST = config("REDIS_HOST", default="localhost")
+REDIS_PORT = config("REDIS_PORT", cast=int, default=16379)
+REDIS_PASSWORD = config("REDIS_PASSWORD", cast=str, default="")
+REDIS_DB = config("REDIS_DB", cast=int, default=0)
+
 
 

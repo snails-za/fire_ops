@@ -69,15 +69,10 @@ def custom_openapi(app: FastAPI):
     # ✅ 用 Header 的方式注入 token
     openapi_schema["components"]["securitySchemes"] = {
         "BearerAuth": {
-            "type": "apiKey",
-            "in": "header",
-            "name": "Authorization"
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT"
         },
-        "security": [
-            {
-            "BearerAuth": []
-            }
-        ]
     }
 
     # ✅ 设置全局 security（可选）

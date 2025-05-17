@@ -1,17 +1,33 @@
 from fastapi import HTTPException, Depends, Security
-from fastapi.security import APIKeyHeader
+from fastapi.security import APIKeyHeader, HTTPBearer, HTTPAuthorizationCredentials
 
 from apps.models import User
 from apps.utils.token_ import decode_token
 from apps.utils.redis_ import get_redis_client
 from redis.asyncio import Redis
 
-bearer_scheme = APIKeyHeader(name="Authorization", auto_error=False)
+bearer_scheme = HTTPBearer(scheme_name="BearerAuth", auto_error=True)  # ✅ 让它匹配你 openapi 中定义的名称
 
 
 
-async def get_current_user(token: str = Security(bearer_scheme), redis_client: Redis = Depends(get_redis_client)):
-    if not token or not token.startswith("Bearer "):
+def get_token_str(
+    credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)
+) -> str:
+    """
+    安全地获取 Bearer Token 字符串。
+    """
+    if credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=401,
+            detail="无效的认证方式（必须是 Bearer）"
+        )
+    return credentials.credentials
+
+
+async def get_current_user(token: HTTPAuthorizationCredentials = Security(bearer_scheme), redis_client: Redis = Depends(get_redis_client)):
+    # ✅ 直接获取 token 的值
+    token = token.credentials
+    if not token:
         raise HTTPException(status_code=401, detail="未登录")
     token = token.replace("Bearer ", "")
     is_login, info = decode_token(token)

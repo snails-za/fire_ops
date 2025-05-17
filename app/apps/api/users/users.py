@@ -11,12 +11,13 @@ from apps.utils import response
 from apps.utils.aes_helper import decrypt
 from apps.utils.common import get_hash
 from apps.utils.redis_ import get_redis_client
-from apps.utils.token_ import gen_token
+from apps.utils.token_ import gen_token, decode_token
 from config import AES_KEY, MAX_AGE, REFLESH_MAX_AGE
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
 User_Pydantic = pydantic_model_creator(User, name="User", exclude=("hashed_password",))
+
 
 @router.post("/register/", response_model=User_Pydantic, summary="注册用户", description="创建用户接口")
 async def create_user(user: UserCreate):
@@ -42,6 +43,7 @@ async def read_user(user_id: int):
     data = await User_Pydantic.from_tortoise_orm(user)
     return response(data=data.model_dump())
 
+
 @router.get("/list", summary="用户列表", description="获取用户列表")
 async def user_list(username: Optional[str] = None, page: int = 1, page_size: int = 10):
     conditions = []
@@ -53,9 +55,7 @@ async def user_list(username: Optional[str] = None, page: int = 1, page_size: in
     total_page = total // page_size + (1 if total % page_size > 0 else 0)
     items = await User_Pydantic.from_queryset(query.offset((page - 1) * page_size).limit(page_size))
     data = [_.model_dump() for _ in items]
-    return response(data=data, total=total, total_page=total_page,  message="获取用户列表成功！")
-
-
+    return response(data=data, total=total, total_page=total_page, message="获取用户列表成功！")
 
 
 @router.put("/update/{user_id}", response_model=User_Pydantic, summary="更新用户", description="更新用户信息")
@@ -95,3 +95,17 @@ async def login(
     return resp
 
 
+@router.get("/logout", summary="注销接口", description="注销接口")
+async def logout(redis_client: Redis = Depends(get_redis_client), request: Request = None):
+    token = await redis_client.get("auth")
+    if not token:
+        return response(code=0, message="未登录")
+    is_login, info = decode_token(token)
+    if not is_login:
+        return response(code=0, message="登录失效！请重新登录！")
+    user_id = info.get("user_id")
+    login_time = info.get("login_time")
+    # 删除Redis中的token
+    await redis_client.delete(f"token-{login_time}-{user_id}")
+    await redis_client.delete(f"refresh_token-{login_time}-{user_id}")
+    return response(message="注销成功！")

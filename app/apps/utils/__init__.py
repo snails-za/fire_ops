@@ -9,7 +9,8 @@ def response(
         data: Optional[Any] = None,
         code: int = 200,
         message: str = "success",
-        status_code: int = 200
+        status_code: int = 200,
+        **kwargs
 ) -> JSONResponse:
     resp = {
         "code": code,
@@ -18,6 +19,7 @@ def response(
                                  custom_encoder={
                                      datetime: lambda dt: dt.strftime("%Y-%m-%d %H:%M:%S"),
                                      date: lambda d: d.strftime("%Y-%m-%d")
-                                 })
+                                 }),
+        **kwargs
     }
     return JSONResponse(content=resp, status_code=status_code)

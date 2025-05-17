@@ -5,7 +5,7 @@ from redis import Redis
 from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
-from apps.form.users.form import UserCreate, UserOut
+from apps.form.users.form import UserCreate
 from apps.models.user import User
 from apps.utils import response
 from apps.utils.aes_helper import decrypt
@@ -16,11 +16,9 @@ from config import AES_KEY, MAX_AGE, REFLESH_MAX_AGE
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
-User_Pydantic = pydantic_model_creator(User, name="User")
-UserIn_Pydantic = pydantic_model_creator(User, name="UserIn", exclude_readonly=True)
+User_Pydantic = pydantic_model_creator(User, name="User", exclude=("hashed_password",))
 
-
-@router.post("/register/", response_model=UserOut, summary="创建用户", description="创建用户接口")
+@router.post("/register/", response_model=User_Pydantic, summary="注册用户", description="创建用户接口")
 async def create_user(user: UserCreate):
     # 判断用户名或邮箱是否已经被注册
     if await User.filter(Q(username=user.username) | Q(email=user.email)).exists():
@@ -38,21 +36,26 @@ async def create_user(user: UserCreate):
 
 @router.get("/detail/{user_id}", response_model=User_Pydantic, summary="用户详情", description="获取用户详情")
 async def read_user(user_id: int):
-    user = User.get(id=user_id)
+    user = await User.get_or_none(id=user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    data = await User_Pydantic.from_queryset_single(user)
-    return response(data=data)
+    data = await User_Pydantic.from_tortoise_orm(user)
+    return response(data=data.model_dump())
 
-
-@router.get("/list", response_model=list[User_Pydantic], summary="用户列表", description="获取用户列表")
-async def user_list(requests: Request, username: Optional[str] = None):
-    print(requests.url)
+@router.get("/list", summary="用户列表", description="获取用户列表")
+async def user_list(username: Optional[str] = None, page: int = 1, page_size: int = 10):
+    conditions = []
     if username:
-        users = await User_Pydantic.from_queryset(User.filter(username=username))
-    else:
-        users = await User_Pydantic.from_queryset(User.all())
-    return response(data=users)
+        conditions.append(Q(username__icontains=username))
+
+    query = User.filter(*conditions).order_by("-id")
+    total = await query.count()
+    total_page = total // page_size + (1 if total % page_size > 0 else 0)
+    items = await User_Pydantic.from_queryset(query.offset((page - 1) * page_size).limit(page_size))
+    data = [_.model_dump() for _ in items]
+    return response(data=data, total=total, total_page=total_page,  message="获取用户列表成功！")
+
+
 
 
 @router.put("/update/{user_id}", response_model=User_Pydantic, summary="更新用户", description="更新用户信息")
@@ -90,3 +93,5 @@ async def login(
     resp.set_cookie(key="auth", value=token, httponly=True, max_age=MAX_AGE)
     resp.set_cookie(key="refresh_token", value=token, httponly=True, max_age=REFLESH_MAX_AGE)
     return resp
+
+

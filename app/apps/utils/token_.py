@@ -5,7 +5,7 @@ import jwt
 from config import SECRET_KEY
 
 
-def gen_token(user_id, login_time=time.time(), seconds=60):
+def gen_token(user_id, login_time=time.time(), seconds=60 * 60):
     # 设置headers，即加密算法的配置
     headers = {
         "alg": "HS256",

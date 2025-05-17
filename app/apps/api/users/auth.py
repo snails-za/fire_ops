@@ -13,7 +13,7 @@ from apps.utils.redis_ import get_redis_client
 from apps.utils.token_ import gen_token, decode_token
 from config import AES_KEY, MAX_AGE, REFLESH_MAX_AGE
 
-router = APIRouter(prefix="/admin", tags=["用户管理"])
+router = APIRouter(prefix="/auth", tags=["用户认证"])
 
 
 @router.post("/login", summary="登录接口", response_model=TokenResponse, description="登录接口")
@@ -30,7 +30,7 @@ async def login(username: str = Form(...), password: str = Form(...), redis_clie
     await redis_client.set(f"token-{login_time}-{user.id}", token, MAX_AGE)
     await redis_client.set(f"refresh_token-{login_time}-{user.id}", token, REFLESH_MAX_AGE)
     resp = {
-        "access_token": f"Bearer {token}",
+        "access_token": token,
         "token_type": "bearer"
     }
     return response(data=resp, message="登录成功！")
@@ -52,3 +52,28 @@ async def logout(
     await redis_client.delete(f"token-{login_time}-{user_id}")
     await redis_client.delete(f"refresh_token-{login_time}-{user_id}")
     return response(message="注销成功！")
+
+
+@router.get("/refresh_token", summary="刷新token", description="刷新token接口", dependencies=[Depends(get_current_user)])
+async def refresh_token(
+        redis_client: Redis = Depends(get_redis_client),
+        token: str = Depends(get_token_str),
+):
+    is_login, info = decode_token(token)
+    if not is_login:
+        return response(code=0, message="登录失效！请重新登录！")
+    user_id = info.get("user_id")
+    login_time = info.get("login_time")
+    # 删除Redis中的token
+    await redis_client.delete(f"token-{login_time}-{user_id}")
+    await redis_client.delete(f"refresh_token-{login_time}-{user_id}")
+    # 重新生成token
+    login_time = time.time()
+    new_token = gen_token(user_id, login_time, seconds=MAX_AGE)
+    await redis_client.set(f"token-{login_time}-{user_id}", new_token, MAX_AGE)
+    await redis_client.set(f"refresh_token-{login_time}-{user_id}", new_token, REFLESH_MAX_AGE)
+    resp = {
+        "access_token": new_token,
+        "token_type": "bearer"
+    }
+    return response(data=resp, message="刷新token成功！")

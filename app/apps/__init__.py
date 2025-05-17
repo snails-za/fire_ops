@@ -2,6 +2,7 @@ import os
 import importlib
 
 from fastapi import APIRouter, FastAPI
+from fastapi.openapi.utils import get_openapi
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 from tortoise.contrib.fastapi import register_tortoise
@@ -54,6 +55,38 @@ def init_routes(app):
                     app.include_router(module.router, prefix="/api/v1")
 
 
+def custom_openapi(app: FastAPI):
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+
+    # ✅ 用 Header 的方式注入 token
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "Authorization"
+        },
+        "security": [
+            {
+            "BearerAuth": []
+            }
+        ]
+    }
+
+    # ✅ 设置全局 security（可选）
+    openapi_schema["security"] = [{"BearerAuth": []}]
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
 def create_app(lifespan=None):
     app = FastAPI(
         title="FastAPI Demo",
@@ -62,12 +95,14 @@ def create_app(lifespan=None):
         debug=DEBUG,
         docs_url=None,
         redoc_url=None,
-        lifespan=lifespan
+        lifespan=lifespan,
     )
     init_static(app)
     init_cors(app)
     init_db(app)
     init_routes(app)
+
+    app.openapi = lambda: custom_openapi(app)
     return app
 
 

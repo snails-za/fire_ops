@@ -2,6 +2,10 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+
 
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=20, title="用户名", description="用户名长度在3到20之间")

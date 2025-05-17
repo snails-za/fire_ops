@@ -1,18 +1,19 @@
-from fastapi import Request, HTTPException, Depends
+from fastapi import HTTPException, Depends, Security
+from fastapi.security import APIKeyHeader
+
 from apps.models import User
 from apps.utils.token_ import decode_token
 from apps.utils.redis_ import get_redis_client
 from redis.asyncio import Redis
 
+bearer_scheme = APIKeyHeader(name="Authorization", auto_error=False)
 
-async def get_current_user(
-    request: Request,
-    redis_client: Redis = Depends(get_redis_client)
-):
-    token = request.cookies.get("auth")
-    if not token:
+
+
+async def get_current_user(token: str = Security(bearer_scheme), redis_client: Redis = Depends(get_redis_client)):
+    if not token or not token.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="未登录")
-
+    token = token.replace("Bearer ", "")
     is_login, info = decode_token(token)
     if not is_login:
         raise HTTPException(status_code=401, detail="token无效")

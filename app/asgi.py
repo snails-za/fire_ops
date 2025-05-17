@@ -3,32 +3,25 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from contextlib import asynccontextmanager
+
 import uvicorn
-from fastapi import FastAPI
+from fastapi import HTTPException, FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html, get_redoc_html
 
-from apps import init_routes, init_cors, init_static, init_db
-from config import DEBUG
+from apps.utils.redis_ import RedisManager
+from apps import create_app
 
 
-def create_app():
-    app = FastAPI(
-        title="FastAPI Demo",
-        description="This is a demo project for FastAPI",
-        version="0.1",
-        debug=DEBUG,
-        docs_url=None,
-        redoc_url=None
-    )
-    init_static(app)
-    init_cors(app)
-    init_db(app)
-    init_routes(app)
-    return app
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Starting up...")
+    await RedisManager.init()
+    yield
+    await RedisManager.close()
+    print("Finished up.")
 
-
-app = create_app()
-
+app = create_app(lifespan=lifespan)
 
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():

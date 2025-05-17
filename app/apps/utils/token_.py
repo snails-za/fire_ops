@@ -2,7 +2,7 @@ import time
 
 import jwt
 
-from settings import SECRET_KEY
+from config import SECRET_KEY
 
 
 def gen_token(user_id, login_time=time.time(), seconds=60):
@@ -41,6 +41,5 @@ def decode_token(token):
 if __name__ == '__main__':
     token = gen_token(1)
     print(token)
-    time.sleep(10)
     res = decode_token(token)
     print(res)

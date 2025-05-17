@@ -10,11 +10,9 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=8, max_length=20, title="密码", description="密码长度在8到20之间")
+    password: str = Field(..., min_length=8, max_length=100, title="密码", description="密码长度在8到20之间")
 
 
-class UserInDB(UserBase):
+
+class UserOut(UserBase):
     id: int
-
-    class Config:
-        orm_mode = True

@@ -1,12 +1,12 @@
 import os
 import importlib
 
-from fastapi import APIRouter
+from fastapi import APIRouter, FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 from tortoise.contrib.fastapi import register_tortoise
 
-import config
+from config import TORTOISE_ORM, DEBUG, STATIC_PATH
 
 router = APIRouter()
 
@@ -14,14 +14,14 @@ router = APIRouter()
 def init_db(app):
     register_tortoise(
         app,
-        config=config.TORTOISE_ORM,
+        config=TORTOISE_ORM,
         # generate_schemas=True if config.DEBUG else False,
-        add_exception_handlers=True if config.DEBUG else False
+        add_exception_handlers=True if DEBUG else False
     )
 
 
 def init_static(app):
-    app.mount("/static", StaticFiles(directory=config.STATIC_PATH), name="static")
+    app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 
 
 def init_cors(app):
@@ -54,6 +54,21 @@ def init_routes(app):
                     app.include_router(module.router, prefix="/api/v1")
 
 
+def create_app(lifespan=None):
+    app = FastAPI(
+        title="FastAPI Demo",
+        description="This is a demo project for FastAPI",
+        version="0.1",
+        debug=DEBUG,
+        docs_url=None,
+        redoc_url=None,
+        lifespan=lifespan
+    )
+    init_static(app)
+    init_cors(app)
+    init_db(app)
+    init_routes(app)
+    return app
 
 
 

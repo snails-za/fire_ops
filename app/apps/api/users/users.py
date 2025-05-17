@@ -1,10 +1,18 @@
+import time
 from typing import Union, Optional
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request, Depends
+from redis import Redis
 from tortoise.contrib.pydantic import pydantic_model_creator
+from tortoise.expressions import Q
 
-from apps.form.users.form import UserCreate
+from apps.form.users.form import UserCreate, UserOut
 from apps.models.user import User
 from apps.utils import response
+from apps.utils.aes_helper import decrypt
+from apps.utils.common import get_hash
+from apps.utils.redis_ import get_redis_client
+from apps.utils.token_ import gen_token
+from config import AES_KEY, MAX_AGE, REFLESH_MAX_AGE
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
 
@@ -12,12 +20,20 @@ User_Pydantic = pydantic_model_creator(User, name="User")
 UserIn_Pydantic = pydantic_model_creator(User, name="UserIn", exclude_readonly=True)
 
 
-@router.post("/create/", response_model=User_Pydantic, summary="创建用户", description="创建用户接口")
+@router.post("/register/", response_model=UserOut, summary="创建用户", description="创建用户接口")
 async def create_user(user: UserCreate):
+    # 判断用户名或邮箱是否已经被注册
+    if await User.filter(Q(username=user.username) | Q(email=user.email)).exists():
+        return response(code=0, message="用户名或邮箱已经被注册！")
+    try:
+        decrypt_pwd = decrypt(AES_KEY, user.password)
+    except Exception as e:
+        print(e)
+        return response(code=0, message="密码参数错误！")
     user_obj = await User.create(username=user.username, email=user.email,
-                                 hashed_password=user.password + "notreallyhashed")
+                                 hashed_password=get_hash(decrypt_pwd))
     data = await User_Pydantic.from_tortoise_orm(user_obj)
-    return response(data=data)
+    return response(data=data.model_dump(), message="注册成功！")
 
 
 @router.get("/detail/{user_id}", response_model=User_Pydantic, summary="用户详情", description="获取用户详情")
@@ -52,13 +68,25 @@ async def delete_user(user_id: int):
     return response(data={"deleted_count": deleted_count})
 
 
-@router.post("/uploadfile", summary="上传文件测试", description="上传文件测试接口")
-async def upload_file(filename: Union[str, None] = None, file: UploadFile = File(...)):
-    print(filename)
-    return response(data={"filename": file.filename})
-
-
-@router.post("/form", summary="获取表单数据", description="获取表单数据接口")
-async def get_form(username: str = Form(...), email: str = Form(...)):
-    print(username, email)
-    return response(data={"username": username, "email": email})
+@router.post("/login", summary="登录接口", description="登录接口")
+async def login(
+        username: str = Form(...),
+        password: str = Form(...),
+        redis_client: Redis = Depends(get_redis_client)  # 自动注入
+):
+    # 这里可以添加登录逻辑
+    print(username, password)
+    decrypt_pwd = decrypt(AES_KEY, password)
+    user = await User.get_or_none(username=username, hashed_password=get_hash(decrypt_pwd))
+    if not user:
+        return response(code=0, message="用户名或密码错误")
+    # 登录成功，返回用户信息
+    login_time = time.time()
+    token = gen_token(user.id, login_time, seconds=MAX_AGE)
+    await redis_client.set(f"token-{login_time}-{user.id}", token, MAX_AGE)
+    await redis_client.set(f"refresh_token-{login_time}-{user.id}", token, REFLESH_MAX_AGE)
+    # 设置cookie
+    resp = response(message="登录成功！")
+    resp.set_cookie(key="auth", value=token, httponly=True, max_age=MAX_AGE)
+    resp.set_cookie(key="refresh_token", value=token, httponly=True, max_age=REFLESH_MAX_AGE)
+    return resp

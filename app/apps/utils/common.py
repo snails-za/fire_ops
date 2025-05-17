@@ -1,4 +1,5 @@
 import base64
+import hashlib
 
 
 class Base64Util:
@@ -17,6 +18,13 @@ class Base64Util:
         return decoded_data.decode('utf-8')  # 返回解码后的字符串
 
 
+def get_hash(keyword: str) -> str:
+    md5 = hashlib.md5()
+    md5.update(keyword.encode('utf-8'))
+    return md5.hexdigest()
+
+
+
 # 使用示例
 if __name__ == "__main__":
     text = "971011"
@@ -28,3 +36,5 @@ if __name__ == "__main__":
     # 解码
     decoded = Base64Util.decode(encoded)
     print(f"Decoded: {decoded}")
+
+    print(get_hash("123456"))

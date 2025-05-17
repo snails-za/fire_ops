@@ -1,12 +1,14 @@
-# dependencies/auth.py
-
 from fastapi import Request, HTTPException, Depends
-from apps import cache
 from apps.models import User
 from apps.utils.token_ import decode_token
+from apps.utils.redis_ import get_redis_client
+from redis.asyncio import Redis
 
 
-def get_current_user(request: Request):
+async def get_current_user(
+    request: Request,
+    redis_client: Redis = Depends(get_redis_client)
+):
     token = request.cookies.get("auth")
     if not token:
         raise HTTPException(status_code=401, detail="未登录")
@@ -18,13 +20,20 @@ def get_current_user(request: Request):
     user_id = info.get("user_id")
     login_time = info.get("login_time")
 
-    if cache.get(f"token-{login_time}-{user_id}") != token:
+    redis_token_key = f"token-{login_time}-{user_id}"
+    redis_refresh_key = f"refresh_token-{login_time}-{user_id}"
+
+    # ✅ 使用 await 获取 Redis 中的值
+    stored_token = await redis_client.get(redis_token_key)
+    if stored_token != token:
         raise HTTPException(status_code=401, detail="登录失效")
 
-    if cache.get(f"refresh_token-{login_time}-{user_id}") != token:
+    refresh_token = await redis_client.get(redis_refresh_key)
+    if refresh_token != token:
         raise HTTPException(status_code=403, detail="请刷新token")
 
-    user = User.get(id=user_id)
+    # ✅ ORM 操作也要 await
+    user = await User.get_or_none(id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
 

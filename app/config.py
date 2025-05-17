@@ -8,6 +8,12 @@ config = Config()
 DEBUG = config("DEBUG", cast=bool, default=False)
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 STATIC_PATH = os.path.join(BASE_PATH, "static")
+
+# 刷新token时间【固定值，需要比MAX_AGE时间短】
+REFLESH_MAX_AGE = 60
+# 登录有效性 Token【可以数据库配置，需要大于 REFLESH_MAX_AGE】
+MAX_AGE = 60*60
+
 # 数据库配置
 DB_HOST = config("POSTGRES_HOST", default="localhost")
 DB_PORT = config("POSTGRES_PORT", cast=int, default=15432)
@@ -31,6 +37,12 @@ REDIS_HOST = config("REDIS_HOST", default="localhost")
 REDIS_PORT = config("REDIS_PORT", cast=int, default=16379)
 REDIS_PASSWORD = config("REDIS_PASSWORD", cast=str, default="")
 REDIS_DB = config("REDIS_DB", cast=int, default=0)
+
+# Session配置
+SECRET_KEY = "adjasdmasdjoqwijeqwbhfqwnqndaslmdlkas"
+
+# 密钥配置
+AES_KEY = config("AES_KEY", default="awkfjwhkgowkslg3")
 
 
 

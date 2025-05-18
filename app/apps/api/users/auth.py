@@ -1,3 +1,4 @@
+import base64
 import time
 
 from fastapi import Depends, Form, APIRouter
@@ -9,11 +10,24 @@ from apps.models import User
 from apps.utils import response
 from apps.utils.aes_helper import decrypt
 from apps.utils.common import get_hash
+from apps.utils.generate_captcha import generate_captcha
 from apps.utils.redis_ import get_redis_client
 from apps.utils.token_ import gen_token, decode_token
 from config import AES_KEY, MAX_AGE, REFLESH_MAX_AGE
 
 router = APIRouter(prefix="/auth", tags=["用户认证"])
+
+
+@router.get("/get_captcha", summary="获取验证码", description="获取验证码接口")
+async def get_captcha(redis_client: Redis = Depends(get_redis_client)):
+    captcha_image, captcha_id, captcha_text = generate_captcha(130, 35)
+    # 存储验证码，有效期为5分钟
+    await redis_client.set(captcha_id, captcha_text.lower(), 300)
+    # 将图片数据转换为 base64 编码
+    base64_image = base64.b64encode(captcha_image).decode('utf-8')
+    # 构造一个可以直接嵌入到 HTML 中的图片数据
+    base64_string = f"data:image/png;base64,{base64_image}"
+    return response(data={"captcha_id": captcha_id, "captcha": base64_string})
 
 
 @router.post("/login", summary="登录接口", response_model=TokenResponse, description="登录接口")

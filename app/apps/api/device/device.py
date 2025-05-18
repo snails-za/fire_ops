@@ -33,29 +33,14 @@ async def create_device(device: DeviceIn):
 
 
 @router.get("/list", response_model=list[Device_Pydantic], summary="设备列表", description="获取设备列表")
-async def device_list(
-        device_name: Optional[str] = None,
-        page: int = 1,
-        page_size: int = 10,
-        redis_client: Redis = Depends(get_redis_client),  # 自动注入
-        user: User = Depends(get_current_user)
-):
+async def device_list(device_name: Optional[str] = None, page: int = 1, page_size: int = 10):
     """
     获取设备列表
     :return:
     """
-    print(user.id)
-    value = await redis_client.set('name', '222')
-    print("=======")
-    print(value)
-    value = await redis_client.get('name')
-    print(value)
-    print("=======")
     conditions = []
-
     if device_name:
         conditions.append(Q(name__icontains=device_name))
-
     # 将组合条件传入 filter
     query = Device.filter(*conditions).order_by("-id").offset((page - 1) * page_size).limit(page_size)
     res = await Device_Pydantic.from_queryset(query)

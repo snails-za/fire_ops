@@ -35,7 +35,7 @@ async def login(username: str = Form(...), password: str = Form(...), redis_clie
     # 这里可以添加登录逻辑
     print(username, password)
     decrypt_pwd = decrypt(AES_KEY, password)
-    user = await User.get_or_none(username=username, hashed_password=get_hash(decrypt_pwd))
+    user = await User.get_or_none(username=username, password=get_hash(decrypt_pwd))
     if not user:
         return response(code=0, message="用户名或密码错误")
     # 登录成功，返回用户信息

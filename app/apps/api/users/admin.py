@@ -14,7 +14,7 @@ from config import AES_KEY
 
 router = APIRouter(prefix="/admin", tags=["用户管理"])
 
-User_Pydantic = pydantic_model_creator(User, name="User", exclude=("hashed_password",))
+User_Pydantic = pydantic_model_creator(User, name="User", exclude=("password",))
 
 
 @router.get("/list", summary="用户列表", description="获取用户列表", dependencies=[Depends(get_current_user)])

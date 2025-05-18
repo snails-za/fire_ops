@@ -44,5 +44,8 @@ SECRET_KEY = "adjasdmasdjoqwijeqwbhfqwnqndaslmdlkas"
 # 密钥配置
 AES_KEY = config("AES_KEY", default="awkfjwhkgowkslg3")
 
+# 数据库迁移安全模式：1表示安全模式，0表示非安全模式
+AERICH_SAFE_MODE = config("AERICH_SAFE_MODE", cast=int, default=1)
+
 
 

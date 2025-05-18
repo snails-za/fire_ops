@@ -12,13 +12,13 @@ async def swiper_data():
     :return:
     """
     data = [
-        {"id": 3, "title": "设备3", "image": "http://127.0.0.1:8000/static/images/device/image3.jpeg"},
-        {"id": 2, "title": "设备2", "image": "http://127.0.0.1:8000/static/images/device/image2.jpeg"},
-        {"id": 4, "title": "设备4", "image": "http://127.0.0.1:8000/static/images/device/image4.jpeg"},
-        {"id": 1, "title": "设备1", "image": "http://127.0.0.1:8000/static/images/device/image1.jpeg"},
-        {"id": 5, "title": "设备5", "image": "http://127.0.0.1:8000/static/images/device/image5.jpeg"},
-        {"id": 6, "title": "设备6", "image": "http://127.0.0.1:8000/static/images/device/image6.jpeg"},
-        {"id": 7, "title": "设备7", "image": "http://127.0.0.1:8000/static/images/device/image7.jpeg"},
+        {"id": 3, "title": "设备3", "image": "/static/images/device/image3.jpeg"},
+        {"id": 2, "title": "设备2", "image": "/static/images/device/image2.jpeg"},
+        {"id": 4, "title": "设备4", "image": "/static/images/device/image4.jpeg"},
+        {"id": 1, "title": "设备1", "image": "/static/images/device/image1.jpeg"},
+        {"id": 5, "title": "设备5", "image": "/static/images/device/image5.jpeg"},
+        {"id": 6, "title": "设备6", "image": "/static/images/device/image6.jpeg"},
+        {"id": 7, "title": "设备7", "image": "/static/images/device/image7.jpeg"},
 
     ]
     return response(data=data)

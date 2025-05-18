@@ -43,7 +43,7 @@ async def create_user(user: UserCreate):
         print(e)
         return response(code=0, message="密码参数错误！")
     user_obj = await User.create(username=user.username, email=user.email,
-                                 hashed_password=get_hash(decrypt_pwd))
+                                 password=get_hash(decrypt_pwd))
     data = await User_Pydantic.from_tortoise_orm(user_obj)
     return response(data=data.model_dump(), message="注册成功！")
 
@@ -61,7 +61,7 @@ async def update_user(user_id: int, user: UserCreate):
     await User.filter(id=user_id).update(
         username=user.username,
         email=user.email,
-        hashed_password=get_hash(decrypt_pwd)
+        password=get_hash(decrypt_pwd)
     )
     user_obj = await User.get(id=user_id)
     data = await User_Pydantic.from_tortoise_orm(user_obj)

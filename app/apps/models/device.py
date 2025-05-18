@@ -5,7 +5,7 @@ from apps.models.base import BaseModel
 
 class Device(BaseModel):
     id = fields.IntField(pk=True)
-    name = fields.CharField(max_length=100, null=True, description="设备名称")
+    name = fields.CharField(max_length=100, null=True, index=True, description="设备名称")
     address = fields.CharField(max_length=100, null=True, description="地址")
     location = fields.JSONField(null=True, description="设备位置")
     image = fields.CharField(max_length=255, null=True, description="图片路径")

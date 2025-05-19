@@ -1,3 +1,5 @@
+from typing import List
+
 from tortoise import fields
 
 from apps.models.base import BaseModel
@@ -8,10 +10,12 @@ class Device(BaseModel):
     name = fields.CharField(max_length=100, null=True, index=True, description="设备名称")
     address = fields.CharField(max_length=100, null=True, description="地址")
     location = fields.JSONField(null=True, description="设备位置")
-    image = fields.CharField(max_length=255, null=True, description="图片路径")
+    images: List[str] = fields.JSONField(null=True, description="设备图片")
     status = fields.CharField(max_length=50, null=True,description="设备状态")
     install_date = fields.DateField(null=True, description="安装日期")
-    bak = fields.TextField(null=True, description="备注")
+    installer = fields.CharField(max_length=50, null=True, description="安装人")
+    contact = fields.CharField(max_length=11, null=True, description="联系人")
+    remark = fields.TextField(null=True, description="备注")
 
     class Meta:
         table = "device"

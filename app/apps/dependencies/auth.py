@@ -28,11 +28,11 @@ async def get_current_user(token: HTTPAuthorizationCredentials = Security(bearer
     # ✅ 直接获取 token 的值
     token = token.credentials
     if not token:
-        raise HTTPException(status_code=401, detail="未登录")
+        raise HTTPException(status_code=401, detail="登录失效， 请重新登录！")
     token = token.replace("Bearer ", "")
     is_login, info = decode_token(token)
     if not is_login:
-        raise HTTPException(status_code=401, detail="token无效")
+        raise HTTPException(status_code=401, detail="登录失效， 请重新登录！")
 
     user_id = info.get("user_id")
     login_time = info.get("login_time")
@@ -43,7 +43,7 @@ async def get_current_user(token: HTTPAuthorizationCredentials = Security(bearer
     # ✅ 使用 await 获取 Redis 中的值
     stored_token = await redis_client.get(redis_token_key)
     if stored_token != token:
-        raise HTTPException(status_code=401, detail="登录失效")
+        raise HTTPException(status_code=401, detail="登录失效， 请重新登录！")
 
     refresh_token = await redis_client.get(redis_refresh_key)
     if refresh_token != token:
@@ -52,6 +52,6 @@ async def get_current_user(token: HTTPAuthorizationCredentials = Security(bearer
     # ✅ ORM 操作也要 await
     user = await User.get_or_none(id=user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
+        raise HTTPException(status_code=401, detail="用户不存在! 请重新登录")
 
     return user

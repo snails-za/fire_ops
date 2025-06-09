@@ -1,11 +1,13 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from apps.dependencies.auth import get_current_user
 from apps.utils import response
 
 router = APIRouter(prefix="/common", tags=["公共接口"])
 
 
 
-@router.get("/swiper", summary="轮播图", description="获取轮播图")
+@router.get("/swiper", summary="轮播图", description="获取轮播图", dependencies=[Depends(get_current_user)])
 async def swiper_data():
     """
     获取设备列表
@@ -24,7 +26,7 @@ async def swiper_data():
     return response(data=data)
 
 
-@router.get("/notice", summary="公告", description="获取公告")
+@router.get("/notice", summary="公告", description="获取公告", dependencies=[Depends(get_current_user)])
 async def get_notice():
     """
     获取设备列表

@@ -3,6 +3,7 @@ import time
 
 from fastapi import Depends, Form, APIRouter
 from redis import Redis
+from tortoise.contrib.pydantic import pydantic_model_creator
 
 from apps.dependencies.auth import get_token_str, get_current_user
 from apps.form.users.form import TokenResponse
@@ -16,6 +17,17 @@ from apps.utils.token_ import gen_token, decode_token
 from config import AES_KEY, MAX_AGE, REFLESH_MAX_AGE
 
 router = APIRouter(prefix="/auth", tags=["用户认证"])
+User_Pydantic = pydantic_model_creator(User, name="User", exclude=("password",))
+
+@router.get("/check_login", summary="检查登录状态", description="检查登录状态接口")
+async def check_login(user: User = Depends(get_current_user)):
+    """
+    检查登录状态
+    :param user:
+    :return:
+    """
+    data = await User_Pydantic.from_tortoise_orm(user)
+    return response(message="已登录", data=data.model_dump())
 
 
 @router.get("/get_captcha", summary="获取验证码", description="获取验证码接口")
@@ -31,7 +43,11 @@ async def get_captcha(redis_client: Redis = Depends(get_redis_client)):
 
 
 @router.post("/login", summary="登录接口", response_model=TokenResponse, description="登录接口")
-async def login(username: str = Form(...), password: str = Form(...), redis_client: Redis = Depends(get_redis_client)):
+async def login(
+        username: str = Form(...),
+        password: str = Form(...),
+        redis_client: Redis = Depends(get_redis_client)
+):
     # 这里可以添加登录逻辑
     print(username, password)
     decrypt_pwd = decrypt(AES_KEY, password)

@@ -2,10 +2,11 @@ import os
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Depends
 from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
+from apps.dependencies.auth import get_current_user
 from apps.form.device.device import DeviceOut, DeviceIn
 from apps.models import Device
 from apps.utils import response
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/device", tags=["设备管理"])
 Device_Pydantic = pydantic_model_creator(Device, name="Device", exclude=("id",))
 
 
-@router.post("/upload/image", summary="图像上传接口", description="图像上传接口")
+@router.post("/upload/image", summary="图像上传接口", description="图像上传接口", dependencies=[Depends(get_current_user)])
 async def upload_image(file: UploadFile = File(...)):
     ext = os.path.splitext(file.filename)[-1]
     filename = f"{uuid.uuid4().hex}{ext}"
@@ -29,7 +30,7 @@ async def upload_image(file: UploadFile = File(...)):
 
 
 
-@router.post("/create", response_model=DeviceOut, summary="创建设备", description="创建设备接口")
+@router.post("/create", response_model=DeviceOut, summary="创建设备", description="创建设备接口", dependencies=[Depends(get_current_user)])
 async def create_device(device: DeviceIn):
     """
     创建设备
@@ -45,7 +46,7 @@ async def create_device(device: DeviceIn):
     return response(data=data.model_dump())
 
 
-@router.get("/list", response_model=list[Device_Pydantic], summary="设备列表", description="获取设备列表")
+@router.get("/list", response_model=list[Device_Pydantic], summary="设备列表", description="获取设备列表", dependencies=[Depends(get_current_user)])
 async def device_list(device_name: Optional[str] = None, page: int = 1, page_size: int = 10):
     """
     获取设备列表

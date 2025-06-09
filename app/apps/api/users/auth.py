@@ -84,7 +84,7 @@ async def logout(
     return response(message="注销成功！")
 
 
-@router.get("/refresh_token", summary="刷新token", description="刷新token接口", dependencies=[Depends(get_current_user)])
+@router.get("/refresh_token", summary="刷新token", description="刷新token接口")
 async def refresh_token(
         redis_client: Redis = Depends(get_redis_client),
         token: str = Depends(get_token_str),

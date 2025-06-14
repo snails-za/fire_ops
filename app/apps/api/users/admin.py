@@ -46,8 +46,7 @@ async def user_list(username: Optional[str] = None, page: int = 1, page_size: in
     return response(data=data, total=total, total_page=total_page, message="获取用户列表成功！")
 
 
-@router.post("/register/", response_model=User_Pydantic, summary="注册用户", description="创建用户接口",
-             dependencies=[Depends(get_current_user)])
+@router.post("/register", response_model=User_Pydantic, summary="注册用户", description="创建用户接口")
 async def create_user(user: UserCreate):
     # 判断用户名或邮箱是否已经被注册
     if await User.filter(Q(username=user.username) | Q(email=user.email)).exists():

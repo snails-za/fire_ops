@@ -46,6 +46,8 @@ async def get_captcha(redis_client: Redis = Depends(get_redis_client)):
 async def login(
         username: str = Form(...),
         password: str = Form(...),
+        captcha_text: str = Form(...),
+        captcha_id: str = Form(...),
         redis_client: Redis = Depends(get_redis_client)
 ):
     # 这里可以添加登录逻辑
@@ -53,7 +55,13 @@ async def login(
     decrypt_pwd = decrypt(AES_KEY, password)
     user = await User.get_or_none(username=username, password=get_hash(decrypt_pwd))
     if not user:
-        return response(code=0, message="用户名或密码错误")
+        return response(code=401, message="用户名或密码错误")
+    session_captcha_text = await redis_client.get(captcha_id)
+    print(session_captcha_text, captcha_text)
+    if not session_captcha_text or session_captcha_text.lower() != captcha_text.lower():
+        return response(code=401, message="验证码错误或已过期，请重新获取验证码！")
+    # 删除验证码，避免重复使用
+    await redis_client.delete(captcha_id)
     # 登录成功，返回用户信息
     login_time = time.time()
     token = gen_token(user.id, login_time, seconds=MAX_AGE)

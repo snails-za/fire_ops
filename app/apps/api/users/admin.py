@@ -1,6 +1,9 @@
+import os
+import random
+import uuid
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
@@ -10,11 +13,23 @@ from apps.models.user import User
 from apps.utils import response
 from apps.utils.aes_helper import decrypt
 from apps.utils.common import get_hash
-from config import AES_KEY
+from config import AES_KEY, STATIC_PATH
 
 router = APIRouter(prefix="/admin", tags=["用户管理"])
 
 User_Pydantic = pydantic_model_creator(User, name="User", exclude=("password",))
+
+
+@router.post("/upload/image", summary="图像上传接口", description="图像上传接口", dependencies=[Depends(get_current_user)])
+async def upload_image(file: UploadFile = File(...)):
+    ext = os.path.splitext(file.filename)[-1]
+    filename = f"{uuid.uuid4().hex}{ext}"
+    save_path = os.path.join(STATIC_PATH, "images", "user", filename)
+
+    with open(save_path, "wb") as f:
+        f.write(await file.read())
+
+    return response(data={"filepath": os.path.join("/", "static", "images", "user", filename)}, message="上传成功")
 
 
 @router.get("/list", summary="用户列表", description="获取用户列表", dependencies=[Depends(get_current_user)])
@@ -42,8 +57,9 @@ async def create_user(user: UserCreate):
     except Exception as e:
         print(e)
         return response(code=0, message="密码参数错误！")
+    heads = os.listdir(os.path.join(STATIC_PATH, "images", "user", "demo"))
     user_obj = await User.create(username=user.username, email=user.email,
-                                 password=get_hash(decrypt_pwd))
+                                 password=get_hash(decrypt_pwd), head=os.path.join(STATIC_PATH, "images", "user", "demo", random.choice(heads)))
     data = await User_Pydantic.from_tortoise_orm(user_obj)
     return response(data=data.model_dump(), message="注册成功！")
 
@@ -63,6 +79,8 @@ async def update_user(user_id: int, user: UserCreate):
         email=user.email,
         password=get_hash(decrypt_pwd)
     )
+    if user.head:
+        await User.filter(id=user_id).update(head=user.head)
     user_obj = await User.get(id=user_id)
     data = await User_Pydantic.from_tortoise_orm(user_obj)
     return response(data=data.model_dump(), message="更新成功！")

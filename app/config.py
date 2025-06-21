@@ -27,11 +27,14 @@ TORTOISE_ORM = {
     },
     "apps": {
         "models": {
-            "models": ["aerich.models", "apps.models"],
+            "models": ["aerich.models"],
             "default_connection": "default",
         }
     },
 }
+for _ in os.listdir(os.path.join("apps", "models")):
+    if _.endswith(".py") and _ != "__init__.py":
+        TORTOISE_ORM["apps"]["models"]["models"].append(f"apps.models.{_.split('.')[0]}")
 
 REDIS_HOST = config("REDIS_HOST", default="localhost")
 REDIS_PORT = config("REDIS_PORT", cast=int, default=16379)

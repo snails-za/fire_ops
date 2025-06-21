@@ -11,30 +11,16 @@ RUN set -ex && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list && \
     echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
     apt-get update  && \
-    apt-get install -y gcc libffi-dev libssl-dev make libpq-dev  && \
+    apt-get install -y gcc libffi-dev libssl-dev make libpq-dev libpq5 vim ncurses-bin  && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-COPY ./app /app
-WORKDIR /app
-RUN python -m venv venv &&  \
-    source venv/bin/activate && \
-    pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 运行阶段
 FROM base
 
-COPY --from=builder /app /app
+COPY ./app /app
 WORKDIR /app
 
-RUN set -ex && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian-security bullseye-security main contrib non-free" >> /etc/apt/sources.list && \
-    apt-get update  && \
-    apt-get install -y libpq5 vim ncurses-bin && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-CMD ["venv/bin/gunicorn", "asgi:app", "-b", "0.0.0.0:8000", "-k", "uvicorn.workers.UvicornWorker"]
+CMD ["gunicorn", "asgi:app", "-b", "0.0.0.0:8000", "-k", "uvicorn.workers.UvicornWorker"]

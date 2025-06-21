@@ -7,7 +7,7 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 
 from apps.dependencies.auth import get_token_str, get_current_user
 from apps.form.users.form import TokenResponse
-from apps.models import User
+from apps.models.user import User
 from apps.utils import response
 from apps.utils.aes_helper import decrypt
 from apps.utils.common import get_hash

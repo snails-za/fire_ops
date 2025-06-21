@@ -8,7 +8,7 @@ from tortoise.expressions import Q
 
 from apps.dependencies.auth import get_current_user
 from apps.form.device.device import DeviceOut, DeviceIn
-from apps.models import Device
+from apps.models.device import Device
 from apps.utils import response
 from config import STATIC_PATH
 

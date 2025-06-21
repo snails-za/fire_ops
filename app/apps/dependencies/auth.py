@@ -1,7 +1,7 @@
 from fastapi import HTTPException, Depends, Security
 from fastapi.security import APIKeyHeader, HTTPBearer, HTTPAuthorizationCredentials
 
-from apps.models import User
+from apps.models.user import User
 from apps.utils.token_ import decode_token
 from apps.utils.redis_ import get_redis_client
 from redis.asyncio import Redis

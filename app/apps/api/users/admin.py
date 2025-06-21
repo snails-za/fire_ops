@@ -111,6 +111,8 @@ async def add_contact(user_id: int, user: User = Depends(get_current_user)):
     contact_user = await User.get_or_none(id=user_id)
     if not contact_user:
         return response(code=0, message="用户不存在！")
+    if await Contact.filter(user=user, contact=contact_user).exists():
+        return response(code=0, message="联系人已存在！")
     # 这里可以添加添加联系人逻辑
     await Contact.create(user=user, contact=contact_user)
     return response(message="联系人添加成功！")

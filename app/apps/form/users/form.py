@@ -8,7 +8,7 @@ class TokenResponse(BaseModel):
 
 
 class UserBase(BaseModel):
-    username: str = Field(..., min_length=3, max_length=20, title="用户名", description="用户名长度在3到20之间")
+    username: str = Field(..., min_length=2, max_length=20, title="用户名", description="用户名长度在3到20之间")
     head: Optional[str] = Field(None, title="头像", description="头像路径")
     email: Optional[str] = Field(None, pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", title="邮箱",
                        description="邮箱格式不正确")

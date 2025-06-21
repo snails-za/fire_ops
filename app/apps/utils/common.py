@@ -1,6 +1,8 @@
 import base64
 import hashlib
 
+from pypinyin import lazy_pinyin
+
 
 class Base64Util:
     @staticmethod
@@ -23,6 +25,10 @@ def get_hash(keyword: str) -> str:
     md5.update(keyword.encode('utf-8'))
     return md5.hexdigest()
 
+
+def get_pinyin(name: str) -> str:
+    py = lazy_pinyin(name)
+    return py[0][0].lower() if py else '#'
 
 
 # 使用示例

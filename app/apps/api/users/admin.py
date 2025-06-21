@@ -9,7 +9,7 @@ from tortoise.expressions import Q
 
 from apps.dependencies.auth import get_current_user
 from apps.form.users.form import UserCreate
-from apps.models.user import User
+from apps.models.user import User, Contact
 from apps.utils import response
 from apps.utils.aes_helper import decrypt
 from apps.utils.common import get_hash
@@ -102,3 +102,33 @@ async def delete_user(user_id: int, user: User = Depends(get_current_user)):
         return response(code=0, message="不允许删除自身账号！")
     user_id = await User.filter(id=user_id).delete()
     return response(data={"id": user_id})
+
+
+@router.post("/add/contact/{user_id}", summary="添加联系人", description="添加联系人", dependencies=[Depends(get_current_user)])
+async def add_contact(user_id: int, user: User = Depends(get_current_user)):
+    if user.id == user_id:
+        return response(code=0, message="不允许添加自己为联系人！")
+    contact_user = await User.get_or_none(id=user_id)
+    if not contact_user:
+        return response(code=0, message="用户不存在！")
+    # 这里可以添加添加联系人逻辑
+    await Contact.create(user=user, contact=contact_user)
+    return response(message="联系人添加成功！")
+
+
+@router.get("/contacts", summary="获取联系人列表", description="获取联系人列表", dependencies=[Depends(get_current_user)])
+async def get_contacts(user: User = Depends(get_current_user)):
+    contacts = await Contact.filter(user=user).prefetch_related("contact")
+    contact_list = [await User_Pydantic.from_tortoise_orm(contact.contact) for contact in contacts]
+    return response(data=[contact.model_dump() for contact in contact_list], message="获取联系人列表成功！")
+
+
+@router.delete("/contact/{contact_id}", summary="删除联系人", description="删除联系人", dependencies=[Depends(get_current_user)])
+async def delete_contact(contact_id: int, user: User = Depends(get_current_user)):
+    contact = await Contact.get_or_none(user=user, contact_id=contact_id)
+    if not contact:
+        return response(code=0, message="联系人不存在！")
+    if contact.contact.id == user.id:
+        return response(code=0, message="不允许删除自己为联系人！")
+    await contact.delete()
+    return response(message="联系人删除成功！")

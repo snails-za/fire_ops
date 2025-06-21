@@ -9,3 +9,13 @@ class User(BaseModel):
     email = fields.CharField(null=True, max_length=50, unique=True, index=True, description="邮箱")
     password = fields.CharField(max_length=128, null=True, description="密码")
     head = fields.CharField(max_length=255, null=True, description="头像")
+
+
+class Contact(BaseModel):
+    id = fields.IntField(pk=True, description="联系人ID")
+    user = fields.ForeignKeyField("models.User", related_name="contacted_by", on_delete=fields.CASCADE,
+                                  description="用户")
+    contact = fields.ForeignKeyField("models.User", related_name="contact", on_delete=fields.CASCADE,
+                                     description="联系人")
+
+

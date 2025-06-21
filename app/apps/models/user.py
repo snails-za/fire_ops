@@ -19,5 +19,7 @@ class Contact(BaseModel):
     contact = fields.ForeignKeyField("models.User", related_name="contact", on_delete=fields.CASCADE,
                                      description="联系人")
     is_star = fields.BooleanField(default=False, description="是否星标")
+    is_accept = fields.BooleanField(default=False, description="是否接受")
+    bak = fields.TextField(null=True, description="备注")
 
 

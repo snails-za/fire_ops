@@ -105,7 +105,7 @@ async def delete_user(user_id: int, user: User = Depends(get_current_user)):
 
 
 @router.post("/add/contact/{user_id}", summary="添加联系人", description="添加联系人", dependencies=[Depends(get_current_user)])
-async def add_contact(user_id: int, user: User = Depends(get_current_user)):
+async def add_contact(user_id: int, bak: Optional[str], user: User = Depends(get_current_user)):
     if user.id == user_id:
         return response(code=0, message="不允许添加自己为联系人！")
     contact_user = await User.get_or_none(id=user_id)
@@ -114,13 +114,13 @@ async def add_contact(user_id: int, user: User = Depends(get_current_user)):
     if await Contact.filter(user=user, contact=contact_user).exists():
         return response(code=0, message="联系人已存在！")
     # 这里可以添加添加联系人逻辑
-    await Contact.create(user=user, contact=contact_user)
+    await Contact.create(user=user, contact=contact_user, bak=bak)
     return response(message="联系人添加成功！")
 
 
 @router.get("/contacts", summary="获取联系人列表", description="获取联系人列表", dependencies=[Depends(get_current_user)])
 async def get_contacts(user: User = Depends(get_current_user)):
-    contacts = await Contact.filter(user=user).prefetch_related("contact")
+    contacts = await Contact.filter(user=user, is_accept=True).prefetch_related("contact")
     contact_list = []
     for item in contacts:
         obj = await User_Pydantic.from_tortoise_orm(item.contact)

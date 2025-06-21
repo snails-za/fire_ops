@@ -1,5 +1,5 @@
-# FastApi-Demo
-本项目是一个基于FastApi的后端项目，主要用于学习FastApi框架。
+# 消安云管
+本项目是一个基于FastApi的后端项目，主要用于消费设备管理。
 
 ## 前言
 
@@ -12,7 +12,7 @@
 ## 项目结构
 
 ```
-fastapi-demo
+fire_ops
 ├── app
 │   ├── apps
 │   │   ├── __init__.py
@@ -75,7 +75,7 @@ sh build.sh
 ```
 
 ## 部署
-建议采用docker swarm部署，可以参考部署仓库：[docker-swarm-deploy](https://github.com/snails-za/fastapi_demo_deploy)
+建议采用docker swarm部署，可以参考部署仓库：[docker-swarm-deploy](https://github.com/snails-za/fire_ops_deploy)
 
 
 

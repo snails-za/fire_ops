@@ -140,20 +140,17 @@ async def delete_contact(contact_id: int, user: User = Depends(get_current_user)
     await contact.delete()
     return response(message="联系人删除成功！")
 
-
-# 查询所有的已通过、待通过、拒绝的申请
 @router.get("/contacts/apply", summary="获取联系人申请列表", description="获取联系人申请列表", dependencies=[Depends(get_current_user)])
 async def get_contacts_apply(user: User = Depends(get_current_user)):
-    res = {"accept": [], "reject": [], "wait_processed": []}
+    res = {"processed": [], "wait_processed": []}
     contacts = await Contact.filter(user=user.id).order_by("-id").prefetch_related("contact")
     for item in contacts:
         obj = await User_Pydantic.from_tortoise_orm(item.contact)
         contact = obj.model_dump()
         contact["bak"] = item.bak
-        if item.is_accept ==  True:
-            res["accept"].append(contact)
-        elif item.is_accept == False:
-            res["reject"].append(contact)
+        contact["is_accept"] = item.is_accept
+        if item.is_accept in (True, False):
+            res["processed"].append(contact)
         else:
             res["wait_processed"].append(contact)
     return response(data=res)

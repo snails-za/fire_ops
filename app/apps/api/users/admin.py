@@ -166,10 +166,9 @@ async def get_contacts_apply(user: User = Depends(get_current_user)):
 
 @router.put("/apply/{id}", summary="处理申请", description="处理申请", dependencies=[Depends(get_current_user)])
 async def process_apply(id: int, accept: bool):
-    apply = await FriendRequest.get(id=id)
-    if not apply:
+    if not await FriendRequest.filter(id=id).exists():
         return response(code=400, message="申请不存在")
-    await apply.update(is_accept=accept).apply()
-    return response(data=apply)
+    await FriendRequest.filter(id=id).update(is_accept=accept)
+    return response(message="更新成功")
 
 

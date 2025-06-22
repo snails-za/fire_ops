@@ -113,6 +113,8 @@ async def add_contact(user_id: int, bak: Optional[str] = None, user: User = Depe
         return response(code=0, message="用户不存在！")
     if await FriendRequest.filter(Q(requester=user, receiver=contact_user) | Q(requester=contact_user, receiver=user), is_accept=True).exists():
         return response(code=0, message="联系人已存在！")
+    if  await FriendRequest.filter(requester=contact_user, receiver=user, is_accept=None).exists():
+        return response(code=0, message="对方已经向您发起好友申请！请处理申请！")
     if  await FriendRequest.filter(requester=user, receiver=contact_user, is_accept=None).exists():
         return response(message="联系人添加成功！等待通过审核！")
     # 这里可以添加添加联系人逻辑

@@ -9,7 +9,7 @@ from tortoise.expressions import Q
 
 from apps.dependencies.auth import get_current_user
 from apps.form.users.form import UserCreate
-from apps.models.user import User, Contact
+from apps.models.user import User, FriendRequest
 from apps.utils import response
 from apps.utils.aes_helper import decrypt
 from apps.utils.common import get_hash, get_pinyin
@@ -105,37 +105,43 @@ async def delete_user(user_id: int, user: User = Depends(get_current_user)):
 
 
 @router.post("/add/contact/{user_id}", summary="添加联系人", description="添加联系人", dependencies=[Depends(get_current_user)])
-async def add_contact(user_id: int, bak: Optional[str], user: User = Depends(get_current_user)):
+async def add_contact(user_id: int, bak: Optional[str] = None, user: User = Depends(get_current_user)):
     if user.id == user_id:
         return response(code=0, message="不允许添加自己为联系人！")
     contact_user = await User.get_or_none(id=user_id)
     if not contact_user:
         return response(code=0, message="用户不存在！")
-    if await Contact.filter(user=user, contact=contact_user).exists():
+    if await FriendRequest.filter(requester=user, receiver=contact_user).exists():
         return response(code=0, message="联系人已存在！")
     # 这里可以添加添加联系人逻辑
-    await Contact.create(user=user, contact=contact_user, bak=bak)
+    await FriendRequest.create(requester=user, receiver=contact_user, bak=bak)
     return response(message="联系人添加成功！")
 
 
 @router.get("/contacts", summary="获取联系人列表", description="获取联系人列表", dependencies=[Depends(get_current_user)])
 async def get_contacts(user: User = Depends(get_current_user)):
-    contacts = await Contact.filter(user=user, is_accept=True).prefetch_related("contact")
-    contact_list = []
-    for item in contacts:
-        obj = await User_Pydantic.from_tortoise_orm(item.contact)
-        contact = obj.model_dump()
-        contact["is_star"] = item.is_star
-        contact_list.append(contact)
-    return response(data=contact_list, message="获取联系人列表成功！")
+    requests = await FriendRequest.filter(
+        Q(requester=user) | Q(receiver=user),
+        is_accept=True
+      ).prefetch_related("requester", "receiver")
+    friends = []
+    for req in requests:
+        if req.requester.id == user.id:
+            friend = await User_Pydantic.from_tortoise_orm(await req.receiver)
+        else:
+            friend = await User_Pydantic.from_tortoise_orm(await req.requester)
+        data = friend.model_dump()
+        data["is_star"] = req.is_star
+        friends.append(data)
+    return response(data=friends, message="获取联系人列表成功！")
 
 
 @router.delete("/contact/{contact_id}", summary="删除联系人", description="删除联系人", dependencies=[Depends(get_current_user)])
 async def delete_contact(contact_id: int, user: User = Depends(get_current_user)):
-    contact = await Contact.get_or_none(user=user, contact_id=contact_id)
+    contact = await FriendRequest.get_or_none(requester=user, receiver=contact_id)
     if not contact:
         return response(code=0, message="联系人不存在！")
-    if contact.contact.id == user.id:
+    if contact.receiver.id == user.id:
         return response(code=0, message="不允许删除自己为联系人！")
     await contact.delete()
     return response(message="联系人删除成功！")
@@ -143,9 +149,9 @@ async def delete_contact(contact_id: int, user: User = Depends(get_current_user)
 @router.get("/contacts/apply", summary="获取联系人申请列表", description="获取联系人申请列表", dependencies=[Depends(get_current_user)])
 async def get_contacts_apply(user: User = Depends(get_current_user)):
     res = {"processed": [], "wait_processed": []}
-    contacts = await Contact.filter(user=user.id).order_by("-id").prefetch_related("contact")
-    for item in contacts:
-        obj = await User_Pydantic.from_tortoise_orm(item.contact)
+    friends = await FriendRequest.filter(receiver=user.id).order_by("-id").prefetch_related("requester", "receiver")
+    for item in friends:
+        obj = await User_Pydantic.from_tortoise_orm(item.requester)
         contact = obj.model_dump()
         contact["bak"] = item.bak
         contact["is_accept"] = item.is_accept

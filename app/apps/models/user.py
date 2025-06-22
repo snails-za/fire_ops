@@ -12,12 +12,12 @@ class User(BaseModel):
     pinyin = fields.CharField(max_length=255, null=True, description="用户名首字母")
 
 
-class Contact(BaseModel):
+class FriendRequest(BaseModel):
     id = fields.IntField(pk=True, description="联系人ID")
-    user = fields.ForeignKeyField("models.User", related_name="contacted_by", on_delete=fields.CASCADE,
-                                  description="用户")
-    contact = fields.ForeignKeyField("models.User", related_name="contact", on_delete=fields.CASCADE,
-                                     description="联系人")
+    requester = fields.ForeignKeyField("models.User", related_name="sent_requests", on_delete=fields.CASCADE,
+                                  description="申请人")
+    receiver = fields.ForeignKeyField("models.User", related_name="received_requests", on_delete=fields.CASCADE,
+                                     description="接收人")
     is_star = fields.BooleanField(default=False, description="是否星标")
     is_accept = fields.BooleanField(default=None, null=True, description="是否接受")
     bak = fields.TextField(null=True, description="备注")

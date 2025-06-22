@@ -127,12 +127,14 @@ async def get_contacts(user: User = Depends(get_current_user)):
     friends = []
     for req in requests:
         if req.requester.id == user.id:
-            friend = await User_Pydantic.from_tortoise_orm(await req.receiver)
+            friend_user = req.receiver
         else:
-            friend = await User_Pydantic.from_tortoise_orm(await req.requester)
-        data = friend.model_dump()
-        data["is_star"] = req.is_star
-        friends.append(data)
+            friend_user = req.requester
+        friend = await User_Pydantic.from_tortoise_orm(friend_user)
+        friend_data = friend.model_dump()
+        # 添加 is_star 字段
+        friend_data["is_star"] = req.is_star
+        friends.append(friend_data)
     return response(data=friends, message="获取联系人列表成功！")
 
 
@@ -149,17 +151,25 @@ async def delete_contact(contact_id: int, user: User = Depends(get_current_user)
 @router.get("/contacts/apply", summary="获取联系人申请列表", description="获取联系人申请列表", dependencies=[Depends(get_current_user)])
 async def get_contacts_apply(user: User = Depends(get_current_user)):
     res = {"processed": [], "wait_processed": []}
-    friends = await FriendRequest.filter(receiver=user.id).order_by("-id").prefetch_related("requester", "receiver")
-    for item in friends:
-        obj = await User_Pydantic.from_tortoise_orm(item.requester)
-        contact = obj.model_dump()
-        contact["bak"] = item.bak
-        contact["is_accept"] = item.is_accept
-        if item.is_accept in (True, False):
-            res["processed"].append(contact)
+    requests = await FriendRequest.filter(receiver=user.id).order_by("-id").prefetch_related("requester", "receiver")
+    for req in requests:
+        friend = await User_Pydantic.from_tortoise_orm(req.requester)
+        friend_data = friend.model_dump()
+        friend_data["bak"] = req.bak
+        friend_data["is_accept"] = req.is_accept
+        if req.is_accept in (True, False):
+            res["processed"].append(friend_data)
         else:
-            res["wait_processed"].append(contact)
+            res["wait_processed"].append(friend_data)
     return response(data=res)
 
+
+@router.put("/apply/{id}", summary="处理申请", description="处理申请", dependencies=[Depends(get_current_user)])
+async def process_apply(id: int, accept: bool):
+    apply = await FriendRequest.get(id=id)
+    if not apply:
+        return response(code=400, message="申请不存在")
+    await apply.update(is_accept=accept).apply()
+    return response(data=apply)
 
 

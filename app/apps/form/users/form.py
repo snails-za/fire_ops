@@ -18,3 +18,5 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100, title="密码", description="密码长度在8到20之间")
 
 
+class ProcessApplyRequest(BaseModel):
+    accept: bool

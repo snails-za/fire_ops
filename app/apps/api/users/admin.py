@@ -8,7 +8,7 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
 from apps.dependencies.auth import get_current_user
-from apps.form.users.form import UserCreate
+from apps.form.users.form import UserCreate, ProcessApplyRequest
 from apps.models.user import User, FriendRequest
 from apps.utils import response
 from apps.utils.aes_helper import decrypt
@@ -155,6 +155,7 @@ async def get_contacts_apply(user: User = Depends(get_current_user)):
     for req in requests:
         friend = await User_Pydantic.from_tortoise_orm(req.requester)
         friend_data = friend.model_dump()
+        friend_data["id"] = req.id
         friend_data["bak"] = req.bak
         friend_data["is_accept"] = req.is_accept
         if req.is_accept in (True, False):
@@ -165,10 +166,10 @@ async def get_contacts_apply(user: User = Depends(get_current_user)):
 
 
 @router.put("/apply/{id}", summary="处理申请", description="处理申请", dependencies=[Depends(get_current_user)])
-async def process_apply(id: int, accept: bool):
+async def process_apply(id: int, process: ProcessApplyRequest):
     if not await FriendRequest.filter(id=id).exists():
         return response(code=400, message="申请不存在")
-    await FriendRequest.filter(id=id).update(is_accept=accept)
+    await FriendRequest.filter(id=id).update(is_accept=process.accept)
     return response(message="更新成功")
 
 

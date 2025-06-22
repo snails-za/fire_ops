@@ -111,11 +111,13 @@ async def add_contact(user_id: int, bak: Optional[str] = None, user: User = Depe
     contact_user = await User.get_or_none(id=user_id)
     if not contact_user:
         return response(code=0, message="用户不存在！")
-    if await FriendRequest.filter(requester=user, receiver=contact_user).exists():
+    if await FriendRequest.filter(Q(requester=user, receiver=contact_user) | Q(requester=contact_user, receiver=user), is_accept=True).exists():
         return response(code=0, message="联系人已存在！")
+    if  await FriendRequest.filter(requester=user, receiver=contact_user, is_accept=None).exists():
+        return response(message="联系人添加成功！等待通过审核！")
     # 这里可以添加添加联系人逻辑
     await FriendRequest.create(requester=user, receiver=contact_user, bak=bak)
-    return response(message="联系人添加成功！")
+    return response(message="联系人添加成功！等待通过审核！")
 
 
 @router.get("/contacts", summary="获取联系人列表", description="获取联系人列表", dependencies=[Depends(get_current_user)])
@@ -172,4 +174,22 @@ async def process_apply(id: int, process: ProcessApplyRequest):
     await FriendRequest.filter(id=id).update(is_accept=process.accept)
     return response(message="更新成功")
 
+
+@router.get("/can_add_contact/{id}", summary="是否可以添加联系人", description="是否可以添加联系人接口",
+            dependencies=[Depends(get_current_user)])
+async def can_add_contact(id: int, user: User = Depends(get_current_user)):
+    """
+    是否可以添加联系人
+    :param id:
+    :return:
+    """
+    # 检查用户是否存在
+    if not await User.filter(id=id).exists():
+        return response(data=False, message="用户不存在")
+    # 检查用户是否已添加
+    if await FriendRequest.filter(Q(requester_id=id, receiver_id=user.id) | Q(requester_id=user.id, receiver_id=id), is_accept=True).exists():
+        return response(data=False, message="用户已添加")
+    if user.id == id:
+        return response(data=False, message="不能添加自己")
+    return response(data=True, message="可以添加")
 

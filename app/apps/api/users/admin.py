@@ -70,7 +70,7 @@ async def update_user(user_id: int, user: UserCreate):
         return response(code=0, message="用户名已经被注册！")
     try:
         decrypt_pwd = decrypt(AES_KEY, user.password)
-    except Exception as e:
+    except Exception as _:
         return response(code=0, message="密码参数错误！")
     await User.filter(id=user_id).update(
         username=user.username,

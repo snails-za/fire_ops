@@ -9,7 +9,7 @@ from tortoise.contrib.fastapi import register_tortoise
 
 from config import TORTOISE_ORM, DEBUG, STATIC_PATH
 # ✅ 执行 Aerich 补丁以拦截 DROP 操作（防止误删表字段）
-from apps.utils import aerich_patch as _
+from apps.utils import aerich_patch as aerich_patch
 
 router = APIRouter()
 

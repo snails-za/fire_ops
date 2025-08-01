@@ -1,5 +1,5 @@
 from fastapi import HTTPException, Depends, Security
-from fastapi.security import APIKeyHeader, HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from apps.models.user import User
 from apps.utils.token_ import decode_token

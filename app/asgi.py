@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import HTTPException, FastAPI
+from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html, get_redoc_html
 
 from apps.utils.redis_ import RedisManager

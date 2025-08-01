@@ -34,7 +34,7 @@ def decode_token(token):
     try:
         info = jwt.decode(jwt=token, key=salt, algorithms='HS256', options={'verify_exp': True})
         return True, info
-    except:
+    except Exception as _:
         return False, "Token 验证失败！请重新登录！"
 
 

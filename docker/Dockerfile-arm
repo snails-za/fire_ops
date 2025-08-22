@@ -23,4 +23,8 @@ WORKDIR /app
 
 RUN uv sync
 
+# 设置 venv 到 PATH
+ENV VIRTUAL_ENV=/app/.venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
 CMD ["gunicorn", "asgi:app", "-b", "0.0.0.0:8000", "-k", "uvicorn.workers.UvicornWorker"]

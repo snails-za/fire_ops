@@ -50,5 +50,33 @@ AES_KEY = config("AES_KEY", default="awkfjwhkgowkslg3")
 # 数据库迁移安全模式：1表示安全模式，0表示非安全模式
 AERICH_SAFE_MODE = config("AERICH_SAFE_MODE", cast=int, default=1)
 
+# RAG相关配置
+# OpenAI API配置
+OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
+OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.openai.com/v1")
+
+# 向量数据库配置（Chroma）
+VECTOR_DB_PATH = os.path.join(BASE_PATH, "vector_db")
+CHROMA_PERSIST_DIRECTORY = os.path.join(VECTOR_DB_PATH, "chroma")
+CHROMA_COLLECTION = config("CHROMA_COLLECTION", default="documents")
+
+# 文档处理配置
+MAX_FILE_SIZE = config("MAX_FILE_SIZE", cast=int, default=50 * 1024 * 1024)  # 50MB
+ALLOWED_FILE_TYPES = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt']
+
+# 嵌入模型配置（本地模型优先）
+EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="all-MiniLM-L6-v2")
+EMBEDDING_DIMENSION = config("EMBEDDING_DIMENSION", cast=int, default=384)
+HF_HOME = config("HF_HOME", default=os.path.join(BASE_PATH, ".cache", "huggingface"))
+HF_OFFLINE = config("HF_OFFLINE", cast=bool, default=True)
+
+# 文本分割配置
+CHUNK_SIZE = config("CHUNK_SIZE", cast=int, default=1000)
+CHUNK_OVERLAP = config("CHUNK_OVERLAP", cast=int, default=200)
+
+# 搜索配置
+DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
+SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.7)
+
 
 

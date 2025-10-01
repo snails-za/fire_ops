@@ -23,6 +23,12 @@ async def lifespan(app: FastAPI):
 
 app = create_app(lifespan=lifespan)
 
+# 添加根路径重定向到登录页面
+@app.get("/", include_in_schema=False)
+async def root():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/static/login.html")
+
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
     return get_swagger_ui_html(

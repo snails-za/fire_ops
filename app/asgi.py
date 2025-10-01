@@ -29,6 +29,20 @@ async def root():
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/static/login.html")
 
+
+@app.get("/upload", include_in_schema=False)
+async def go_upload():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/static/upload.html")
+
+
+@app.get("/chat", include_in_schema=False)
+async def go_upload():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/static/chat.html")
+
+
+
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
     return get_swagger_ui_html(

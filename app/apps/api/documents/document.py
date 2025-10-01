@@ -18,12 +18,6 @@ Document_Pydantic = pydantic_model_creator(Document, name="Document")
 DocumentChunk_Pydantic = pydantic_model_creator(DocumentChunk, name="DocumentChunk", exclude=("id",))
 
 
-@router.get("/", include_in_schema=False)
-async def go_upload():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/upload.html")
-
-
 @router.post("/upload", summary="上传文档(匿名)", description="上传文档并自动解析向量化（无需登录）")
 async def upload_document(
     background_tasks: BackgroundTasks,

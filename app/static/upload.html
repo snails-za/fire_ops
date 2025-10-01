@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文档上传</title>
+  <link rel="icon" href="/images/favicon.ico">
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; background: #0b1220; color: #e6edf3; }
+    .container { max-width: 880px; margin: 48px auto; padding: 24px; background: #0f1a30; border: 1px solid #1e2a44; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+    h1 { margin: 0 0 16px; font-size: 24px; }
+    p.desc { margin: 0 0 24px; color: #98a6bd; }
+    .card { padding: 16px; border: 1px dashed #31415f; border-radius: 10px; background: #0c1527; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .row + .row { margin-top: 12px; }
+    input[type="file"] { padding: 10px; border: 1px solid #2a3a5c; border-radius: 8px; background: #0b1326; color: #e6edf3; }
+    button { padding: 10px 16px; border-radius: 8px; border: 1px solid #2f5dff; background: #2f5dff; color: #fff; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .hint { font-size: 12px; color: #8aa0c7; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 8px; background: #0a1427; border: 1px solid #233357; white-space: pre-wrap; word-break: break-word; }
+    .list { margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #1f2b45; font-size: 14px; }
+    th { text-align: left; color: #9fb2d6; }
+    a { color: #7aa2ff; text-decoration: none; }
+  </style>
+  <script>
+    async function upload() {
+      const fileInput = document.getElementById('file');
+      const statusEl = document.getElementById('status');
+      const btn = document.getElementById('btnUpload');
+      statusEl.textContent = '';
+      if (!fileInput.files.length) { statusEl.textContent = '请先选择文件。'; return; }
+      const form = new FormData();
+      form.append('file', fileInput.files[0]);
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/v1/documents/upload', { method: 'POST', body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.code && data.code !== 200) {
+          throw new Error(data.message || ('上传失败，HTTP ' + res.status));
+        }
+        statusEl.textContent = data.message || '上传成功';
+        await refreshList();
+      } catch (e) {
+        statusEl.textContent = '错误：' + (e.message || String(e));
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function refreshList() {
+      const listEl = document.getElementById('list');
+      listEl.innerHTML = '加载中...';
+      try {
+        const res = await fetch('/api/v1/documents/list?page=1&page_size=20');
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.code && data.code !== 200) throw new Error(data.message || '加载失败');
+        const docs = (data.data && data.data.documents) || [];
+        if (!docs.length) { listEl.innerHTML = '<div class="hint">暂无文档</div>'; return; }
+        const rows = docs.map(d => `<tr><td>${d.id}</td><td>${d.original_filename || d.filename}</td><td>${d.file_type}</td><td>${d.status}</td><td>${d.file_size}</td><td>${new Date(d.upload_time).toLocaleString()}</td></tr>`).join('');
+        listEl.innerHTML = `<table><thead><tr><th>ID</th><th>文件名</th><th>类型</th><th>状态</th><th>大小</th><th>上传时间</th></tr></thead><tbody>${rows}</tbody></table>`;
+      } catch (e) {
+        listEl.innerHTML = '<div class="hint">加载失败：' + (e.message || String(e)) + '</div>';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      refreshList();
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>文档上传（无需登录）</h1>
+    <p class="desc">支持类型：pdf、docx、doc、xlsx、xls、txt。单文件最大 50MB。</p>
+    <div class="card">
+      <div class="row">
+        <input id="file" type="file" />
+        <button id="btnUpload" onclick="upload()">上传</button>
+        <a href="/static" style="margin-left:auto">返回首页</a>
+      </div>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="list">
+      <h2 style="font-size:18px; margin: 0 0 10px;">文档列表</h2>
+      <div id="list"></div>
+    </div>
+  </div>
+</body>
+</html>
+
+

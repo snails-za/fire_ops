@@ -10,7 +10,7 @@ from tortoise.expressions import Q
 from apps.models.document import Document, DocumentChunk
 from apps.utils import response
 from apps.utils.rag_helper import document_processor, vector_search
-from config import STATIC_PATH
+from config import STATIC_PATH, DOCUMENT_STORE_PATH
 
 router = APIRouter(prefix="/documents", tags=["文档管理"])
 
@@ -35,7 +35,7 @@ async def upload_document(
         
         # 生成唯一文件名
         unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
-        file_path = os.path.join(STATIC_PATH, "documents", unique_filename)
+        file_path = os.path.join(DOCUMENT_STORE_PATH, unique_filename)
         
         # 确保目录存在
         os.makedirs(os.path.dirname(file_path), exist_ok=True)

@@ -50,13 +50,16 @@ AES_KEY = config("AES_KEY", default="awkfjwhkgowkslg3")
 # 数据库迁移安全模式：1表示安全模式，0表示非安全模式
 AERICH_SAFE_MODE = config("AERICH_SAFE_MODE", cast=int, default=1)
 
+# 文档存储路径
+DOCUMENT_STORE_PATH = os.path.join(BASE_PATH, "data", "documents")
+
 # RAG相关配置
 # OpenAI API配置
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="sk-zk21f16b46c63a80f63e49c05308ebd59cb66be108a0fdca")
 OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.zhizengzeng.com/v1/")
 
 # 向量数据库配置（Chroma）
-VECTOR_DB_PATH = os.path.join(BASE_PATH, "vector_db")
+VECTOR_DB_PATH = os.path.join(BASE_PATH, "data", "vector_db")
 CHROMA_PERSIST_DIRECTORY = os.path.join(VECTOR_DB_PATH, "chroma")
 CHROMA_COLLECTION = config("CHROMA_COLLECTION", default="documents")
 

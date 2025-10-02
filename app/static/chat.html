@@ -469,7 +469,8 @@
             margin-left: 2px;
         }
 
-        .message.assistant .streaming-content.completed::after {
+        /* 回答完成后隐藏光标 */
+        .streaming-content.completed::after {
             display: none;
         }
 
@@ -718,8 +719,8 @@
             if (sources && Array.isArray(sources) && sources.length > 0) {
                 // 只处理相似度大于阈值的文档
                 const highQualitySources = sources.filter(source => {
-                    // 检查是否有similarity字段且大于阈值，或者有above_threshold标记为true
-                    return (source.similarity && source.similarity >= 0.6) || source.above_threshold === true;
+                    // 使用后端提供的above_threshold字段判断
+                    return source.above_threshold === true;
                 });
                 
                 if (highQualitySources.length > 0) {
@@ -823,8 +824,8 @@
             if (metadata && Array.isArray(metadata) && metadata.length > 0) {
                 // 只处理相似度大于阈值的文档
                 const highQualitySources = metadata.filter(source => {
-                    // 检查是否有similarity字段且大于阈值，或者有above_threshold标记为true
-                    return (source.similarity && source.similarity >= 0.6) || source.above_threshold === true;
+                    // 使用后端提供的above_threshold字段判断
+                    return source.above_threshold === true;
                 });
                 
                 if (highQualitySources.length > 0) {

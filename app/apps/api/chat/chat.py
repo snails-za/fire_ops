@@ -95,7 +95,8 @@ async def ask_question_stream(
                     "similarity": round(result.get("similarity", 0), 4),
                     "document_id": document.id if document else None,
                     "chunk_id": chunk.id if chunk else None,
-                    "chunk_index": chunk.chunk_index if chunk else 0
+                    "chunk_index": chunk.chunk_index if chunk else 0,
+                    "above_threshold": result.get("above_threshold", True)
                 })
             
             # 发送搜索结果信息

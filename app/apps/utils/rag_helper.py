@@ -15,6 +15,7 @@ RAG (Retrieval-Augmented Generation) 系统核心模块
 """
 
 import os
+import traceback
 import uuid
 from typing import List, Dict, Any, Optional
 
@@ -631,10 +632,15 @@ class RAGGenerator:
 回答要求：
 1. 严格基于提供的文档内容回答，不要添加文档中没有的信息
 2. 如果文档中没有相关信息，请明确说明"根据提供的文档内容，无法找到相关信息"
-3. 回答要准确、详细且有条理，使用清晰的段落结构
-4. 可以引用具体的文档名称和关键内容片段
-5. 如果有多个文档提供了相关信息，请综合分析
-6. 用中文回答，语言要专业但易懂
+3. 回答要准确、详细且有条理，使用清晰的段落结构：
+   - 使用标题和子标题组织内容
+   - 重要信息用**粗体**标记
+   - 使用项目符号(•)或数字列表展示要点
+   - 每个段落专注一个主题，段落间留空行
+   - 复杂内容使用表格或结构化格式
+4. 可以引用具体的文档名称和关键内容片段，格式：「文档名：具体内容」
+5. 如果有多个文档提供了相关信息，请综合分析并标明信息来源
+6. 用中文回答，语言要专业但易懂，适当使用emoji增强可读性
 
 提供的文档内容：
 {context}"""
@@ -716,6 +722,72 @@ class RAGGenerator:
         except Exception as e:
             return f"抱歉，生成回答时出现错误: {str(e)}"
     
+    async def generate_answer_stream(self, query: str, context_chunks: List[Dict[str, Any]]):
+        """
+        流式生成回答
+        
+        Args:
+            query: 用户问题
+            context_chunks: 文档上下文块列表
+            
+        Yields:
+            str: 流式生成的文本块
+        """
+        try:
+            # 构建上下文
+            context_parts = []
+            for i, chunk in enumerate(context_chunks, 1):
+                doc_name = chunk.get('document_name', '未知文档')
+                content = chunk.get('content', '')
+                context_parts.append(f"文档{i}: {doc_name}\n内容: {content}")
+            
+            context = "\n\n" + "="*50 + "\n\n".join(context_parts)
+            
+            # 选择回答模式
+            if self.llm_available and self.chain:
+                try:
+                    async for chunk in self._llm_answer_stream(query, context):
+                        yield chunk
+                except Exception as e:
+                    print(f"LLM流式生成失败: {e}")
+                    # 降级到简单回答
+                    simple_answer = self._simple_answer(query, context_chunks)
+                    yield simple_answer
+            else:
+                # 非LLM模式，直接返回简单回答
+                simple_answer = self._simple_answer(query, context_chunks)
+                yield simple_answer
+                
+        except Exception as e:
+            yield f"抱歉，生成回答时出现错误: {str(e)}"
+
+    async def _llm_answer_stream(self, query: str, context: str):
+        """
+        使用LangChain链式流式生成智能回答
+        
+        Args:
+            query: 用户问题
+            context: 文档上下文
+            
+        Yields:
+            str: 流式生成的文本块
+        """
+        try:
+            # 使用已经创建好的chain进行流式调用
+            if self.chain:
+                async for chunk in self.chain.astream({
+                    "question": query,
+                    "context": context
+                }):
+                    if chunk:
+                        yield chunk
+            else:
+                raise Exception("LangChain处理链未初始化")
+                    
+        except Exception as e:
+            traceback.print_exc()
+            raise Exception(f"LLM链式流式调用失败: {str(e)}")
+
     async def _llm_answer(self, query: str, context: str) -> str:
         """
         使用LLM生成智能回答

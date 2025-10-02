@@ -113,29 +113,23 @@ async def ask_question_stream(
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'search_info': search_info}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'status', 'message': '🤖 正在生成回答...'}, ensure_ascii=False)}\n\n"
             
-            # 3. 生成流式回答
-            answer = await rag_generator.generate_answer(
-                query=question,
-                context_chunks=search_results
-            )
-            
-            # 根据结果质量调整回答
-            if high_quality_results:
-                pass  # 高质量结果，正常回答
-            elif low_quality_results:
-                answer = f"{answer}\n\n💡 提示：以上回答基于相似度较低的文档内容，可能不够准确。建议您：\n• 尝试更具体的问题描述\n• 使用不同的关键词重新提问"
-            
-            # 模拟流式输出
-            words = answer.split()
+            # 3. 生成真正的流式回答
             current_text = ""
             
-            for i, word in enumerate(words):
-                current_text += word + " "
-                
-                # 每几个词发送一次
-                if (i + 1) % 3 == 0 or i == len(words) - 1:
-                    yield f"data: {json.dumps({'type': 'content', 'content': current_text.strip()}, ensure_ascii=False)}\n\n"
-                    await asyncio.sleep(0.05)  # 控制输出速度
+            # 使用RAG生成器的流式方法
+            async for chunk in rag_generator.generate_answer_stream(
+                query=question,
+                context_chunks=search_results
+            ):
+                if chunk:
+                    current_text += chunk
+                    yield f"data: {json.dumps({'type': 'content', 'content': current_text}, ensure_ascii=False)}\n\n"
+            
+            # 根据结果质量添加提示
+            if low_quality_results:
+                additional_tip = "\n\n💡 提示：以上回答基于相似度较低的文档内容，可能不够准确。建议您：\n• 尝试更具体的问题描述\n• 使用不同的关键词重新提问"
+                current_text += additional_tip
+                yield f"data: {json.dumps({'type': 'content', 'content': current_text}, ensure_ascii=False)}\n\n"
             
             # 发送完成信号
             yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"

@@ -8,9 +8,19 @@ LLM优化器模块
 from typing import Optional, Tuple
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
+from pydantic import BaseModel, Field
 
 from config import OPENAI_API_KEY, OPENAI_BASE_URL
+
+# Pydantic模型定义
+class QuestionAnalysis(BaseModel):
+    """问题分析结果模型"""
+    question_type: str = Field(description="问题类型，如：事实查询、操作指导、概念解释等")
+    core_intent: str = Field(description="问题的核心意图描述")
+    keywords: list[str] = Field(description="提取的关键词列表")
+    optimized_query: str = Field(description="优化后的搜索查询")
+    confidence: float = Field(description="分析置信度，0-1之间", ge=0, le=1)
 
 # 全局优化器实例
 question_optimizer = None
@@ -38,6 +48,9 @@ def initialize_question_optimizers() -> Tuple[Optional[object], Optional[object]
             max_tokens=500  # 限制输出长度
         )
         
+        # 创建JSON输出解析器
+        json_parser = JsonOutputParser(pydantic_object=QuestionAnalysis)
+        
         # 问题理解和优化提示模板
         question_template = """你是一个问题理解助手。请分析用户的问题，提取关键信息并优化搜索策略。
 
@@ -45,37 +58,34 @@ def initialize_question_optimizers() -> Tuple[Optional[object], Optional[object]
 1. 理解问题的核心意图和关键概念
 2. 识别问题类型（事实查询、操作指导、概念解释等）
 3. 提取最重要的搜索关键词
-4. 如果问题模糊，推测可能的具体含义
+4. 优化搜索查询语句
+5. 评估分析的置信度
 
 用户问题：{question}
 
-请用以下格式回答：
-问题类型：[类型]
-核心意图：[意图描述]
-关键词：[关键词1, 关键词2, ...]
-优化建议：[搜索建议]"""
+{format_instructions}"""
 
-        # 搜索优化提示模板
-        search_template = """你是一个搜索优化专家。基于用户问题和搜索到的文档片段，优化搜索策略。
+        # 搜索查询优化模板
+        search_template = """你是一个搜索查询优化专家。请将用户问题转换为最适合文档搜索的查询语句。
 
-原始问题：{question}
-搜索结果：{search_results}
+要求：
+1. 提取核心关键词和概念
+2. 去除无关的语气词和修饰词
+3. 保持查询的准确性和完整性
+4. 适合向量相似度搜索
+5. 保持中文输出
 
-请分析：
-1. 搜索结果是否与问题相关
-2. 是否需要调整搜索关键词
-3. 是否需要扩展或缩小搜索范围
+原问题：{question}
 
-请提供：
-- 相关性评分（1-10）
-- 改进建议
-- 优化后的搜索词"""
+优化后的搜索查询（只输出查询语句）："""
 
         # 创建优化器链
         question_prompt = ChatPromptTemplate.from_template(question_template)
         search_prompt = ChatPromptTemplate.from_template(search_template)
         
-        question_optimizer = question_prompt | question_llm | StrOutputParser()
+        # 问题分析使用JSON解析器
+        question_optimizer = question_prompt | question_llm | json_parser
+        # 搜索优化使用字符串解析器
         search_optimizer = search_prompt | question_llm | StrOutputParser()
         
         return question_optimizer, search_optimizer
@@ -98,7 +108,7 @@ def get_search_optimizer():
         _, search_optimizer = initialize_question_optimizers()
     return search_optimizer
 
-def optimize_question(question: str) -> Optional[str]:
+def optimize_question(question: str) -> Optional[dict]:
     """
     优化用户问题
     
@@ -106,14 +116,19 @@ def optimize_question(question: str) -> Optional[str]:
         question: 原始问题
         
     Returns:
-        优化后的问题分析结果
+        优化后的问题分析结果（字典格式）
     """
     optimizer = get_question_optimizer()
     if optimizer is None:
         return None
     
     try:
-        return optimizer.invoke({"question": question})
+        # 现在返回的是结构化的字典数据
+        result = optimizer.invoke({
+            "question": question,
+            "format_instructions": JsonOutputParser(pydantic_object=QuestionAnalysis).get_format_instructions()
+        })
+        return result
     except Exception as e:
         print(f"问题优化失败: {e}")
         return None

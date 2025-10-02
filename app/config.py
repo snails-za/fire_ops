@@ -89,9 +89,10 @@ HF_OFFLINE = config("HF_OFFLINE", cast=bool, default=True)
 CHUNK_SIZE = config("CHUNK_SIZE", cast=int, default=1000)
 CHUNK_OVERLAP = config("CHUNK_OVERLAP", cast=int, default=200)
 
+# 相似度阈值配置
+SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.6)  # 相似度阈值，0-1之间
 # 搜索配置
 DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
-SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.7)
 
 
 

@@ -17,6 +17,7 @@ from fastapi import APIRouter, Query, Form
 from apps.utils import response
 from apps.utils.rag_helper import vector_search, rag_generator
 from apps.utils.llm_optimizers import get_question_optimizer, get_search_optimizer, optimize_question
+from config import SIMILARITY_THRESHOLD
 
 # 智能问答API路由
 router = APIRouter(prefix="/chat", tags=["智能问答"])
@@ -48,15 +49,14 @@ async def ask_question_anonymous(
         
         if question_optimizer:
             try:
-                question_analysis = optimize_question(question)
+                # 使用新的结构化输出
+                analysis_result = optimize_question(question)
                 
-                # 尝试解析JSON格式的分析结果
-                import json
-                try:
-                    analysis_data = json.loads(question_analysis)
-                    optimized_query = analysis_data.get("optimized_query", question)
-                except:
-                    # 如果不是JSON格式，使用搜索优化器
+                if analysis_result:
+                    question_analysis = analysis_result
+                    optimized_query = analysis_result.get("optimized_query", question)
+                else:
+                    # 如果问题分析失败，使用搜索优化器
                     if search_optimizer:
                         try:
                             optimized_query = search_optimizer.invoke({"question": question})
@@ -72,46 +72,72 @@ async def ask_question_anonymous(
                 optimized_query = question
         
         # 2. 向量搜索相关文档
-        search_results = vector_search.search_similar_chunks(
+        search_results = await vector_search.search_similar_chunks(
             query=optimized_query,
             top_k=top_k
         )
         
         if not search_results:
-            return response.success(
+            return response(
                 data={
                     "answer": "抱歉，我没有找到相关的文档内容来回答您的问题。请尝试：\n1. 重新表述问题\n2. 使用更具体的关键词\n3. 确保相关文档已上传",
                     "sources": [],
                     "question_analysis": question_analysis,
                     "optimized_query": optimized_query,
-                    "search_count": 0
+                    "search_count": 0,
+                    "similarity_threshold": SIMILARITY_THRESHOLD
                 },
                 message="未找到相关文档"
             )
         
-        # 3. 生成智能回答
-        answer = rag_generator.generate_answer(
-            question=question,
-            search_results=search_results
+        # 3. 分析搜索结果质量并生成智能回答
+        high_quality_results = [r for r in search_results if r.get('above_threshold', True)]
+        low_quality_results = [r for r in search_results if not r.get('above_threshold', True)]
+        
+        # 生成基础回答
+        answer = await rag_generator.generate_answer(
+            query=question,
+            context_chunks=search_results
         )
+        
+        # 根据结果质量调整回答
+        if high_quality_results:
+            # 有高质量结果，正常回答
+            pass
+        elif low_quality_results:
+            # 只有低质量结果，添加提示
+            answer = f"{answer}\n\n💡 提示：以上回答基于相似度较低的文档内容，可能不够准确。建议您：\n• 尝试更具体的问题描述\n• 使用不同的关键词重新提问"
         
         # 4. 构建源信息
         sources = []
         for result in search_results:
+            # 从result中提取document和chunk对象
+            document = result.get("document")
+            chunk = result.get("chunk")
+            
+            chunk_content = chunk.content if chunk else ""
             sources.append({
-                "document_name": result.get("document_name", "未知文档"),
-                "chunk_text": result.get("chunk_text", ""),
+                "document_name": document.filename if document else "未知文档",
+                "original_filename": document.original_filename if document else None,
+                "chunk_text": chunk_content,
+                "content_preview": chunk_content[:200] + "..." if len(chunk_content) > 200 else chunk_content,
                 "similarity": round(result.get("similarity", 0), 4),
-                "document_id": result.get("document_id")
+                "document_id": document.id if document else None,
+                "chunk_id": chunk.id if chunk else None,
+                "chunk_index": chunk.chunk_index if chunk else 0
             })
         
-        return response.success(
+        return response(
             data={
                 "answer": answer,
                 "sources": sources,
                 "question_analysis": question_analysis,
                 "optimized_query": optimized_query,
-                "search_count": len(search_results)
+                "search_count": len(search_results),
+                "high_quality_count": len(high_quality_results),
+                "low_quality_count": len(low_quality_results),
+                "similarity_threshold": SIMILARITY_THRESHOLD,
+                "result_quality": "high" if high_quality_results else ("low" if low_quality_results else "none")
             },
             message="问答成功"
         )
@@ -119,7 +145,7 @@ async def ask_question_anonymous(
     except Exception as e:
         print(f"智能问答失败: {e}")
         traceback.print_exc()
-        return response.error(message=f"问答失败: {str(e)}")
+        return response(code=0, message=f"问答失败: {str(e)}")
 
 
 @router.get("/search", summary="文档搜索(匿名)", description="基于LLM优化的文档搜索（无需登录）")
@@ -148,29 +174,35 @@ async def search_documents(
                 print(f"搜索优化失败: {e}")
         
         # 执行搜索
-        search_results = vector_search.search_similar_chunks(search_query, top_k)
+        search_results = await vector_search.search_similar_chunks(search_query, top_k)
         
         # 如果优化查询无结果，尝试原查询
         if not search_results and search_query != original_query:
-            search_results = vector_search.search_similar_chunks(original_query, top_k)
+            search_results = await vector_search.search_similar_chunks(original_query, top_k)
         
         results = []
         for result in search_results:
+            # 从result中提取document和chunk对象
+            document = result.get("document")
+            chunk = result.get("chunk")
+            
             results.append({
-                "document_id": result.get("document_id"),
-                "document_name": result.get("document_name", "未知文档"),
-                "chunk_content": result.get("chunk_text", ""),
+                "document_id": document.id if document else None,
+                "document_name": document.filename if document else "未知文档",
+                "chunk_content": chunk.content if chunk else "",
                 "similarity": round(result.get("similarity", 0), 4),
-                "chunk_index": result.get("chunk_index", 0)
+                "chunk_index": chunk.chunk_index if chunk else 0
             })
         
-        return response.success(
+        return response(
             data={
                 "query": original_query,
                 "search_query": search_query,
                 "results": results,
                 "total": len(results),
-                "llm_enhanced": search_optimizer is not None
+                "llm_enhanced": search_optimizer is not None,
+                "similarity_threshold": SIMILARITY_THRESHOLD,
+                "filtered_by_threshold": True
             },
             message="搜索成功"
         )
@@ -178,7 +210,19 @@ async def search_documents(
     except Exception as e:
         print(f"搜索失败: {e}")
         traceback.print_exc()
-        return response.error(message=f"搜索失败: {str(e)}")
+        return response(code=0, message=f"搜索失败: {str(e)}")
+
+
+@router.get("/config", summary="获取配置信息", description="获取当前系统配置")
+async def get_config():
+    """获取系统配置信息"""
+    return response(
+        data={
+            "similarity_threshold": SIMILARITY_THRESHOLD,
+            "threshold_description": f"相似度阈值 {SIMILARITY_THRESHOLD:.1%}，只显示相似度大于此值的文档"
+        },
+        message="配置获取成功"
+    )
 
 
 @router.post("/analyze", summary="问题分析(匿名)", description="使用LLM分析问题意图和关键词（无需登录）")
@@ -191,7 +235,7 @@ async def analyze_question(
         question_optimizer = get_question_optimizer()
         
         if not question_optimizer:
-            return response.success(
+            return response(
                 data={
                     "question": question,
                     "analysis": "LLM未配置，无法进行深度分析",
@@ -200,10 +244,10 @@ async def analyze_question(
                 message="LLM未配置"
             )
         
-        # 使用LLM分析问题
+        # 使用新的结构化输出
         analysis_result = optimize_question(question)
         
-        return response.success(
+        return response(
             data={
                 "question": question,
                 "analysis": analysis_result,
@@ -215,4 +259,4 @@ async def analyze_question(
     except Exception as e:
         print(f"问题分析失败: {e}")
         traceback.print_exc()
-        return response.error(message=f"问题分析失败: {str(e)}")
+        return response(code=0, message=f"问题分析失败: {str(e)}")

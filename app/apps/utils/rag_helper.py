@@ -32,7 +32,7 @@ from sentence_transformers import SentenceTransformer
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from config import (
     CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL, 
-    HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL
+    HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD
 )
 
 # RAG系统工具函数
@@ -455,7 +455,7 @@ class VectorSearch:
         except Exception as e:
             raise Exception(f"VectorSearch初始化失败: {e}")
     
-    async def search_similar_chunks(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    async def search_similar_chunks(self, query: str, top_k: int = 5, use_threshold: bool = True) -> List[Dict[str, Any]]:
         """
         搜索语义相似的文档块
         
@@ -468,6 +468,7 @@ class VectorSearch:
         Args:
             query: 查询文本
             top_k: 返回结果数量
+            use_threshold: 是否使用相似度阈值过滤
             
         Returns:
             List[Dict]: 相似文档块列表，包含文档、块和相似度信息
@@ -491,7 +492,9 @@ class VectorSearch:
             distances = results.get('distances', [[]])[0] or []
             
             # 4. 从数据库获取完整信息并构建结果
-            similarities = []
+            all_similarities = []  # 存储所有结果
+            filtered_similarities = []  # 存储过滤后的结果
+            
             for i, (vector_id, metadata) in enumerate(zip(ids, metadatas)):
                 try:
                     # 获取文档块信息
@@ -512,23 +515,44 @@ class VectorSearch:
                     distance = distances[i] if i < len(distances) else 1.0
                     similarity = max(0.0, 1.0 - float(distance))
                     
-                    similarities.append({
+                    result_item = {
                         'vector_id': vector_id,
                         'similarity': similarity,
                         'chunk': chunk,
                         'document': document,
-                        'metadata': metadata
-                    })
+                        'metadata': metadata,
+                        'above_threshold': similarity >= SIMILARITY_THRESHOLD
+                    }
                     
-                except Exception:
+                    all_similarities.append(result_item)
+                    
+                    # 如果使用阈值过滤，只保留相似度大于阈值的结果
+                    if not use_threshold or similarity >= SIMILARITY_THRESHOLD:
+                        filtered_similarities.append(result_item)
+                    
+                except Exception as e:
+                    print(f"处理搜索结果项失败 (chunk_id: {metadata.get('chunk_id', 'unknown')}): {e}")
                     continue
             
-            # 5. 按相似度排序
-            similarities.sort(key=lambda x: x['similarity'], reverse=True)
+            # 5. 智能选择返回结果
+            if use_threshold and filtered_similarities:
+                # 有超过阈值的结果，返回过滤后的结果
+                filtered_similarities.sort(key=lambda x: x['similarity'], reverse=True)
+                return filtered_similarities[:top_k]
+            elif use_threshold and not filtered_similarities and all_similarities:
+                # 没有超过阈值的结果，但有搜索结果，返回最相似的几个并标记
+                all_similarities.sort(key=lambda x: x['similarity'], reverse=True)
+                # 取前几个最相似的结果，但标记为低相似度
+                return all_similarities[:min(top_k, 3)]  # 最多返回3个低相似度结果
+            else:
+                # 不使用阈值过滤，返回所有结果
+                all_similarities.sort(key=lambda x: x['similarity'], reverse=True)
+                return all_similarities[:top_k]
             
-            return similarities[:top_k]  # 确保不超过请求数量
-            
-        except Exception:
+        except Exception as e:
+            print(f"搜索相似文档块失败: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     async def delete_document_vectors(self, document_id: int):
@@ -681,9 +705,8 @@ class RAGGenerator:
                 try:
                     answer = await self._llm_answer(query, context)
                     
-                    # 添加来源信息
-                    sources_info = self._build_sources_info(context_chunks)
-                    return f"{answer}\n\n{sources_info}"
+                    # 不再自动添加来源信息，由前端决定是否显示
+                    return answer
                     
                 except Exception:
                     return self._simple_answer(query, context_chunks)
@@ -740,16 +763,10 @@ class RAGGenerator:
             content = best_chunk['chunk'].content
             similarity = best_chunk['similarity']
             
-            # 构建简单回答
-            answer = f"""基于文档《{document_name}》中的相关内容（相似度: {similarity:.1%}）：
+            # 构建简单回答（不包含参考来源）
+            answer = f"""基于文档《{document_name}》中的相关内容：
 
 {content}
-
----
-📋 **参考来源**：
-• 文档：{document_name}
-• 相似度：{similarity:.1%}
-• 共找到 {len(context_chunks)} 个相关片段
 
 💡 **提示**：当前使用简单回答模式。配置OpenAI API Key后可获得更智能的回答。"""
             

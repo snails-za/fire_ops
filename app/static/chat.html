@@ -432,6 +432,28 @@
         .nav-link:hover {
             background: rgba(255,255,255,0.3);
         }
+
+        /* 相关文档操作按钮样式 */
+        .sources .action-btn {
+            transition: all 0.2s ease;
+        }
+
+        .sources .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .sources .download-btn:hover {
+            background: #218838 !important;
+        }
+
+        .sources .view-btn:hover {
+            background: #138496 !important;
+        }
+
+        .sources .highlight-btn:hover {
+            background: #e0a800 !important;
+        }
     </style>
 </head>
 <body>
@@ -539,7 +561,7 @@
 
                 const result = await response.json();
                 if (response.ok && result.code === 200) {
-                    addMessageToChat('assistant', result.data.answer, result.data.sources, result.data.search_info);
+                    addMessageToChat('assistant', result.data.answer, result.data.sources, result.data);
                 } else {
                     addMessageToChat('assistant', '抱歉，回答失败: ' + result.message);
                 }
@@ -565,30 +587,42 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
 
+            // 显示相关文档（带操作功能）
             let sourcesHtml = '';
-            if (metadata && Array.isArray(metadata)) {
+            if (metadata && Array.isArray(metadata) && metadata.length > 0) {
+                // 按文档分组，保留操作功能
+                const docGroups = {};
+                metadata.forEach(source => {
+                    const docName = source.document_name;
+                    if (!docGroups[docName]) {
+                        docGroups[docName] = {
+                            document_id: source.document_id,
+                            document_name: docName,
+                            original_filename: source.original_filename,
+                            chunks: []
+                        };
+                    }
+                    docGroups[docName].chunks.push(source);
+                });
+                
+                const docList = Object.values(docGroups);
                 sourcesHtml = `
-                    <div class="sources">
-                        <h4>参考文档:</h4>
-                        ${metadata.map((source, index) => `
-                            <div class="source-item">
-                                <div class="source-header">
-                                    <strong>${source.document_name || source.document}</strong> 
-                                    <span class="similarity">(相似度: ${(source.similarity * 100).toFixed(1)}%)</span>
-                                </div>
-                                <div class="source-content">
-                                    ${source.content_preview}
-                                </div>
-                                <div class="source-actions">
-                                    <button class="action-btn download-btn" onclick="downloadDocument(${source.document_id}, '${source.original_filename || source.document_name}')">
-                                        📥 下载
-                                    </button>
-                                    <button class="action-btn view-btn" onclick="viewDocument(${source.document_id}, ${source.chunk_id}, '${source.document_name}')">
-                                        👁️ 查看
-                                    </button>
-                                    <button class="action-btn highlight-btn" onclick="viewWithSmartHighlight(${source.document_id}, ${source.chunk_id}, '${source.document_name}')">
-                                        🔍 智能高亮
-                                    </button>
+                    <div class="sources" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #007bff;">
+                        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">📚 相关文档 (${docList.length}个):</div>
+                        ${docList.map(doc => `
+                            <div style="margin-bottom: 6px; padding: 4px; background: white; border-radius: 4px; border: 1px solid #e9ecef;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 13px; color: #333; font-weight: 500;">📄 ${doc.document_name}</span>
+                                    <div style="display: flex; gap: 4px;">
+                                        ${doc.document_id ? `
+                                            <button class="action-btn download-btn" data-doc-id="${doc.document_id}" data-filename="${doc.original_filename || doc.document_name}" 
+                                                    style="padding: 2px 6px; font-size: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">📥</button>
+                                            <button class="action-btn view-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
+                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;">👁️</button>
+                                            <button class="action-btn highlight-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
+                                                    style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;">🔍</button>
+                                        ` : ''}
+                                    </div>
                                 </div>
                             </div>
                         `).join('')}
@@ -600,15 +634,27 @@
             let searchInfoHtml = '';
             if (searchInfo && role === 'assistant') {
                 const isEnhanced = searchInfo.llm_enhanced;
-                const resultsCount = searchInfo.results_count || 0;
-                const searchQuery = searchInfo.search_query;
-                const originalQuery = searchInfo.original_query;
+                const resultsCount = searchInfo.search_count || 0;
+                const searchQuery = searchInfo.optimized_query;
+                const originalQuery = searchInfo.question || searchInfo.original_query;
+                const similarityThreshold = searchInfo.similarity_threshold;
+                const resultQuality = searchInfo.result_quality;
+                const highQualityCount = searchInfo.high_quality_count || 0;
+                const lowQualityCount = searchInfo.low_quality_count || 0;
+                
+                let qualityInfo = '';
+                if (resultQuality === 'high') {
+                    qualityInfo = `✅ ${highQualityCount} 个高质量匹配`;
+                } else if (resultQuality === 'low') {
+                    qualityInfo = `⚠️ ${lowQualityCount} 个低质量匹配`;
+                } else {
+                    qualityInfo = '❌ 无匹配结果';
+                }
                 
                 searchInfoHtml = `
-                    <div class="search-info" style="margin-top: 10px; padding: 8px; background: #f0f8ff; border-radius: 6px; font-size: 12px; color: #666;">
-                        ${isEnhanced ? '🧠 AI增强搜索' : '📝 基础搜索'} | 
-                        找到 ${resultsCount} 个相关片段
-                        ${searchQuery !== originalQuery ? `<br>🔍 优化查询: "${searchQuery}"` : ''}
+                    <div class="search-info" style="margin-top: 10px; padding: 8px; background: ${resultQuality === 'high' ? '#f0f8ff' : (resultQuality === 'low' ? '#fff8e1' : '#ffebee')}; border-radius: 6px; font-size: 12px; color: #666;">
+                        ${isEnhanced ? '🧠 AI增强搜索' : '📝 基础搜索'} | ${qualityInfo}
+                        ${searchQuery && searchQuery !== originalQuery ? `<br>🔍 优化查询: "${searchQuery}"` : ''}
                     </div>
                 `;
             }
@@ -826,6 +872,33 @@
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closeModal();
+            }
+        });
+
+        // 事件委托处理按钮点击
+        document.addEventListener('click', function(event) {
+            const target = event.target;
+            
+            if (target.classList.contains('download-btn')) {
+                const docId = target.getAttribute('data-doc-id');
+                const filename = target.getAttribute('data-filename');
+                if (docId && filename) {
+                    downloadDocument(docId, filename);
+                }
+            } else if (target.classList.contains('view-btn')) {
+                const docId = target.getAttribute('data-doc-id');
+                const chunkId = target.getAttribute('data-chunk-id');
+                const docName = target.getAttribute('data-doc-name');
+                if (docId && chunkId && docName) {
+                    viewDocument(docId, chunkId, docName);
+                }
+            } else if (target.classList.contains('highlight-btn')) {
+                const docId = target.getAttribute('data-doc-id');
+                const chunkId = target.getAttribute('data-chunk-id');
+                const docName = target.getAttribute('data-doc-name');
+                if (docId && chunkId && docName) {
+                    viewWithSmartHighlight(docId, chunkId, docName);
+                }
             }
         });
     </script>

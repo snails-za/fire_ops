@@ -457,9 +457,26 @@
             background: #e0a800 !important;
         }
 
-        /* 流式输出效果（无光标） */
+        /* 流式输出动画效果 */
         .streaming-content {
             position: relative;
+        }
+
+        .streaming-content::after {
+            content: '▋';
+            color: #007bff;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        /* 回答完成后隐藏光标 */
+        .streaming-content.completed::after {
+            display: none;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
         }
 
         /* 延迟显示动画 */
@@ -640,7 +657,12 @@
                                         updateStreamingMessage(assistantMessageId, '抱歉，' + data.message, sources, searchInfo);
                                         break;
                                     case 'done':
-                                        // 流式输出完成，显示相关文档和搜索信息
+                                        // 流式输出完成，移除光标动画并显示相关文档和搜索信息
+                                        const streamingContent = document.querySelector(`#${assistantMessageId} .streaming-content`);
+                                        if (streamingContent) {
+                                            streamingContent.classList.add('completed');
+                                        }
+                                        // 现在显示相关文档和搜索信息
                                         updateStreamingMessage(assistantMessageId, currentContent, sources, searchInfo);
                                         break;
                                 }
@@ -772,9 +794,13 @@
                 `;
             }
 
+            // 检查是否已经完成（保持completed类）
+            const existingStreamingContent = messageDiv.querySelector('.streaming-content');
+            const isCompleted = existingStreamingContent && existingStreamingContent.classList.contains('completed');
+            
             messageDiv.innerHTML = `
                 <div class="message-content">
-                    <div class="streaming-content">${content}</div>
+                    <div class="streaming-content${isCompleted ? ' completed' : ''}">${content}</div>
                     <div class="message-time">${new Date().toLocaleString()}</div>
                     ${sourcesHtml}
                     ${searchInfoHtml}

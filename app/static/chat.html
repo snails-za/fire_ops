@@ -713,25 +713,32 @@
             const messageDiv = document.getElementById(messageId);
             if (!messageDiv) return;
 
-            // 显示相关文档（带操作功能）
+            // 显示相关文档（只显示大于阈值的文档）
             let sourcesHtml = '';
             if (sources && Array.isArray(sources) && sources.length > 0) {
-                // 按文档分组，保留操作功能
-                const docGroups = {};
-                sources.forEach(source => {
-                    const docName = source.document_name;
-                    if (!docGroups[docName]) {
-                        docGroups[docName] = {
-                            document_id: source.document_id,
-                            document_name: docName,
-                            original_filename: source.original_filename,
-                            chunks: []
-                        };
-                    }
-                    docGroups[docName].chunks.push(source);
+                // 只处理相似度大于阈值的文档
+                const highQualitySources = sources.filter(source => {
+                    // 检查是否有similarity字段且大于阈值，或者有above_threshold标记为true
+                    return (source.similarity && source.similarity >= 0.6) || source.above_threshold === true;
                 });
                 
-                const docList = Object.values(docGroups);
+                if (highQualitySources.length > 0) {
+                    // 按文档分组，保留操作功能
+                    const docGroups = {};
+                    highQualitySources.forEach(source => {
+                        const docName = source.document_name;
+                        if (!docGroups[docName]) {
+                            docGroups[docName] = {
+                                document_id: source.document_id,
+                                document_name: docName,
+                                original_filename: source.original_filename,
+                                chunks: []
+                            };
+                        }
+                        docGroups[docName].chunks.push(source);
+                    });
+                    
+                    const docList = Object.values(docGroups);
                 sourcesHtml = `
                     <div class="sources delayed-content" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #007bff;">
                         <div style="font-size: 12px; color: #666; margin-bottom: 8px;">📚 相关文档 (${docList.length}个):</div>
@@ -754,6 +761,7 @@
                         `).join('')}
                     </div>
                 `;
+                }
             }
 
             // 添加搜索信息显示
@@ -810,25 +818,32 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
 
-            // 显示相关文档（带操作功能）
+            // 显示相关文档（只显示大于阈值的文档）
             let sourcesHtml = '';
             if (metadata && Array.isArray(metadata) && metadata.length > 0) {
-                // 按文档分组，保留操作功能
-                const docGroups = {};
-                metadata.forEach(source => {
-                    const docName = source.document_name;
-                    if (!docGroups[docName]) {
-                        docGroups[docName] = {
-                            document_id: source.document_id,
-                            document_name: docName,
-                            original_filename: source.original_filename,
-                            chunks: []
-                        };
-                    }
-                    docGroups[docName].chunks.push(source);
+                // 只处理相似度大于阈值的文档
+                const highQualitySources = metadata.filter(source => {
+                    // 检查是否有similarity字段且大于阈值，或者有above_threshold标记为true
+                    return (source.similarity && source.similarity >= 0.6) || source.above_threshold === true;
                 });
                 
-                const docList = Object.values(docGroups);
+                if (highQualitySources.length > 0) {
+                    // 按文档分组，保留操作功能
+                    const docGroups = {};
+                    highQualitySources.forEach(source => {
+                        const docName = source.document_name;
+                        if (!docGroups[docName]) {
+                            docGroups[docName] = {
+                                document_id: source.document_id,
+                                document_name: docName,
+                                original_filename: source.original_filename,
+                                chunks: []
+                            };
+                        }
+                        docGroups[docName].chunks.push(source);
+                    });
+                    
+                    const docList = Object.values(docGroups);
                 sourcesHtml = `
                     <div class="sources delayed-content" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #007bff;">
                         <div style="font-size: 12px; color: #666; margin-bottom: 8px;">📚 相关文档 (${docList.length}个):</div>
@@ -851,6 +866,7 @@
                         `).join('')}
                     </div>
                 `;
+                }
             }
 
             // 添加搜索信息显示

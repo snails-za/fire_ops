@@ -189,53 +189,157 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0,0,0,0.6);
+            backdrop-filter: blur(2px);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .modal-content {
             background-color: #fefefe;
-            margin: 2% auto;
-            padding: 20px;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 800px;
-            max-height: 90%;
-            overflow-y: auto;
+            margin: 1% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 95%;
+            max-width: 900px;
+            max-height: 95%;
+            overflow: hidden;
             position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { 
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to { 
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #dee2e6;
+            align-items: flex-start;
+            padding: 20px 25px 15px;
+            border-bottom: 2px solid #e9ecef;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px 12px 0 0;
         }
 
         .modal-title {
             font-size: 18px;
             font-weight: 600;
             color: #333;
+            margin: 0;
+            line-height: 1.4;
+            flex: 1;
+            padding-right: 15px;
         }
 
         .close-btn {
             background: none;
             border: none;
-            font-size: 24px;
+            font-size: 28px;
             cursor: pointer;
-            color: #999;
+            color: #666;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+            flex-shrink: 0;
         }
 
         .close-btn:hover {
             color: #333;
+            background-color: rgba(0,0,0,0.1);
         }
 
         .document-content {
-            line-height: 1.6;
+            padding: 25px;
+            line-height: 1.8;
             color: #333;
             white-space: pre-wrap;
             word-wrap: break-word;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 14px;
+            max-height: calc(95vh - 120px);
+            overflow-y: auto;
+            background: #fefefe;
+        }
+
+        .document-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .document-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .document-content::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .document-content::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* 高亮文本样式优化 */
+        .document-content mark {
+            background-color: #ffeb3b !important;
+            padding: 3px 5px !important;
+            border-radius: 4px !important;
+            font-weight: bold !important;
+            color: #333 !important;
+            box-shadow: 0 1px 3px rgba(255, 235, 59, 0.3);
+            animation: highlightPulse 1s ease-in-out;
+        }
+
+        @keyframes highlightPulse {
+            0% { background-color: #ffeb3b; }
+            50% { background-color: #ffc107; }
+            100% { background-color: #ffeb3b; }
+        }
+
+        /* 文档内容格式化 */
+        .document-content h1, .document-content h2, .document-content h3 {
+            color: #2c3e50;
+            margin: 20px 0 10px 0;
+            font-weight: 600;
+        }
+
+        .document-content p {
+            margin-bottom: 12px;
+        }
+
+        .document-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+
+        .document-content table td, .document-content table th {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .document-content table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
         }
 
         .chat-input {
@@ -580,17 +684,26 @@
                 
                 // 提取关键词进行高亮
                 const keywords = extractKeywords(lastUserMessage);
+                if (keywords.length === 0) {
+                    // 如果没有提取到关键词，使用原问题的前几个词
+                    const fallbackKeywords = lastUserMessage.split(/\s+/).slice(0, 3);
+                    keywords.push(...fallbackKeywords);
+                }
+                
                 const highlightText = keywords.join(' ');
+                console.log('智能高亮关键词:', keywords);
                 
                 const response = await fetch(`/api/v1/documents/${documentId}/view?chunk_id=${chunkId}&highlight=${encodeURIComponent(highlightText)}`);
                 const result = await response.json();
                 
                 if (response.ok && result.code === 200) {
+                    const hasActualHighlight = result.data.has_highlight && result.data.highlighted_content !== result.data.content;
+                    
                     showDocumentModal(
                         `${documentName} - 智能高亮`, 
-                        result.data.highlighted_content, 
-                        true,
-                        `高亮关键词: ${keywords.join(', ')}`
+                        hasActualHighlight ? result.data.highlighted_content : result.data.content, 
+                        hasActualHighlight,
+                        hasActualHighlight ? `🔍 高亮关键词: ${keywords.join(', ')}` : '⚠️ 未找到匹配的关键词'
                     );
                 } else {
                     alert('查看文档失败: ' + result.message);
@@ -611,17 +724,48 @@
             return null;
         }
 
-        // 简单的关键词提取
+        // 智能关键词提取
         function extractKeywords(text) {
-            // 移除标点符号和停用词
-            const stopWords = ['的', '了', '在', '是', '我', '你', '他', '她', '它', '们', '这', '那', '什么', '怎么', '如何', '为什么', '哪里', '什么时候', '吗', '呢', '吧', '啊', '呀'];
+            // 扩展停用词列表
+            const stopWords = [
+                '的', '了', '在', '是', '我', '你', '他', '她', '它', '们', '这', '那', 
+                '什么', '怎么', '如何', '为什么', '哪里', '什么时候', '谁', '哪个', '哪些',
+                '吗', '呢', '吧', '啊', '呀', '嘛', '呢', '吧', '呀', '呢',
+                '一个', '一些', '有没有', '能不能', '可以', '可能', '应该', '需要',
+                '关于', '对于', '根据', '按照', '通过', '由于', '因为', '所以',
+                '请问', '请', '帮我', '告诉我', '让我', '给我', '帮助'
+            ];
             
-            const words = text
-                .replace(/[，。！？；：""''（）【】《》]/g, ' ')
+            // 清理文本并分词
+            const cleanText = text
+                .replace(/[，。！？；：""''（）【】《》\[\]]/g, ' ')  // 替换标点为空格
+                .replace(/\s+/g, ' ')  // 多个空格合并为一个
+                .trim();
+            
+            const words = cleanText
                 .split(/\s+/)
-                .filter(word => word.length > 1 && !stopWords.includes(word))
-                .slice(0, 5); // 最多取5个关键词
+                .filter(word => {
+                    // 过滤条件：长度大于1，不在停用词中，不是纯数字
+                    return word.length > 1 && 
+                           !stopWords.includes(word) && 
+                           !/^\d+$/.test(word);
+                })
+                .slice(0, 8); // 最多取8个关键词
             
+            // 如果提取的关键词太少，尝试包含一些较短的有意义词汇
+            if (words.length < 3) {
+                const shortWords = cleanText
+                    .split(/\s+/)
+                    .filter(word => {
+                        return word.length === 1 && 
+                               !/[的了在是我你他她它们这那]/.test(word) &&
+                               /[\u4e00-\u9fa5a-zA-Z]/.test(word);  // 中文或英文字符
+                    })
+                    .slice(0, 2);
+                words.push(...shortWords);
+            }
+            
+            console.log('提取的关键词:', words);
             return words;
         }
 
@@ -633,18 +777,35 @@
             
             // 设置标题
             if (subtitle) {
-                modalTitle.innerHTML = `${title}<br><small style="font-size: 12px; color: #666; font-weight: normal;">${subtitle}</small>`;
+                modalTitle.innerHTML = `
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 5px;">${title}</div>
+                    <div style="font-size: 13px; color: #666; font-weight: normal; opacity: 0.8;">${subtitle}</div>
+                `;
             } else {
-                modalTitle.textContent = title;
+                modalTitle.innerHTML = `<div style="font-size: 18px; font-weight: 600;">${title}</div>`;
             }
             
+            // 设置内容
             if (isHighlighted) {
                 documentContent.innerHTML = content;
+                
+                // 滚动到第一个高亮位置
+                setTimeout(() => {
+                    const firstHighlight = documentContent.querySelector('mark');
+                    if (firstHighlight) {
+                        firstHighlight.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center' 
+                        });
+                    }
+                }, 100);
             } else {
                 documentContent.textContent = content;
             }
             
+            // 显示模态框
             modal.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // 防止背景滚动
             
             // 点击模态框外部关闭
             modal.onclick = function(event) {
@@ -658,6 +819,7 @@
         function closeModal() {
             const modal = document.getElementById('documentModal');
             modal.style.display = 'none';
+            document.body.style.overflow = ''; // 恢复背景滚动
         }
 
         // ESC键关闭模态框

@@ -68,9 +68,17 @@ MAX_FILE_SIZE = config("MAX_FILE_SIZE", cast=int, default=50 * 1024 * 1024)  # 5
 ALLOWED_FILE_TYPES = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt']
 
 # 嵌入模型配置（本地模型优先）
-EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="all-MiniLM-L6-v2")
+# 当前模型：多语言通用（推荐保持）
+EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+
+# 中文优化模型（如果主要处理中文文档，取消注释下面这行）
+# EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="shibing624/text2vec-base-chinese")
+
+# 高精度多语言模型（如果需要更高精度，取消注释下面这行）
+# EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
+
 EMBEDDING_DIMENSION = config("EMBEDDING_DIMENSION", cast=int, default=384)
-HF_HOME = config("HF_HOME", default=os.path.join(BASE_PATH, ".cache", "huggingface"))
+HF_HOME = config("HF_HOME", default=os.path.join(BASE_PATH, "models"))
 HF_OFFLINE = config("HF_OFFLINE", cast=bool, default=True)
 
 # 文本分割配置

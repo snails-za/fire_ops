@@ -306,12 +306,19 @@ async def view_document_content(
         highlighted_content = content
         if highlight and highlight.strip():
             import re
-            # 使用正则表达式进行不区分大小写的高亮
-            pattern = re.compile(re.escape(highlight.strip()), re.IGNORECASE)
-            highlighted_content = pattern.sub(
-                lambda m: f'<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px;">{m.group()}</mark>',
-                content
-            )
+            
+            # 分割多个关键词（支持空格分隔）
+            keywords = [kw.strip() for kw in highlight.strip().split() if kw.strip()]
+            
+            # 对每个关键词进行高亮处理
+            for keyword in keywords:
+                if len(keyword) >= 1:  # 至少1个字符才高亮
+                    # 使用正则表达式进行不区分大小写的高亮
+                    pattern = re.compile(re.escape(keyword), re.IGNORECASE)
+                    highlighted_content = pattern.sub(
+                        lambda m: f'<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; font-weight: bold;">{m.group()}</mark>',
+                        highlighted_content
+                    )
         
         return response(data={
             "document": {

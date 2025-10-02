@@ -68,13 +68,17 @@ MAX_FILE_SIZE = config("MAX_FILE_SIZE", cast=int, default=50 * 1024 * 1024)  # 5
 ALLOWED_FILE_TYPES = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt']
 
 # 嵌入模型配置（本地模型优先）
-# 当前模型：多语言通用（推荐保持）
-EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+# 当前模型：多语言通用
+# EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
-# 中文优化模型（如果主要处理中文文档，取消注释下面这行）
+# 中文优化模型选项：
+# BGE模型（推荐）- 百度开源，中文效果优秀
+EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="BAAI/bge-small-zh-v1.5")
+
+# Text2Vec模型 - 另一个中文优化选择
 # EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="shibing624/text2vec-base-chinese")
 
-# 高精度多语言模型（如果需要更高精度，取消注释下面这行）
+# 高精度多语言模型
 # EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
 
 EMBEDDING_DIMENSION = config("EMBEDDING_DIMENSION", cast=int, default=384)

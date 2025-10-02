@@ -247,3 +247,86 @@ async def get_document_stats():
         
     except Exception as e:
         return response(code=500, message=f"获取统计信息失败: {str(e)}")
+
+
+@router.get("/{document_id}/download", summary="下载文档(匿名)", description="下载原始文档文件（无需登录）")
+async def download_document(document_id: int):
+    """下载文档"""
+    try:
+        from fastapi.responses import FileResponse
+        
+        document = await Document.get_or_none(id=document_id)
+        if not document:
+            return response(code=404, message="文档不存在")
+        
+        if not os.path.exists(document.file_path):
+            return response(code=404, message="文档文件不存在")
+        
+        # 返回文件下载响应
+        return FileResponse(
+            path=document.file_path,
+            filename=document.original_filename,
+            media_type='application/octet-stream'
+        )
+        
+    except Exception as e:
+        return response(code=500, message=f"下载文档失败: {str(e)}")
+
+
+@router.get("/{document_id}/view", summary="查看文档内容(匿名)", description="查看文档内容并支持高亮显示（无需登录）")
+async def view_document_content(
+    document_id: int,
+    highlight: Optional[str] = Query(None, description="需要高亮的文本"),
+    chunk_id: Optional[int] = Query(None, description="特定文档块ID")
+):
+    """查看文档内容"""
+    try:
+        document = await Document.get_or_none(id=document_id)
+        if not document:
+            return response(code=404, message="文档不存在")
+        
+        # 如果指定了chunk_id，返回特定块的内容
+        if chunk_id:
+            chunk = await DocumentChunk.get_or_none(id=chunk_id, document_id=document_id)
+            if not chunk:
+                return response(code=404, message="文档块不存在")
+            
+            content = chunk.content
+            chunk_info = {
+                "chunk_id": chunk.id,
+                "chunk_index": chunk.chunk_index,
+                "content_length": chunk.content_length
+            }
+        else:
+            # 返回完整文档内容
+            content = document.content
+            chunk_info = None
+        
+        # 如果需要高亮，处理高亮文本
+        highlighted_content = content
+        if highlight and highlight.strip():
+            import re
+            # 使用正则表达式进行不区分大小写的高亮
+            pattern = re.compile(re.escape(highlight.strip()), re.IGNORECASE)
+            highlighted_content = pattern.sub(
+                lambda m: f'<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px;">{m.group()}</mark>',
+                content
+            )
+        
+        return response(data={
+            "document": {
+                "id": document.id,
+                "filename": document.original_filename,
+                "file_type": document.file_type,
+                "upload_time": document.upload_time,
+                "status": document.status
+            },
+            "content": content,
+            "highlighted_content": highlighted_content,
+            "highlight_text": highlight,
+            "chunk_info": chunk_info,
+            "has_highlight": bool(highlight and highlight.strip())
+        })
+        
+    except Exception as e:
+        return response(code=500, message=f"查看文档失败: {str(e)}")

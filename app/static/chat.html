@@ -114,10 +114,128 @@
         .source-item {
             font-size: 12px;
             color: #666;
-            margin-bottom: 4px;
-            padding: 4px 8px;
+            margin-bottom: 8px;
+            padding: 8px 12px;
             background: white;
-            border-radius: 4px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .source-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .similarity {
+            font-size: 11px;
+            color: #007bff;
+            font-weight: normal;
+        }
+
+        .source-content {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .source-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .download-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+        }
+
+        .view-btn {
+            background: #007bff;
+            color: white;
+        }
+
+        .view-btn:hover {
+            background: #0056b3;
+        }
+
+        .highlight-btn {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .highlight-btn:hover {
+            background: #e0a800;
+        }
+
+        .document-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 2% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90%;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .document-content {
+            line-height: 1.6;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
 
         .chat-input {
@@ -248,6 +366,19 @@
         </div>
     </div>
 
+    <!-- 文档查看模态框 -->
+    <div id="documentModal" class="document-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">文档内容</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="document-content" id="documentContent">
+                <!-- 文档内容将在这里显示 -->
+            </div>
+        </div>
+    </div>
+
     <script>
         let isWaitingForResponse = false;
 
@@ -335,10 +466,26 @@
                 sourcesHtml = `
                     <div class="sources">
                         <h4>参考文档:</h4>
-                        ${metadata.map(source => `
+                        ${metadata.map((source, index) => `
                             <div class="source-item">
-                                <strong>${source.document}</strong> (相似度: ${(source.similarity * 100).toFixed(1)}%)
-                                <br>${source.content_preview}
+                                <div class="source-header">
+                                    <strong>${source.document_name || source.document}</strong> 
+                                    <span class="similarity">(相似度: ${(source.similarity * 100).toFixed(1)}%)</span>
+                                </div>
+                                <div class="source-content">
+                                    ${source.content_preview}
+                                </div>
+                                <div class="source-actions">
+                                    <button class="action-btn download-btn" onclick="downloadDocument(${source.document_id}, '${source.original_filename || source.document_name}')">
+                                        📥 下载
+                                    </button>
+                                    <button class="action-btn view-btn" onclick="viewDocument(${source.document_id}, ${source.chunk_id}, '${source.document_name}')">
+                                        👁️ 查看
+                                    </button>
+                                    <button class="action-btn highlight-btn" onclick="viewWithSmartHighlight(${source.document_id}, ${source.chunk_id}, '${source.document_name}')">
+                                        🔍 智能高亮
+                                    </button>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -391,6 +538,134 @@
                 sendMessage();
             }
         }
+
+        // 下载文档
+        function downloadDocument(documentId, filename) {
+            const downloadUrl = `/api/v1/documents/${documentId}/download`;
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 查看文档内容
+        async function viewDocument(documentId, chunkId, documentName) {
+            try {
+                const response = await fetch(`/api/v1/documents/${documentId}/view?chunk_id=${chunkId}`);
+                const result = await response.json();
+                
+                if (response.ok && result.code === 200) {
+                    showDocumentModal(documentName, result.data.content, false);
+                } else {
+                    alert('查看文档失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('查看文档失败:', error);
+                alert('查看文档失败: 网络错误');
+            }
+        }
+
+        // 智能高亮显示 - 基于用户问题提取关键词
+        async function viewWithSmartHighlight(documentId, chunkId, documentName) {
+            try {
+                // 获取最近的用户问题
+                const lastUserMessage = getLastUserQuestion();
+                if (!lastUserMessage) {
+                    // 如果没有问题，就普通查看
+                    viewDocument(documentId, chunkId, documentName);
+                    return;
+                }
+                
+                // 提取关键词进行高亮
+                const keywords = extractKeywords(lastUserMessage);
+                const highlightText = keywords.join(' ');
+                
+                const response = await fetch(`/api/v1/documents/${documentId}/view?chunk_id=${chunkId}&highlight=${encodeURIComponent(highlightText)}`);
+                const result = await response.json();
+                
+                if (response.ok && result.code === 200) {
+                    showDocumentModal(
+                        `${documentName} - 智能高亮`, 
+                        result.data.highlighted_content, 
+                        true,
+                        `高亮关键词: ${keywords.join(', ')}`
+                    );
+                } else {
+                    alert('查看文档失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('查看文档失败:', error);
+                alert('查看文档失败: 网络错误');
+            }
+        }
+
+        // 获取最近的用户问题
+        function getLastUserQuestion() {
+            const messages = document.querySelectorAll('.message.user .message-content');
+            if (messages.length > 0) {
+                const lastMessage = messages[messages.length - 1];
+                return lastMessage.textContent.split('\n')[0]; // 获取第一行，去掉时间戳
+            }
+            return null;
+        }
+
+        // 简单的关键词提取
+        function extractKeywords(text) {
+            // 移除标点符号和停用词
+            const stopWords = ['的', '了', '在', '是', '我', '你', '他', '她', '它', '们', '这', '那', '什么', '怎么', '如何', '为什么', '哪里', '什么时候', '吗', '呢', '吧', '啊', '呀'];
+            
+            const words = text
+                .replace(/[，。！？；：""''（）【】《》]/g, ' ')
+                .split(/\s+/)
+                .filter(word => word.length > 1 && !stopWords.includes(word))
+                .slice(0, 5); // 最多取5个关键词
+            
+            return words;
+        }
+
+        // 显示文档模态框
+        function showDocumentModal(title, content, isHighlighted, subtitle = '') {
+            const modal = document.getElementById('documentModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const documentContent = document.getElementById('documentContent');
+            
+            // 设置标题
+            if (subtitle) {
+                modalTitle.innerHTML = `${title}<br><small style="font-size: 12px; color: #666; font-weight: normal;">${subtitle}</small>`;
+            } else {
+                modalTitle.textContent = title;
+            }
+            
+            if (isHighlighted) {
+                documentContent.innerHTML = content;
+            } else {
+                documentContent.textContent = content;
+            }
+            
+            modal.style.display = 'block';
+            
+            // 点击模态框外部关闭
+            modal.onclick = function(event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            };
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            const modal = document.getElementById('documentModal');
+            modal.style.display = 'none';
+        }
+
+        // ESC键关闭模态框
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
     </script>
 </body>
 </html>

@@ -125,9 +125,18 @@ async def ask_question_anonymous(
             "answer": answer,
             "sources": [
                 {
-                    "document": chunk["document"].filename,
+                    "document_id": chunk["document"].id,
+                    "document_name": chunk["document"].filename,
+                    "original_filename": chunk["document"].original_filename,
+                    "file_type": chunk["document"].file_type,
+                    "chunk_id": chunk["chunk"].id,
+                    "chunk_index": chunk["chunk"].chunk_index,
                     "similarity": chunk["similarity"],
-                    "content_preview": chunk["chunk"].content[:200] + "..." if len(chunk["chunk"].content) > 200 else chunk["chunk"].content
+                    "content_preview": chunk["chunk"].content[:200] + "..." if len(chunk["chunk"].content) > 200 else chunk["chunk"].content,
+                    "full_content": chunk["chunk"].content,
+                    "download_url": f"/api/v1/documents/{chunk['document'].id}/download",
+                    "view_url": f"/api/v1/documents/{chunk['document'].id}/view?chunk_id={chunk['chunk'].id}",
+                    "highlight_url": f"/api/v1/documents/{chunk['document'].id}/view?chunk_id={chunk['chunk'].id}&highlight="
                 }
                 for chunk in similar_chunks
             ],

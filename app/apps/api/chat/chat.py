@@ -10,9 +10,12 @@
 """
 
 import traceback
+import json
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Query, Form
+from fastapi.responses import StreamingResponse
 
 from apps.utils import response
 from apps.utils.rag_helper import vector_search, rag_generator
@@ -21,6 +24,135 @@ from config import SIMILARITY_THRESHOLD
 
 # 智能问答API路由
 router = APIRouter(prefix="/chat", tags=["智能问答"])
+
+
+@router.post("/ask/stream", summary="流式智能问答", description="基于LLM的流式智能文档问答")
+async def ask_question_stream(
+    question: str = Form(..., description="用户问题"),
+    top_k: int = Form(5, ge=1, le=10, description="检索相关文档数量"),
+):
+    """
+    流式智能问答 - 实时输出回答内容
+    """
+    async def generate_stream():
+        try:
+            # 1. 问题理解和优化
+            question_analysis = None
+            optimized_query = question
+            
+            question_optimizer = get_question_optimizer()
+            search_optimizer = get_search_optimizer()
+            
+            if question_optimizer:
+                try:
+                    analysis_result = optimize_question(question)
+                    if analysis_result:
+                        question_analysis = analysis_result
+                        optimized_query = analysis_result.get("optimized_query", question)
+                    else:
+                        # 如果问题分析失败，使用搜索优化器
+                        if search_optimizer:
+                            try:
+                                optimized_query = search_optimizer.invoke({"question": question})
+                                optimized_query = optimized_query.strip()
+                                if not optimized_query:
+                                    optimized_query = question
+                            except Exception as e:
+                                print(f"搜索优化失败: {e}")
+                                optimized_query = question
+                except Exception as e:
+                    print(f"问题优化失败: {e}")
+                    optimized_query = question
+            
+            # 发送搜索状态
+            yield f"data: {json.dumps({'type': 'status', 'message': '🔍 正在搜索相关文档...'}, ensure_ascii=False)}\n\n"
+            
+            # 2. 向量搜索相关文档
+            search_results = await vector_search.search_similar_chunks(
+                query=optimized_query,
+                top_k=top_k
+            )
+            
+            if not search_results:
+                yield f"data: {json.dumps({'type': 'error', 'message': '抱歉，我没有找到相关的文档内容来回答您的问题。'}, ensure_ascii=False)}\n\n"
+                return
+            
+            # 发送文档信息
+            high_quality_results = [r for r in search_results if r.get('above_threshold', True)]
+            low_quality_results = [r for r in search_results if not r.get('above_threshold', True)]
+            
+            # 构建源信息
+            sources = []
+            for result in search_results:
+                document = result.get("document")
+                chunk = result.get("chunk")
+                chunk_content = chunk.content if chunk else ""
+                sources.append({
+                    "document_name": document.filename if document else "未知文档",
+                    "original_filename": document.original_filename if document else None,
+                    "chunk_text": chunk_content,
+                    "content_preview": chunk_content[:200] + "..." if len(chunk_content) > 200 else chunk_content,
+                    "similarity": round(result.get("similarity", 0), 4),
+                    "document_id": document.id if document else None,
+                    "chunk_id": chunk.id if chunk else None,
+                    "chunk_index": chunk.chunk_index if chunk else 0
+                })
+            
+            # 发送搜索结果信息
+            search_info = {
+                "search_count": len(search_results),
+                "high_quality_count": len(high_quality_results),
+                "low_quality_count": len(low_quality_results),
+                "similarity_threshold": SIMILARITY_THRESHOLD,
+                "result_quality": "high" if high_quality_results else ("low" if low_quality_results else "none"),
+                "optimized_query": optimized_query,
+                "question_analysis": question_analysis
+            }
+            
+            yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'search_info': search_info}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'message': '🤖 正在生成回答...'}, ensure_ascii=False)}\n\n"
+            
+            # 3. 生成流式回答
+            answer = await rag_generator.generate_answer(
+                query=question,
+                context_chunks=search_results
+            )
+            
+            # 根据结果质量调整回答
+            if high_quality_results:
+                pass  # 高质量结果，正常回答
+            elif low_quality_results:
+                answer = f"{answer}\n\n💡 提示：以上回答基于相似度较低的文档内容，可能不够准确。建议您：\n• 尝试更具体的问题描述\n• 使用不同的关键词重新提问"
+            
+            # 模拟流式输出
+            words = answer.split()
+            current_text = ""
+            
+            for i, word in enumerate(words):
+                current_text += word + " "
+                
+                # 每几个词发送一次
+                if (i + 1) % 3 == 0 or i == len(words) - 1:
+                    yield f"data: {json.dumps({'type': 'content', 'content': current_text.strip()}, ensure_ascii=False)}\n\n"
+                    await asyncio.sleep(0.05)  # 控制输出速度
+            
+            # 发送完成信号
+            yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+            
+        except Exception as e:
+            print(f"流式问答失败: {e}")
+            traceback.print_exc()
+            yield f"data: {json.dumps({'type': 'error', 'message': f'问答失败: {str(e)}'}, ensure_ascii=False)}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+        }
+    )
 
 
 @router.post("/ask", summary="智能问答(匿名)", description="基于LLM的智能文档问答（无需登录）")

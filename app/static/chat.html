@@ -76,6 +76,8 @@
             padding: 15px 20px;
             border-radius: 20px;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
 
         .message.user .message-content {
@@ -454,6 +456,56 @@
         .sources .highlight-btn:hover {
             background: #e0a800 !important;
         }
+
+        /* 流式输出动画效果 */
+        .streaming-content {
+            position: relative;
+        }
+
+        .streaming-content::after {
+            content: '▋';
+            color: #007bff;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        .message.assistant .streaming-content.completed::after {
+            display: none;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* 延迟显示动画 */
+        .delayed-content {
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeInUp 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 确保相关文档和搜索信息在内容下方 */
+        .sources, .search-info {
+            width: 100%;
+            box-sizing: border-box;
+            order: 999; /* 确保在最后显示 */
+        }
+
+        .streaming-content {
+            order: 1;
+        }
+
+        .message-time {
+            order: 2;
+        }
     </style>
 </head>
 <body>
@@ -531,7 +583,7 @@
             chatMessages.innerHTML = '';
         }
 
-        // 发送消息
+        // 发送消息（流式输出）
         async function sendMessage() {
             const messageInput = document.getElementById('messageInput');
             const message = messageInput.value.trim();
@@ -546,9 +598,13 @@
             showLoading(true);
             isWaitingForResponse = true;
 
+            // 创建助手消息容器
+            const assistantMessageId = 'msg-' + Date.now();
+            addStreamingMessageToChat('assistant', '', null, null, assistantMessageId);
+
             try {
-                // 使用匿名问答接口
-                const response = await fetch('/api/v1/chat/ask', {
+                // 使用流式问答接口
+                const response = await fetch('/api/v1/chat/ask/stream', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -559,19 +615,186 @@
                     })
                 });
 
-                const result = await response.json();
-                if (response.ok && result.code === 200) {
-                    addMessageToChat('assistant', result.data.answer, result.data.sources, result.data);
-                } else {
-                    addMessageToChat('assistant', '抱歉，回答失败: ' + result.message);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let currentContent = '';
+                let sources = null;
+                let searchInfo = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // 保留不完整的行
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                
+                                switch (data.type) {
+                                    case 'status':
+                                        updateStreamingMessage(assistantMessageId, data.message, null, null);
+                                        break;
+                                    case 'sources':
+                                        // 只保存数据，不立即显示
+                                        sources = data.sources;
+                                        searchInfo = data.search_info;
+                                        break;
+                                    case 'content':
+                                        currentContent = data.content;
+                                        updateStreamingMessage(assistantMessageId, currentContent, null, null);
+                                        break;
+                                    case 'error':
+                                        updateStreamingMessage(assistantMessageId, '抱歉，' + data.message, sources, searchInfo);
+                                        break;
+                                    case 'done':
+                                        // 流式输出完成，移除光标动画并显示相关文档和搜索信息
+                                        const streamingContent = document.querySelector(`#${assistantMessageId} .streaming-content`);
+                                        if (streamingContent) {
+                                            streamingContent.classList.add('completed');
+                                        }
+                                        // 现在显示相关文档和搜索信息
+                                        updateStreamingMessage(assistantMessageId, currentContent, sources, searchInfo);
+                                        break;
+                                }
+                            } catch (e) {
+                                console.error('解析SSE数据失败:', e);
+                            }
+                        }
+                    }
                 }
             } catch (error) {
-                console.error('发送消息失败:', error);
-                addMessageToChat('assistant', '抱歉，网络错误，请稍后重试');
+                console.error('流式问答失败:', error);
+                updateStreamingMessage(assistantMessageId, '抱歉，网络错误，请稍后重试', null, null);
             } finally {
                 showLoading(false);
                 isWaitingForResponse = false;
             }
+        }
+
+        // 添加流式消息到聊天
+        function addStreamingMessageToChat(role, content, metadata = null, searchInfo = null, messageId = null) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            // 移除空状态
+            const emptyState = chatMessages.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.id = messageId || 'msg-' + Date.now();
+
+            // 初始内容
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="streaming-content">${content}</div>
+                    <div class="message-time">${new Date().toLocaleString()}</div>
+                </div>
+            `;
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageDiv.id;
+        }
+
+        // 更新流式消息内容
+        function updateStreamingMessage(messageId, content, sources = null, searchInfo = null) {
+            const messageDiv = document.getElementById(messageId);
+            if (!messageDiv) return;
+
+            // 显示相关文档（带操作功能）
+            let sourcesHtml = '';
+            if (sources && Array.isArray(sources) && sources.length > 0) {
+                // 按文档分组，保留操作功能
+                const docGroups = {};
+                sources.forEach(source => {
+                    const docName = source.document_name;
+                    if (!docGroups[docName]) {
+                        docGroups[docName] = {
+                            document_id: source.document_id,
+                            document_name: docName,
+                            original_filename: source.original_filename,
+                            chunks: []
+                        };
+                    }
+                    docGroups[docName].chunks.push(source);
+                });
+                
+                const docList = Object.values(docGroups);
+                sourcesHtml = `
+                    <div class="sources delayed-content" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #007bff;">
+                        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">📚 相关文档 (${docList.length}个):</div>
+                        ${docList.map(doc => `
+                            <div style="margin-bottom: 6px; padding: 4px; background: white; border-radius: 4px; border: 1px solid #e9ecef;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 13px; color: #333; font-weight: 500;">📄 ${doc.document_name}</span>
+                                    <div style="display: flex; gap: 4px;">
+                                        ${doc.document_id ? `
+                                            <button class="action-btn download-btn" data-doc-id="${doc.document_id}" data-filename="${doc.original_filename || doc.document_name}" 
+                                                    style="padding: 2px 6px; font-size: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">📥</button>
+                                            <button class="action-btn view-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
+                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;">👁️</button>
+                                            <button class="action-btn highlight-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
+                                                    style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;">🔍</button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            // 添加搜索信息显示
+            let searchInfoHtml = '';
+            if (searchInfo) {
+                const isEnhanced = searchInfo.llm_enhanced;
+                const resultsCount = searchInfo.search_count || 0;
+                const searchQuery = searchInfo.optimized_query;
+                const originalQuery = searchInfo.question || searchInfo.original_query;
+                const similarityThreshold = searchInfo.similarity_threshold;
+                const resultQuality = searchInfo.result_quality;
+                const highQualityCount = searchInfo.high_quality_count || 0;
+                const lowQualityCount = searchInfo.low_quality_count || 0;
+                
+                let qualityInfo = '';
+                if (resultQuality === 'high') {
+                    qualityInfo = `✅ ${highQualityCount} 个高质量匹配`;
+                } else if (resultQuality === 'low') {
+                    qualityInfo = `⚠️ ${lowQualityCount} 个低质量匹配`;
+                } else {
+                    qualityInfo = '❌ 无匹配结果';
+                }
+                
+                searchInfoHtml = `
+                    <div class="search-info delayed-content" style="margin-top: 10px; padding: 8px; background: ${resultQuality === 'high' ? '#f0f8ff' : (resultQuality === 'low' ? '#fff8e1' : '#ffebee')}; border-radius: 6px; font-size: 12px; color: #666;">
+                        ${isEnhanced ? '🧠 AI增强搜索' : '📝 基础搜索'} | ${qualityInfo}
+                        ${searchQuery && searchQuery !== originalQuery ? `<br>🔍 优化查询: "${searchQuery}"` : ''}
+                    </div>
+                `;
+            }
+
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="streaming-content">${content}</div>
+                    <div class="message-time">${new Date().toLocaleString()}</div>
+                    ${sourcesHtml}
+                    ${searchInfoHtml}
+                </div>
+            `;
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
         // 添加消息到聊天
@@ -607,7 +830,7 @@
                 
                 const docList = Object.values(docGroups);
                 sourcesHtml = `
-                    <div class="sources" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #007bff;">
+                    <div class="sources delayed-content" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #007bff;">
                         <div style="font-size: 12px; color: #666; margin-bottom: 8px;">📚 相关文档 (${docList.length}个):</div>
                         ${docList.map(doc => `
                             <div style="margin-bottom: 6px; padding: 4px; background: white; border-radius: 4px; border: 1px solid #e9ecef;">
@@ -652,7 +875,7 @@
                 }
                 
                 searchInfoHtml = `
-                    <div class="search-info" style="margin-top: 10px; padding: 8px; background: ${resultQuality === 'high' ? '#f0f8ff' : (resultQuality === 'low' ? '#fff8e1' : '#ffebee')}; border-radius: 6px; font-size: 12px; color: #666;">
+                    <div class="search-info delayed-content" style="margin-top: 10px; padding: 8px; background: ${resultQuality === 'high' ? '#f0f8ff' : (resultQuality === 'low' ? '#fff8e1' : '#ffebee')}; border-radius: 6px; font-size: 12px; color: #666;">
                         ${isEnhanced ? '🧠 AI增强搜索' : '📝 基础搜索'} | ${qualityInfo}
                         ${searchQuery && searchQuery !== originalQuery ? `<br>🔍 优化查询: "${searchQuery}"` : ''}
                     </div>

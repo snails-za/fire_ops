@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     await RedisManager.init()
     yield
     await RedisManager.close()
-    print("Finished up.")
+    print("✅ Finished up.")
 
 app = create_app(lifespan=lifespan)
 

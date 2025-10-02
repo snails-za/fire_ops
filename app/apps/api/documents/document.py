@@ -1,4 +1,5 @@
 import os
+import traceback
 import uuid
 from typing import Optional
 
@@ -67,6 +68,7 @@ async def upload_document(
         return response(data=data.model_dump(), message="文档上传成功，正在处理中...")
         
     except Exception as e:
+        traceback.print_exc()
         return response(code=500, message=f"上传失败: {str(e)}")
 
 

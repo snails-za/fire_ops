@@ -21,6 +21,7 @@ def init_db(app):
         # generate_schemas=True if config.DEBUG else False,
         add_exception_handlers=True if DEBUG else False
     )
+    print("✅ 数据库初始化完成")
 
 
 def init_static(app):

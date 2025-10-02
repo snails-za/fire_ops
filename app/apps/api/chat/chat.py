@@ -108,7 +108,12 @@ async def ask_question_stream(
                 "question_analysis": question_analysis
             }
 
-            yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'search_info': search_info}, ensure_ascii=False)}\n\n"
+            # 添加问题分析的关键词信息
+            keywords = []
+            if question_analysis and 'keywords' in question_analysis:
+                keywords = question_analysis['keywords']
+            
+            yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'search_info': search_info, 'keywords': keywords}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'status', 'message': '🤖 正在生成回答...'}, ensure_ascii=False)}\n\n"
             
             # 3. 生成真正的流式回答

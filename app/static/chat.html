@@ -577,6 +577,7 @@
 
     <script>
         let isWaitingForResponse = false;
+        let lastAnalysisKeywords = null; // 保存最近一次问题分析的关键词
 
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -643,6 +644,7 @@
                 let currentContent = '';
                 let sources = null;
                 let searchInfo = null;
+                let analysisKeywords = null;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -667,6 +669,9 @@
                                         // 只保存数据，不立即显示
                                         sources = data.sources;
                                         searchInfo = data.search_info;
+                                        analysisKeywords = data.keywords || null;
+                                        lastAnalysisKeywords = analysisKeywords; // 保存到全局变量
+                                        console.log('收到分析关键词:', analysisKeywords);
                                         break;
                                     case 'content':
                                         currentContent = data.content;
@@ -770,11 +775,14 @@
                                     <div style="display: flex; gap: 4px;">
                                         ${doc.document_id ? `
                                             <button class="action-btn download-btn" data-doc-id="${doc.document_id}" data-filename="${doc.original_filename || doc.document_name}" 
-                                                    style="padding: 2px 6px; font-size: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">📥</button>
+                                                    style="padding: 2px 6px; font-size: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" 
+                                                    title="下载文档">📥</button>
                                             <button class="action-btn view-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
-                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;">👁️</button>
+                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;" 
+                                                    title="普通查看">👁️</button>
                                             <button class="action-btn highlight-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
-                                                    style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;">🔍</button>
+                                                    style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;" 
+                                                    title="高亮查看（基于问题关键词）">🔍</button>
                                         ` : ''}
                                     </div>
                                 </div>
@@ -879,11 +887,14 @@
                                     <div style="display: flex; gap: 4px;">
                                         ${doc.document_id ? `
                                             <button class="action-btn download-btn" data-doc-id="${doc.document_id}" data-filename="${doc.original_filename || doc.document_name}" 
-                                                    style="padding: 2px 6px; font-size: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">📥</button>
+                                                    style="padding: 2px 6px; font-size: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" 
+                                                    title="下载文档">📥</button>
                                             <button class="action-btn view-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
-                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;">👁️</button>
+                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;" 
+                                                    title="普通查看">👁️</button>
                                             <button class="action-btn highlight-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
-                                                    style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;">🔍</button>
+                                                    style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;" 
+                                                    title="高亮查看（基于问题关键词）">🔍</button>
                                         ` : ''}
                                     </div>
                                 </div>
@@ -981,30 +992,46 @@
             }
         }
 
-        // 智能高亮显示 - 基于用户问题提取关键词
+        // 智能高亮显示 - 优先使用后端分析的关键词
         async function viewWithSmartHighlight(documentId, chunkId, documentName) {
             try {
-                // 获取最近的用户问题
-                const lastUserMessage = getLastUserQuestion();
-                if (!lastUserMessage) {
-                    // 如果没有问题，就普通查看
-                    viewDocument(documentId, chunkId, documentName);
-                    return;
-                }
+                let keywords = [];
                 
-                // 提取关键词进行高亮
-                const keywords = extractKeywords(lastUserMessage);
-                if (keywords.length === 0) {
-                    // 如果没有提取到关键词，使用原问题的前几个词
-                    const fallbackKeywords = lastUserMessage.split(/\s+/).slice(0, 3);
-                    keywords.push(...fallbackKeywords);
+                // 优先使用后端LLM分析的关键词
+                if (lastAnalysisKeywords && lastAnalysisKeywords.length > 0) {
+                    keywords = lastAnalysisKeywords;
+                    console.log('使用后端分析的关键词:', keywords);
+                } else {
+                    // 降级到前端提取关键词
+                    const lastUserMessage = getLastUserQuestion();
+                    console.log('获取到的用户问题:', lastUserMessage);
+                    
+                    if (!lastUserMessage) {
+                        // 如果没有问题，就普通查看
+                        viewDocument(documentId, chunkId, documentName);
+                        return;
+                    }
+                    
+                    keywords = extractKeywords(lastUserMessage);
+                    console.log('前端提取的关键词:', keywords);
+                    
+                    if (keywords.length === 0) {
+                        // 如果没有提取到关键词，使用原问题的前几个词
+                        const fallbackKeywords = lastUserMessage.split(/\s+/).slice(0, 3);
+                        keywords.push(...fallbackKeywords);
+                        console.log('使用备用关键词:', keywords);
+                    }
                 }
                 
                 const highlightText = keywords.join(' ');
-                console.log('智能高亮关键词:', keywords);
+                console.log('最终高亮文本:', highlightText);
                 
-                const response = await fetch(`/api/v1/documents/${documentId}/view?chunk_id=${chunkId}&highlight=${encodeURIComponent(highlightText)}`);
+                const apiUrl = `/api/v1/documents/${documentId}/view?chunk_id=${chunkId}&highlight=${encodeURIComponent(highlightText)}`;
+                console.log('调用API:', apiUrl);
+                
+                const response = await fetch(apiUrl);
                 const result = await response.json();
+                console.log('API响应:', result);
                 
                 if (response.ok && result.code === 200) {
                     const hasActualHighlight = result.data.has_highlight && result.data.highlighted_content !== result.data.content;

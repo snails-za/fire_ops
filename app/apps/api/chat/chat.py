@@ -9,17 +9,15 @@
 集成了LangChain和OpenAI，支持问题优化和搜索增强。
 """
 
-import traceback
 import json
-import asyncio
-from typing import Optional
+import traceback
 
 from fastapi import APIRouter, Query, Form
 from fastapi.responses import StreamingResponse
 
 from apps.utils import response
-from apps.utils.rag_helper import vector_search, rag_generator
 from apps.utils.llm_optimizers import get_question_optimizer, get_search_optimizer, optimize_question
+from apps.utils.rag_helper import vector_search, rag_generator
 from config import SIMILARITY_THRESHOLD
 
 # 智能问答API路由
@@ -109,7 +107,7 @@ async def ask_question_stream(
                 "optimized_query": optimized_query,
                 "question_analysis": question_analysis
             }
-            
+
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'search_info': search_info}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'status', 'message': '🤖 正在生成回答...'}, ensure_ascii=False)}\n\n"
             

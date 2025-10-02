@@ -474,6 +474,23 @@
             display: none;
         }
 
+        /* 状态消息样式 */
+        .status-message {
+            color: #666;
+            font-style: italic;
+            padding: 8px 12px;
+            background: #f0f8ff;
+            border-radius: 6px;
+            border-left: 3px solid #007bff;
+            margin: 5px 0;
+            animation: statusPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
         @keyframes blink {
             0%, 50% { opacity: 1; }
             51%, 100% { opacity: 0; }
@@ -599,9 +616,9 @@
             showLoading(true);
             isWaitingForResponse = true;
 
-            // 创建助手消息容器
+            // 创建助手消息容器，显示初始等待状态
             const assistantMessageId = 'msg-' + Date.now();
-            addStreamingMessageToChat('assistant', '', null, null, assistantMessageId);
+            addStreamingMessageToChat('assistant', '<div class="status-message">⏳ 正在处理您的问题...</div>', null, null, assistantMessageId);
 
             try {
                 // 使用流式问答接口
@@ -642,7 +659,9 @@
                                 
                                 switch (data.type) {
                                     case 'status':
-                                        updateStreamingMessage(assistantMessageId, data.message, null, null);
+                                        // 显示状态消息，并添加特殊样式
+                                        console.log('收到状态消息:', data.message);
+                                        updateStreamingMessage(assistantMessageId, `<div class="status-message">${data.message}</div>`, null, null);
                                         break;
                                     case 'sources':
                                         // 只保存数据，不立即显示
@@ -651,6 +670,7 @@
                                         break;
                                     case 'content':
                                         currentContent = data.content;
+                                        // 如果有内容，清除状态消息并显示内容
                                         updateStreamingMessage(assistantMessageId, currentContent, null, null);
                                         break;
                                     case 'error':

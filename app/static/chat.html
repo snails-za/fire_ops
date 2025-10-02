@@ -671,7 +671,11 @@
                                         searchInfo = data.search_info;
                                         analysisKeywords = data.keywords || null;
                                         lastAnalysisKeywords = analysisKeywords; // 保存到全局变量
-                                        console.log('收到分析关键词:', analysisKeywords);
+                                        if (analysisKeywords && analysisKeywords.length > 0) {
+                                            console.log('收到后端关键词:', analysisKeywords);
+                                        } else {
+                                            console.log('后端未提供关键词，将使用前端提取');
+                                        }
                                         break;
                                     case 'content':
                                         currentContent = data.content;
@@ -777,9 +781,6 @@
                                             <button class="action-btn download-btn" data-doc-id="${doc.document_id}" data-filename="${doc.original_filename || doc.document_name}" 
                                                     style="padding: 2px 6px; font-size: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" 
                                                     title="下载文档">📥</button>
-                                            <button class="action-btn view-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
-                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;" 
-                                                    title="普通查看">👁️</button>
                                             <button class="action-btn highlight-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
                                                     style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;" 
                                                     title="高亮查看（基于问题关键词）">🔍</button>
@@ -889,9 +890,6 @@
                                             <button class="action-btn download-btn" data-doc-id="${doc.document_id}" data-filename="${doc.original_filename || doc.document_name}" 
                                                     style="padding: 2px 6px; font-size: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" 
                                                     title="下载文档">📥</button>
-                                            <button class="action-btn view-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
-                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;" 
-                                                    title="普通查看">👁️</button>
                                             <button class="action-btn highlight-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
                                                     style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;" 
                                                     title="高亮查看（基于问题关键词）">🔍</button>
@@ -992,39 +990,18 @@
             }
         }
 
-        // 智能高亮显示 - 优先使用后端分析的关键词
+        // 智能高亮显示 - 使用后端分析的关键词
         async function viewWithSmartHighlight(documentId, chunkId, documentName) {
             try {
-                let keywords = [];
-                
-                // 优先使用后端LLM分析的关键词
-                if (lastAnalysisKeywords && lastAnalysisKeywords.length > 0) {
-                    keywords = lastAnalysisKeywords;
-                    console.log('使用后端分析的关键词:', keywords);
-                } else {
-                    // 降级到前端提取关键词
-                    const lastUserMessage = getLastUserQuestion();
-                    console.log('获取到的用户问题:', lastUserMessage);
-                    
-                    if (!lastUserMessage) {
-                        // 如果没有问题，就普通查看
-                        viewDocument(documentId, chunkId, documentName);
-                        return;
-                    }
-                    
-                    keywords = extractKeywords(lastUserMessage);
-                    console.log('前端提取的关键词:', keywords);
-                    
-                    if (keywords.length === 0) {
-                        // 如果没有提取到关键词，使用原问题的前几个词
-                        const fallbackKeywords = lastUserMessage.split(/\s+/).slice(0, 3);
-                        keywords.push(...fallbackKeywords);
-                        console.log('使用备用关键词:', keywords);
-                    }
+                // 直接使用后端提供的关键词
+                if (!lastAnalysisKeywords || lastAnalysisKeywords.length === 0) {
+                    alert('暂无可用的高亮关键词，请重新提问后再试');
+                    return;
                 }
                 
+                const keywords = lastAnalysisKeywords;
                 const highlightText = keywords.join(' ');
-                console.log('最终高亮文本:', highlightText);
+                console.log('使用后端关键词进行高亮:', keywords);
                 
                 const apiUrl = `/api/v1/documents/${documentId}/view?chunk_id=${chunkId}&highlight=${encodeURIComponent(highlightText)}`;
                 console.log('调用API:', apiUrl);
@@ -1061,50 +1038,7 @@
             return null;
         }
 
-        // 智能关键词提取
-        function extractKeywords(text) {
-            // 扩展停用词列表
-            const stopWords = [
-                '的', '了', '在', '是', '我', '你', '他', '她', '它', '们', '这', '那', 
-                '什么', '怎么', '如何', '为什么', '哪里', '什么时候', '谁', '哪个', '哪些',
-                '吗', '呢', '吧', '啊', '呀', '嘛', '呢', '吧', '呀', '呢',
-                '一个', '一些', '有没有', '能不能', '可以', '可能', '应该', '需要',
-                '关于', '对于', '根据', '按照', '通过', '由于', '因为', '所以',
-                '请问', '请', '帮我', '告诉我', '让我', '给我', '帮助'
-            ];
-            
-            // 清理文本并分词
-            const cleanText = text
-                .replace(/[，。！？；：""''（）【】《》\[\]]/g, ' ')  // 替换标点为空格
-                .replace(/\s+/g, ' ')  // 多个空格合并为一个
-                .trim();
-            
-            const words = cleanText
-                .split(/\s+/)
-                .filter(word => {
-                    // 过滤条件：长度大于1，不在停用词中，不是纯数字
-                    return word.length > 1 && 
-                           !stopWords.includes(word) && 
-                           !/^\d+$/.test(word);
-                })
-                .slice(0, 8); // 最多取8个关键词
-            
-            // 如果提取的关键词太少，尝试包含一些较短的有意义词汇
-            if (words.length < 3) {
-                const shortWords = cleanText
-                    .split(/\s+/)
-                    .filter(word => {
-                        return word.length === 1 && 
-                               !/[的了在是我你他她它们这那]/.test(word) &&
-                               /[\u4e00-\u9fa5a-zA-Z]/.test(word);  // 中文或英文字符
-                    })
-                    .slice(0, 2);
-                words.push(...shortWords);
-            }
-            
-            console.log('提取的关键词:', words);
-            return words;
-        }
+        // 注意：关键词提取功能已移除，现在直接使用后端LLM分析的关键词
 
         // 显示文档模态框
         function showDocumentModal(title, content, isHighlighted, subtitle = '') {
@@ -1175,13 +1109,6 @@
                 const filename = target.getAttribute('data-filename');
                 if (docId && filename) {
                     downloadDocument(docId, filename);
-                }
-            } else if (target.classList.contains('view-btn')) {
-                const docId = target.getAttribute('data-doc-id');
-                const chunkId = target.getAttribute('data-chunk-id');
-                const docName = target.getAttribute('data-doc-name');
-                if (docId && chunkId && docName) {
-                    viewDocument(docId, chunkId, docName);
                 }
             } else if (target.classList.contains('highlight-btn')) {
                 const docId = target.getAttribute('data-doc-id');

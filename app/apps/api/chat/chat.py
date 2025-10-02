@@ -112,6 +112,9 @@ async def ask_question_stream(
             keywords = []
             if question_analysis and 'keywords' in question_analysis:
                 keywords = question_analysis['keywords']
+            elif optimized_query and optimized_query != question:
+                # 如果没有关键词但有优化查询，使用优化查询作为关键词
+                keywords = [optimized_query]
             
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'search_info': search_info, 'keywords': keywords}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'status', 'message': '🤖 正在生成回答...'}, ensure_ascii=False)}\n\n"

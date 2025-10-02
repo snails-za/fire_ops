@@ -13,92 +13,13 @@ import traceback
 from typing import Optional
 
 from fastapi import APIRouter, Query, Form
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 
 from apps.utils import response
 from apps.utils.rag_helper import vector_search, rag_generator
-from config import OPENAI_API_KEY, OPENAI_BASE_URL
+from apps.utils.llm_optimizers import get_question_optimizer, get_search_optimizer, optimize_question
 
 # 智能问答API路由
-
 router = APIRouter(prefix="/chat", tags=["智能问答"])
-
-# 初始化LLM用于问题理解和优化
-question_optimizer = None
-search_optimizer = None
-
-def initialize_question_optimizers():
-    """
-    初始化问题理解和搜索优化LLM
-    
-    Returns:
-        tuple: (question_optimizer, search_optimizer)
-    """
-    global question_optimizer, search_optimizer
-    
-    if not OPENAI_API_KEY or not OPENAI_API_KEY.strip():
-        return None, None
-    
-    try:
-        # 创建OpenAI客户端
-        question_llm = ChatOpenAI(
-            api_key=OPENAI_API_KEY,
-            base_url=OPENAI_BASE_URL,
-            temperature=0.1,
-            model="gpt-3.5-turbo",
-            max_tokens=500  # 限制输出长度
-        )
-        
-        # 问题理解和优化提示模板
-        question_template = """你是一个问题理解助手。请分析用户的问题，提取关键信息并优化搜索策略。
-
-任务：
-1. 理解问题的核心意图和关键概念
-2. 识别问题类型（事实查询、操作指导、概念解释等）
-3. 提取最重要的搜索关键词
-4. 如果问题模糊，推测可能的具体含义
-
-用户问题：{question}
-
-请用以下JSON格式回答：
-{{
-    "intent": "问题意图描述",
-    "keywords": ["关键词1", "关键词2", "关键词3"],
-    "question_type": "问题类型",
-    "optimized_query": "优化后的搜索查询"
-}}"""
-        
-        # 搜索查询优化模板
-        search_template = """你是一个搜索查询优化专家。请将用户问题转换为最适合文档搜索的查询语句。
-
-要求：
-1. 提取核心关键词和概念
-2. 去除无关的语气词和修饰词
-3. 保持查询的准确性和完整性
-4. 适合向量相似度搜索
-5. 保持中文输出
-
-原问题：{question}
-
-优化后的搜索查询（只输出查询语句）："""
-        
-        # 创建处理链
-        question_prompt = ChatPromptTemplate.from_template(question_template)
-        search_prompt = ChatPromptTemplate.from_template(search_template)
-        output_parser = StrOutputParser()
-        
-        question_optimizer = question_prompt | question_llm | output_parser
-        search_optimizer = search_prompt | question_llm | output_parser
-        
-        return question_optimizer, search_optimizer
-        
-    except Exception:
-        return None, None
-
-# 初始化优化器
-question_optimizer, search_optimizer = initialize_question_optimizers()
 
 
 @router.post("/ask", summary="智能问答(匿名)", description="基于LLM的智能文档问答（无需登录）")
@@ -109,98 +30,96 @@ async def ask_question_anonymous(
     """
     匿名智能问答 - 集成LLM问题理解和搜索优化
     
-    处理流程：
-    1. 问题预处理和验证
-    2. LLM搜索查询优化（可选）
-    3. 向量相似度搜索
-    4. LLM智能回答生成
-    5. 构建结构化响应
-    
     Args:
         question: 用户问题
         top_k: 检索相关文档数量
         
     Returns:
-        包含答案、来源和搜索信息的响应
+        智能问答结果，包含答案、相关文档和问题分析
     """
     try:
-        # 1. 问题预处理
-        original_question = question.strip()
-        if not original_question:
-            return response(code=400, message="问题不能为空")
+        # 1. 问题理解和优化
+        question_analysis = None
+        optimized_query = question
         
-        if len(original_question) > 500:
-            return response(code=400, message="问题长度不能超过500字符")
+        # 使用新的优化器模块
+        question_optimizer = get_question_optimizer()
+        search_optimizer = get_search_optimizer()
         
-        search_query = original_question
-        
-        # 2. LLM搜索查询优化（如果可用）
-        if search_optimizer and len(original_question) > 2:
+        if question_optimizer:
             try:
-                # 优化搜索查询
-                optimized_query = await search_optimizer.ainvoke({
-                    "question": original_question
-                })
-                optimized_query = optimized_query.strip()
+                question_analysis = optimize_question(question)
                 
-                # 验证优化结果的合理性
-                if (len(optimized_query) >= 2 and 
-                    len(optimized_query) <= len(original_question) * 2 and
-                    optimized_query != original_question):
-                    search_query = optimized_query
+                # 尝试解析JSON格式的分析结果
+                import json
+                try:
+                    analysis_data = json.loads(question_analysis)
+                    optimized_query = analysis_data.get("optimized_query", question)
+                except:
+                    # 如果不是JSON格式，使用搜索优化器
+                    if search_optimizer:
+                        try:
+                            optimized_query = search_optimizer.invoke({"question": question})
+                            optimized_query = optimized_query.strip()
+                            if not optimized_query:
+                                optimized_query = question
+                        except Exception as e:
+                            print(f"搜索优化失败: {e}")
+                            optimized_query = question
                     
-            except Exception:
-                search_query = original_question
+            except Exception as e:
+                print(f"问题优化失败: {e}")
+                optimized_query = question
         
-        # 3. 向量相似度搜索
-        similar_chunks = await vector_search.search_similar_chunks(search_query, top_k)
+        # 2. 向量搜索相关文档
+        search_results = vector_search.search_similar_chunks(
+            query=optimized_query,
+            top_k=top_k
+        )
         
-        # 如果优化查询没有结果，尝试原问题
-        if not similar_chunks and search_query != original_question:
-            similar_chunks = await vector_search.search_similar_chunks(original_question, top_k)
+        if not search_results:
+            return response.success(
+                data={
+                    "answer": "抱歉，我没有找到相关的文档内容来回答您的问题。请尝试：\n1. 重新表述问题\n2. 使用更具体的关键词\n3. 确保相关文档已上传",
+                    "sources": [],
+                    "question_analysis": question_analysis,
+                    "optimized_query": optimized_query,
+                    "search_count": 0
+                },
+                message="未找到相关文档"
+            )
         
-        # 4. LLM智能回答生成
-        answer = await rag_generator.generate_answer(original_question, similar_chunks)
+        # 3. 生成智能回答
+        answer = rag_generator.generate_answer(
+            question=question,
+            search_results=search_results
+        )
         
-        # 5. 构建结构化响应
-        response_data = {
-            "question": original_question,
-            "answer": answer,
-            "sources": [
-                {
-                    "document_id": chunk["document"].id,
-                    "document_name": chunk["document"].filename,
-                    "original_filename": chunk["document"].original_filename,
-                    "file_type": chunk["document"].file_type,
-                    "chunk_id": chunk["chunk"].id,
-                    "chunk_index": chunk["chunk"].chunk_index,
-                    "similarity": chunk["similarity"],
-                    "content_preview": (
-                        chunk["chunk"].content[:200] + "..." 
-                        if len(chunk["chunk"].content) > 200 
-                        else chunk["chunk"].content
-                    ),
-                    "full_content": chunk["chunk"].content,
-                    "download_url": f"/api/v1/documents/{chunk['document'].id}/download",
-                    "view_url": f"/api/v1/documents/{chunk['document'].id}/view?chunk_id={chunk['chunk'].id}",
-                    "highlight_url": f"/api/v1/documents/{chunk['document'].id}/view?chunk_id={chunk['chunk'].id}&highlight="
-                }
-                for chunk in similar_chunks
-            ],
-            "search_info": {
-                "original_query": original_question,
-                "search_query": search_query,
-                "results_count": len(similar_chunks),
-                "llm_enhanced": search_optimizer is not None,
-                "query_optimized": search_query != original_question
-            }
-        }
+        # 4. 构建源信息
+        sources = []
+        for result in search_results:
+            sources.append({
+                "document_name": result.get("document_name", "未知文档"),
+                "chunk_text": result.get("chunk_text", ""),
+                "similarity": round(result.get("similarity", 0), 4),
+                "document_id": result.get("document_id")
+            })
         
-        return response(data=response_data)
+        return response.success(
+            data={
+                "answer": answer,
+                "sources": sources,
+                "question_analysis": question_analysis,
+                "optimized_query": optimized_query,
+                "search_count": len(search_results)
+            },
+            message="问答成功"
+        )
         
     except Exception as e:
+        print(f"智能问答失败: {e}")
         traceback.print_exc()
-        return response(code=500, message=f"问答失败: {str(e)}")
+        return response.error(message=f"问答失败: {str(e)}")
 
 
 @router.get("/search", summary="文档搜索(匿名)", description="基于LLM优化的文档搜索（无需登录）")
@@ -213,12 +132,13 @@ async def search_documents(
         original_query = query.strip()
         search_query = original_query
         
+        # 使用新的优化器模块
+        search_optimizer = get_search_optimizer()
+        
         # LLM优化搜索查询
         if search_optimizer and len(original_query) > 2:
             try:
-                optimized_query = await search_optimizer.ainvoke({
-                    "question": original_query
-                })
+                optimized_query = search_optimizer.invoke({"question": original_query})
                 optimized_query = optimized_query.strip()
                 
                 if len(optimized_query) >= 2 and len(optimized_query) <= len(original_query) * 2:
@@ -228,33 +148,37 @@ async def search_documents(
                 print(f"搜索优化失败: {e}")
         
         # 执行搜索
-        similar_chunks = await vector_search.search_similar_chunks(search_query, top_k)
+        search_results = vector_search.search_similar_chunks(search_query, top_k)
         
         # 如果优化查询无结果，尝试原查询
-        if not similar_chunks and search_query != original_query:
-            similar_chunks = await vector_search.search_similar_chunks(original_query, top_k)
+        if not search_results and search_query != original_query:
+            search_results = vector_search.search_similar_chunks(original_query, top_k)
         
         results = []
-        for chunk in similar_chunks:
+        for result in search_results:
             results.append({
-                "document_id": chunk["document"].id,
-                "document_name": chunk["document"].filename,
-                "chunk_content": chunk["chunk"].content,
-                "similarity": chunk["similarity"],
-                "chunk_index": chunk["chunk"].chunk_index
+                "document_id": result.get("document_id"),
+                "document_name": result.get("document_name", "未知文档"),
+                "chunk_content": result.get("chunk_text", ""),
+                "similarity": round(result.get("similarity", 0), 4),
+                "chunk_index": result.get("chunk_index", 0)
             })
         
-        return response(data={
-            "query": original_query,
-            "search_query": search_query,
-            "results": results,
-            "total": len(results),
-            "llm_enhanced": search_optimizer is not None
-        })
+        return response.success(
+            data={
+                "query": original_query,
+                "search_query": search_query,
+                "results": results,
+                "total": len(results),
+                "llm_enhanced": search_optimizer is not None
+            },
+            message="搜索成功"
+        )
         
     except Exception as e:
+        print(f"搜索失败: {e}")
         traceback.print_exc()
-        return response(code=500, message=f"搜索失败: {str(e)}")
+        return response.error(message=f"搜索失败: {str(e)}")
 
 
 @router.post("/analyze", summary="问题分析(匿名)", description="使用LLM分析问题意图和关键词（无需登录）")
@@ -263,24 +187,32 @@ async def analyze_question(
 ):
     """问题分析 - 展示LLM的问题理解能力"""
     try:
+        # 使用新的优化器模块
+        question_optimizer = get_question_optimizer()
+        
         if not question_optimizer:
-            return response(data={
-                "question": question,
-                "analysis": "LLM未配置，无法进行深度分析",
-                "llm_available": False
-            })
+            return response.success(
+                data={
+                    "question": question,
+                    "analysis": "LLM未配置，无法进行深度分析",
+                    "llm_available": False
+                },
+                message="LLM未配置"
+            )
         
         # 使用LLM分析问题
-        analysis_result = await question_optimizer.ainvoke({
-            "question": question
-        })
+        analysis_result = optimize_question(question)
         
-        return response(data={
-            "question": question,
-            "analysis": analysis_result,
-            "llm_available": True
-        })
+        return response.success(
+            data={
+                "question": question,
+                "analysis": analysis_result,
+                "llm_available": True
+            },
+            message="分析成功"
+        )
         
     except Exception as e:
+        print(f"问题分析失败: {e}")
         traceback.print_exc()
-        return response(code=500, message=f"问题分析失败: {str(e)}")
+        return response.error(message=f"问题分析失败: {str(e)}")

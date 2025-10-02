@@ -22,6 +22,11 @@ from typing import List, Dict, Any, Optional
 import chromadb
 import openpyxl
 import pypdf
+import pytesseract
+import cv2
+import numpy as np
+from PIL import Image
+from pdf2image import convert_from_path
 from chromadb.config import Settings as ChromaSettings
 from docx import Document as DocxDocument
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -33,7 +38,8 @@ from sentence_transformers import SentenceTransformer
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from config import (
     CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL, 
-    HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD
+    HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD,
+    OCR_ENABLED, OCR_AUTO_FALLBACK, OCR_MIN_TEXT_LENGTH, OCR_MAX_FILE_SIZE
 )
 
 # RAG系统工具函数
@@ -272,7 +278,84 @@ class DocumentProcessor:
     
     async def _extract_pdf_content(self, file_path: str) -> str:
         """
-        提取PDF文档内容
+        智能PDF内容提取 - 根据配置和文档特征选择最佳策略
+        
+        处理策略：
+        1. 总是先尝试文本提取（快速、准确）
+        2. 根据配置和结果质量决定是否使用OCR
+        3. 提供清晰的处理状态和错误信息
+        
+        Args:
+            file_path: PDF文件路径
+            
+        Returns:
+            str: 提取的文本内容
+            
+        Raises:
+            Exception: 当所有提取方法都失败时
+        """
+        try:
+            # 检查文件大小
+            file_size = os.path.getsize(file_path)
+            print(f"📄 开始处理PDF文档，文件大小: {file_size / 1024 / 1024:.2f}MB")
+            
+            # 第一步：总是先尝试文本提取
+            text_content = await self._extract_pdf_text(file_path)
+            text_length = len(text_content.strip()) if text_content else 0
+            
+            # 判断文本提取质量
+            is_text_sufficient = text_length >= OCR_MIN_TEXT_LENGTH
+            
+            if is_text_sufficient:
+                print(f"✅ PDF文本提取成功，内容长度: {text_length} 字符")
+                return text_content
+            
+            # 第二步：决定是否使用OCR
+            if not OCR_ENABLED:
+                if text_content:
+                    print(f"⚠️ OCR功能未启用，返回已提取的文本内容 ({text_length} 字符)")
+                    return text_content
+                else:
+                    raise Exception("PDF无法提取文本内容，且OCR功能未启用。请启用OCR或提供文本格式的PDF。")
+            
+            # 检查文件大小限制
+            if file_size > OCR_MAX_FILE_SIZE:
+                if text_content:
+                    print(f"⚠️ 文件过大 ({file_size / 1024 / 1024:.2f}MB > {OCR_MAX_FILE_SIZE / 1024 / 1024}MB)，跳过OCR处理")
+                    return text_content
+                else:
+                    raise Exception(f"PDF文件过大 ({file_size / 1024 / 1024:.2f}MB)，无法进行OCR处理。请提供更小的文件或文本格式的PDF。")
+            
+            # 如果不是自动降级模式，且有一些文本内容，先返回文本内容
+            if not OCR_AUTO_FALLBACK and text_content:
+                print(f"ℹ️ 检测到少量文本内容 ({text_length} 字符)，OCR需手动启用")
+                return text_content
+            
+            # 第三步：执行OCR处理
+            print(f"📸 文本内容不足 ({text_length} < {OCR_MIN_TEXT_LENGTH})，开始OCR处理...")
+            print("⏳ OCR处理可能需要较长时间，请耐心等待...")
+            
+            ocr_content = await self._extract_pdf_with_ocr(file_path)
+            ocr_length = len(ocr_content.strip()) if ocr_content else 0
+            
+            if ocr_content and ocr_length > 10:
+                print(f"✅ PDF OCR处理成功，内容长度: {ocr_length} 字符")
+                return ocr_content
+            
+            # 最后的降级处理
+            if text_content:
+                print(f"⚠️ OCR处理失败，返回原始文本提取结果 ({text_length} 字符)")
+                return text_content
+                
+            raise Exception("PDF文档处理失败：文本提取和OCR识别均未获得有效内容")
+            
+        except Exception as e:
+            print(f"❌ PDF处理出错: {str(e)}")
+            raise Exception(f"PDF内容提取失败: {str(e)}")
+    
+    async def _extract_pdf_text(self, file_path: str) -> str:
+        """
+        使用PyPDF直接提取PDF文本内容
         
         Args:
             file_path: PDF文件路径
@@ -291,13 +374,161 @@ class DocumentProcessor:
                         content += f"\n--- 第 {page_num} 页 ---\n"
                         content += page_text + "\n"
                         
-            if not content.strip():
-                raise Exception("PDF文档无法提取到有效文本内容")
-                
             return content.strip()
             
         except Exception as e:
-            raise Exception(f"PDF内容提取失败: {str(e)}")
+            print(f"PDF文本提取出错: {str(e)}")
+            return ""
+    
+    async def _extract_pdf_with_ocr(self, file_path: str) -> str:
+        """
+        使用OCR技术提取PDF中的图片文字
+        
+        包含完整的依赖检查和错误处理
+        
+        Args:
+            file_path: PDF文件路径
+            
+        Returns:
+            str: OCR识别的文本内容
+            
+        Raises:
+            Exception: 当OCR依赖缺失或处理失败时
+        """
+        try:
+            # 检查OCR依赖
+            self._check_ocr_dependencies()
+            
+            # 将PDF转换为图片
+            print("🔄 正在将PDF转换为图片...")
+            try:
+                images = convert_from_path(file_path, dpi=200)  # 降低DPI平衡质量和性能
+            except Exception as e:
+                if "poppler" in str(e).lower():
+                    raise Exception("缺少poppler依赖。请运行: brew install poppler (macOS) 或 apt-get install poppler-utils (Ubuntu)")
+                raise Exception(f"PDF转图片失败: {str(e)}")
+            
+            if not images:
+                raise Exception("PDF转换后未获得任何图片页面")
+            
+            content = ""
+            total_pages = len(images)
+            successful_pages = 0
+            
+            print(f"📄 开始OCR处理 {total_pages} 页...")
+            
+            for page_num, image in enumerate(images, 1):
+                try:
+                    print(f"🔍 处理第 {page_num}/{total_pages} 页...")
+                    
+                    # 图像预处理
+                    processed_image = self._preprocess_image_for_ocr(image)
+                    
+                    # OCR识别 - 使用简单可靠的配置
+                    page_text = pytesseract.image_to_string(
+                        processed_image, 
+                        lang='chi_sim+eng',
+                        config='--oem 3 --psm 6'
+                    )
+                    
+                    if page_text.strip():
+                        content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
+                        content += page_text.strip() + "\n"
+                        successful_pages += 1
+                        
+                except Exception as page_error:
+                    print(f"⚠️ 第 {page_num} 页OCR处理失败: {str(page_error)}")
+                    continue
+            
+            if successful_pages == 0:
+                raise Exception("所有页面的OCR处理均失败")
+            
+            print(f"✅ OCR处理完成，成功处理 {successful_pages}/{total_pages} 页")
+            return content.strip()
+            
+        except Exception as e:
+            error_msg = str(e)
+            if "tesseract" in error_msg.lower():
+                error_msg = "缺少Tesseract OCR引擎。请运行: brew install tesseract (macOS) 或 apt-get install tesseract-ocr (Ubuntu)"
+            elif "chi_sim" in error_msg.lower():
+                error_msg = "缺少中文语言包。请运行: brew install tesseract-lang (macOS) 或 apt-get install tesseract-ocr-chi-sim (Ubuntu)"
+            
+            print(f"❌ PDF OCR处理失败: {error_msg}")
+            raise Exception(f"OCR处理失败: {error_msg}")
+    
+    def _check_ocr_dependencies(self):
+        """
+        检查OCR所需的依赖是否可用
+        
+        Raises:
+            Exception: 当依赖缺失时
+        """
+        try:
+            # 检查pytesseract
+            import pytesseract
+            
+            # 尝试设置tesseract路径（macOS Homebrew默认路径）
+            import shutil
+            tesseract_path = shutil.which('tesseract')
+            if tesseract_path:
+                pytesseract.pytesseract.tesseract_cmd = tesseract_path
+                print(f"🔧 设置Tesseract路径: {tesseract_path}")
+            
+            # 检查Tesseract可执行文件
+            version = pytesseract.get_tesseract_version()
+            print(f"✅ Tesseract版本: {version}")
+            
+            # 检查支持的语言
+            languages = pytesseract.get_languages()
+            print(f"📋 支持的语言: {len(languages)} 种")
+            
+            if 'chi_sim' not in languages:
+                raise Exception("Tesseract缺少中文简体语言包。请运行: brew install tesseract-lang")
+            if 'eng' not in languages:
+                raise Exception("Tesseract缺少英文语言包")
+            
+            print("✅ OCR依赖检查通过")
+                
+        except ImportError:
+            raise Exception("pytesseract包未安装")
+        except Exception as e:
+            error_str = str(e).lower()
+            if "tesseract is not installed" in error_str or "tesseract not found" in error_str:
+                raise Exception("Tesseract OCR引擎未安装或未在PATH中")
+            raise e
+    
+    
+    def _preprocess_image_for_ocr(self, pil_image: Image.Image) -> Image.Image:
+        """
+        简单的图像预处理，提高OCR识别准确性
+        
+        Args:
+            pil_image: PIL图像对象
+            
+        Returns:
+            Image.Image: 预处理后的图像
+        """
+        try:
+            # 简单的灰度转换
+            if pil_image.mode != 'L':
+                gray_image = pil_image.convert('L')
+            else:
+                gray_image = pil_image
+            
+            # 如果图像太小，稍微放大
+            width, height = gray_image.size
+            if width < 800 or height < 800:
+                scale_factor = max(800 / width, 800 / height)
+                new_width = int(width * scale_factor)
+                new_height = int(height * scale_factor)
+                gray_image = gray_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            return gray_image
+            
+        except Exception as e:
+            print(f"⚠️ 图像预处理出错: {str(e)}")
+            # 如果预处理失败，返回原图
+            return pil_image
     
     async def _extract_docx_content(self, file_path: str) -> str:
         """
@@ -787,7 +1018,7 @@ class RAGGenerator:
         except Exception as e:
             traceback.print_exc()
             raise Exception(f"LLM链式流式调用失败: {str(e)}")
-
+    
     async def _llm_answer(self, query: str, context: str) -> str:
         """
         使用LLM生成智能回答

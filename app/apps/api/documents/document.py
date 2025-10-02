@@ -65,7 +65,14 @@ async def upload_document(
         )
         
         data = await Document_Pydantic.from_tortoise_orm(document)
-        return response(data=data.model_dump(), message="文档上传成功，正在处理中...")
+        
+        # 根据文件类型提供不同的处理提示
+        if file_extension == 'pdf':
+            message = "PDF文档上传成功！系统将自动识别文本内容，如果是扫描件将使用OCR技术处理..."
+        else:
+            message = "文档上传成功，正在处理中..."
+            
+        return response(data=data.model_dump(), message=message)
         
     except Exception as e:
         traceback.print_exc()

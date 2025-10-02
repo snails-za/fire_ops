@@ -94,5 +94,11 @@ SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.6)  
 # 搜索配置
 DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
 
+# OCR配置
+OCR_ENABLED = config("OCR_ENABLED", cast=bool, default=True)  # OCR功能开关
+OCR_AUTO_FALLBACK = config("OCR_AUTO_FALLBACK", cast=bool, default=True)  # 自动降级到OCR
+OCR_MIN_TEXT_LENGTH = config("OCR_MIN_TEXT_LENGTH", cast=int, default=100)  # 触发OCR的最小文本长度
+OCR_MAX_FILE_SIZE = config("OCR_MAX_FILE_SIZE", cast=int, default=50) * 1024 * 1024  # OCR最大文件大小(50MB)
+
 
 

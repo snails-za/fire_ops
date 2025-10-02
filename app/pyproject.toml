@@ -85,4 +85,8 @@ dependencies = [
     # 与 langchain==0.3.7 兼容的 numpy 版本（<2.0）。1.26.4 为最后一个 1.x 版本
     "numpy==1.26.4",
     "tiktoken==0.8.0",
+    # OCR相关依赖
+    "pytesseract==0.3.10",  # Tesseract OCR Python包装器
+    "pdf2image==1.17.0",    # PDF转图片
+    "opencv-python==4.10.0.84",  # 图像处理
 ]

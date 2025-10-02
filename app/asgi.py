@@ -9,16 +9,28 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html, get_redoc_html
 
+from tortoise import Tortoise
 from apps.utils.redis_ import RedisManager
 from apps import create_app
+from config import TORTOISE_ORM
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Starting up...")
+    # 初始化 Tortoise ORM
+    await Tortoise.init(config=TORTOISE_ORM)
+    print("✅ 数据库初始化完成")
+    
+    # 初始化 Redis
     await RedisManager.init()
+    print("✅ Redis 初始化完成")
+    
     yield
+    
+    # 关闭连接
     await RedisManager.close()
+    await Tortoise.close_connections()
     print("✅ Finished up.")
 
 app = create_app(lifespan=lifespan)

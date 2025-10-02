@@ -5,23 +5,12 @@ from fastapi import APIRouter, FastAPI
 from fastapi.openapi.utils import get_openapi
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
-from tortoise.contrib.fastapi import register_tortoise
 
 from config import TORTOISE_ORM, DEBUG, STATIC_PATH
 # ✅ 执行 Aerich 补丁以拦截 DROP 操作（防止误删表字段）
 from apps.utils import aerich_patch as aerich_patch
 
 router = APIRouter()
-
-
-def init_db(app):
-    register_tortoise(
-        app,
-        config=TORTOISE_ORM,
-        # generate_schemas=True if config.DEBUG else False,
-        add_exception_handlers=True if DEBUG else False
-    )
-    print("✅ 数据库初始化完成")
 
 
 def init_static(app):
@@ -97,7 +86,6 @@ def create_app(lifespan=None):
     )
     init_static(app)
     init_cors(app)
-    init_db(app)
     init_routes(app)
 
     app.openapi = lambda: custom_openapi(app)

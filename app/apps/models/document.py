@@ -33,7 +33,7 @@ class DocumentChunk(BaseModel):
     
     class Meta:
         table = "document_chunk"
-        ordering = ["document", "chunk_index"]
+        ordering = ["document_id", "chunk_index"]
         description = "文档分块表"
 
 
@@ -62,5 +62,5 @@ class ChatMessage(BaseModel):
     
     class Meta:
         table = "chat_message"
-        ordering = ["session", "timestamp"]
+        ordering = ["session_id", "timestamp"]
         description = "聊天消息表"

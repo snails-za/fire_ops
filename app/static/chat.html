@@ -22,98 +22,21 @@
 
         .chat-container {
             width: 90%;
-            max-width: 1200px;
+            max-width: 800px;
             height: 90vh;
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             display: flex;
+            flex-direction: column;
             overflow: hidden;
-        }
-
-        .sidebar {
-            width: 300px;
-            background: #f8f9fa;
-            border-right: 1px solid #e9ecef;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid #e9ecef;
-            background: white;
-        }
-
-        .sidebar-header h2 {
-            color: #333;
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-
-        .new-chat-btn {
-            width: 100%;
-            padding: 12px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
-        }
-
-        .new-chat-btn:hover {
-            background: #0056b3;
-        }
-
-        .chat-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-        }
-
-        .chat-item {
-            padding: 12px;
-            margin: 5px 0;
-            background: white;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            border: 1px solid transparent;
-        }
-
-        .chat-item:hover {
-            background: #e3f2fd;
-            border-color: #2196f3;
-        }
-
-        .chat-item.active {
-            background: #2196f3;
-            color: white;
-        }
-
-        .chat-item-title {
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 4px;
-        }
-
-        .chat-item-time {
-            font-size: 12px;
-            opacity: 0.7;
-        }
-
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
         }
 
         .chat-header {
             padding: 20px;
             border-bottom: 1px solid #e9ecef;
             background: white;
+            text-align: center;
         }
 
         .chat-header h1 {
@@ -267,269 +190,80 @@
             margin-bottom: 20px;
         }
 
-        .start-chat-btn {
-            padding: 12px 24px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
+        .nav-links {
+            position: absolute;
+            top: 20px;
+            right: 20px;
         }
 
-        .start-chat-btn:hover {
-            background: #0056b3;
-        }
-
-        .upload-section {
-            padding: 20px;
-            border-bottom: 1px solid #e9ecef;
-            background: #f8f9fa;
-        }
-
-        .upload-btn {
-            padding: 8px 16px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-            margin-right: 10px;
-        }
-
-        .upload-btn:hover {
-            background: #218838;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .status-indicator {
+        .nav-link {
             display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 8px;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            margin-left: 10px;
+            transition: background 0.3s;
         }
 
-        .status-processing {
-            background: #ffc107;
-            animation: pulse 1.5s infinite;
-        }
-
-        .status-completed {
-            background: #28a745;
-        }
-
-        .status-failed {
-            background: #dc3545;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+        .nav-link:hover {
+            background: rgba(255,255,255,0.3);
         }
     </style>
 </head>
 <body>
+    <div class="nav-links">
+        <a href="/upload" class="nav-link">文档管理</a>
+        <a href="/" class="nav-link">首页</a>
+    </div>
+
     <div class="chat-container">
-        <!-- 侧边栏 -->
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <h2>智能问答</h2>
-                <button class="new-chat-btn" onclick="createNewChat()">新建对话</button>
-            </div>
-            <div class="chat-list" id="chatList">
-                <!-- 聊天列表将在这里动态生成 -->
+        <!-- 头部 -->
+        <div class="chat-header">
+            <h1>智能问答系统</h1>
+            <p>基于已上传文档的智能问答助手</p>
+        </div>
+
+        <!-- 聊天消息区域 -->
+        <div class="chat-messages" id="chatMessages">
+            <div class="empty-state">
+                <h3>欢迎使用智能问答系统</h3>
+                <p>请输入您的问题，AI将基于已上传的文档为您提供答案</p>
+                <p style="font-size: 12px; color: #999;">如需上传新文档，请访问 <a href="/upload" style="color: #007bff;">文档管理页面</a></p>
             </div>
         </div>
 
-        <!-- 主内容区 -->
-        <div class="main-content">
-            <div class="chat-header">
-                <h1>智能问答系统</h1>
-                <p>基于文档的智能问答助手</p>
-            </div>
+        <!-- 加载状态 -->
+        <div class="loading" id="loading">
+            <p>AI正在思考中...</p>
+        </div>
 
-            <!-- 文档上传区域 -->
-            <div class="upload-section">
-                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">上传文档</button>
-                <input type="file" id="fileInput" class="file-input" accept=".pdf,.docx,.doc,.xlsx,.xls,.txt" onchange="uploadDocument()">
-                <span id="uploadStatus"></span>
-            </div>
-
-            <!-- 聊天消息区域 -->
-            <div class="chat-messages" id="chatMessages">
-                <div class="empty-state">
-                    <h3>欢迎使用智能问答系统</h3>
-                    <p>请先上传文档，然后开始对话</p>
-                    <button class="start-chat-btn" onclick="createNewChat()">开始对话</button>
-                </div>
-            </div>
-
-            <!-- 加载状态 -->
-            <div class="loading" id="loading">
-                <p>AI正在思考中...</p>
-            </div>
-
-            <!-- 输入区域 -->
-            <div class="chat-input">
-                <div class="input-group">
-                    <input type="text" id="messageInput" placeholder="输入您的问题..." onkeypress="handleKeyPress(event)">
-                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
-                </div>
+        <!-- 输入区域 -->
+        <div class="chat-input">
+            <div class="input-group">
+                <input type="text" id="messageInput" placeholder="输入您的问题..." onkeypress="handleKeyPress(event)">
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
             </div>
         </div>
     </div>
 
     <script>
-        let currentSessionId = null;
         let isWaitingForResponse = false;
 
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
-            loadChatSessions();
-            checkAuth();
+            showEmptyState();
         });
-
-        // 检查认证状态
-        async function checkAuth() {
-            try {
-                const response = await fetch('/api/v1/auth/check_login', {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-                
-                if (!response.ok) {
-                    window.location.href = '/login.html';
-                }
-            } catch (error) {
-                console.error('认证检查失败:', error);
-                window.location.href = '/login.html';
-            }
-        }
-
-        // 创建新对话
-        async function createNewChat() {
-            try {
-                const sessionName = prompt('请输入对话名称:', '新对话');
-                if (!sessionName) return;
-
-                const response = await fetch('/api/v1/chat/sessions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({ session_name: sessionName })
-                });
-
-                const result = await response.json();
-                if (result.code === 0) {
-                    currentSessionId = result.data.id;
-                    loadChatSessions();
-                    clearChatMessages();
-                    showEmptyState();
-                } else {
-                    alert('创建对话失败: ' + result.message);
-                }
-            } catch (error) {
-                console.error('创建对话失败:', error);
-                alert('创建对话失败');
-            }
-        }
-
-        // 加载聊天会话列表
-        async function loadChatSessions() {
-            try {
-                const response = await fetch('/api/v1/chat/sessions', {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-
-                const result = await response.json();
-                if (result.code === 0) {
-                    displayChatSessions(result.data.sessions);
-                }
-            } catch (error) {
-                console.error('加载会话列表失败:', error);
-            }
-        }
-
-        // 显示聊天会话列表
-        function displayChatSessions(sessions) {
-            const chatList = document.getElementById('chatList');
-            chatList.innerHTML = '';
-
-            sessions.forEach(session => {
-                const chatItem = document.createElement('div');
-                chatItem.className = 'chat-item';
-                if (session.id === currentSessionId) {
-                    chatItem.classList.add('active');
-                }
-                
-                chatItem.innerHTML = `
-                    <div class="chat-item-title">${session.session_name}</div>
-                    <div class="chat-item-time">${new Date(session.last_active).toLocaleString()}</div>
-                `;
-                
-                chatItem.onclick = () => selectChatSession(session.id);
-                chatList.appendChild(chatItem);
-            });
-        }
-
-        // 选择聊天会话
-        async function selectChatSession(sessionId) {
-            currentSessionId = sessionId;
-            loadChatSessions();
-            await loadChatMessages(sessionId);
-        }
-
-        // 加载聊天消息
-        async function loadChatMessages(sessionId) {
-            try {
-                const response = await fetch(`/api/v1/chat/sessions/${sessionId}/messages`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-
-                const result = await response.json();
-                if (result.code === 0) {
-                    displayChatMessages(result.data.messages);
-                }
-            } catch (error) {
-                console.error('加载消息失败:', error);
-            }
-        }
-
-        // 显示聊天消息
-        function displayChatMessages(messages) {
-            const chatMessages = document.getElementById('chatMessages');
-            chatMessages.innerHTML = '';
-
-            if (messages.length === 0) {
-                showEmptyState();
-                return;
-            }
-
-            messages.forEach(message => {
-                addMessageToChat(message.role, message.content, message.metadata);
-            });
-        }
 
         // 显示空状态
         function showEmptyState() {
             const chatMessages = document.getElementById('chatMessages');
             chatMessages.innerHTML = `
                 <div class="empty-state">
-                    <h3>开始新的对话</h3>
+                    <h3>欢迎使用智能问答系统</h3>
                     <p>请输入您的问题，AI将基于已上传的文档为您提供答案</p>
+                    <p style="font-size: 12px; color: #999;">如需上传新文档，请访问 <a href="/upload" style="color: #007bff;">文档管理页面</a></p>
                 </div>
             `;
         }
@@ -546,11 +280,6 @@
             const message = messageInput.value.trim();
             
             if (!message || isWaitingForResponse) return;
-            
-            if (!currentSessionId) {
-                await createNewChat();
-                if (!currentSessionId) return;
-            }
 
             // 添加用户消息
             addMessageToChat('user', message);
@@ -561,17 +290,20 @@
             isWaitingForResponse = true;
 
             try {
-                const response = await fetch(`/api/v1/chat/sessions/${currentSessionId}/ask`, {
+                // 使用匿名问答接口
+                const response = await fetch('/api/v1/chat/ask', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: JSON.stringify({ question: message })
+                    body: new URLSearchParams({
+                        'question': message,
+                        'top_k': '5'
+                    })
                 });
 
                 const result = await response.json();
-                if (result.code === 0) {
+                if (response.ok && result.code === 200) {
                     addMessageToChat('assistant', result.data.answer, result.data.sources);
                 } else {
                     addMessageToChat('assistant', '抱歉，回答失败: ' + result.message);
@@ -599,14 +331,14 @@
             messageDiv.className = `message ${role}`;
 
             let sourcesHtml = '';
-            if (metadata && metadata.similar_chunks) {
+            if (metadata && Array.isArray(metadata)) {
                 sourcesHtml = `
                     <div class="sources">
                         <h4>参考文档:</h4>
-                        ${metadata.similar_chunks.map(chunk => `
+                        ${metadata.map(source => `
                             <div class="source-item">
-                                <strong>${chunk.document}</strong> (相似度: ${(chunk.similarity * 100).toFixed(1)}%)
-                                <br>${chunk.content_preview}
+                                <strong>${source.document}</strong> (相似度: ${(source.similarity * 100).toFixed(1)}%)
+                                <br>${source.content_preview}
                             </div>
                         `).join('')}
                     </div>
@@ -639,43 +371,6 @@
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
                 sendMessage();
-            }
-        }
-
-        // 上传文档
-        async function uploadDocument() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-            
-            if (!file) return;
-
-            const uploadStatus = document.getElementById('uploadStatus');
-            uploadStatus.innerHTML = '<span class="status-indicator status-processing"></span>正在上传...';
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                const response = await fetch('/api/v1/documents/upload', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: formData
-                });
-
-                const result = await response.json();
-                if (result.code === 0) {
-                    uploadStatus.innerHTML = '<span class="status-indicator status-completed"></span>上传成功，正在处理中...';
-                    setTimeout(() => {
-                        uploadStatus.innerHTML = '';
-                    }, 3000);
-                } else {
-                    uploadStatus.innerHTML = '<span class="status-indicator status-failed"></span>上传失败: ' + result.message;
-                }
-            } catch (error) {
-                console.error('上传失败:', error);
-                uploadStatus.innerHTML = '<span class="status-indicator status-failed"></span>上传失败';
             }
         }
     </script>

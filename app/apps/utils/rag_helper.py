@@ -182,15 +182,17 @@ class VectorSearch:
         distances = results.get('distances', [[]])[0] or []
         for idx, meta in zip(ids, metadatas):
             # 从数据库补齐 chunk 与 document 信息
-            chunk = await DocumentChunk.get_or_none(id=meta.get('chunk_id')).prefetch_related('document')
+            chunk = await DocumentChunk.get_or_none(id=meta.get('chunk_id'))
             if not chunk:
                 continue
+            # 获取关联的文档
+            document = await chunk.document
             similarity = 1 - float(distances[ids.index(idx)]) if distances else 0.0
             similarities.append({
                 'vector': None,
                 'similarity': similarity,
                 'chunk': chunk,
-                'document': chunk.document
+                'document': document
             })
         return similarities
 

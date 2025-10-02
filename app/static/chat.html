@@ -304,7 +304,7 @@
 
                 const result = await response.json();
                 if (response.ok && result.code === 200) {
-                    addMessageToChat('assistant', result.data.answer, result.data.sources);
+                    addMessageToChat('assistant', result.data.answer, result.data.sources, result.data.search_info);
                 } else {
                     addMessageToChat('assistant', '抱歉，回答失败: ' + result.message);
                 }
@@ -318,7 +318,7 @@
         }
 
         // 添加消息到聊天
-        function addMessageToChat(role, content, metadata = null) {
+        function addMessageToChat(role, content, metadata = null, searchInfo = null) {
             const chatMessages = document.getElementById('chatMessages');
             
             // 移除空状态
@@ -345,11 +345,29 @@
                 `;
             }
 
+            // 添加搜索信息显示
+            let searchInfoHtml = '';
+            if (searchInfo && role === 'assistant') {
+                const isEnhanced = searchInfo.llm_enhanced;
+                const resultsCount = searchInfo.results_count || 0;
+                const searchQuery = searchInfo.search_query;
+                const originalQuery = searchInfo.original_query;
+                
+                searchInfoHtml = `
+                    <div class="search-info" style="margin-top: 10px; padding: 8px; background: #f0f8ff; border-radius: 6px; font-size: 12px; color: #666;">
+                        ${isEnhanced ? '🧠 AI增强搜索' : '📝 基础搜索'} | 
+                        找到 ${resultsCount} 个相关片段
+                        ${searchQuery !== originalQuery ? `<br>🔍 优化查询: "${searchQuery}"` : ''}
+                    </div>
+                `;
+            }
+
             messageDiv.innerHTML = `
                 <div class="message-content">
                     ${content}
                     <div class="message-time">${new Date().toLocaleString()}</div>
                     ${sourcesHtml}
+                    ${searchInfoHtml}
                 </div>
             `;
 

@@ -52,8 +52,8 @@ AERICH_SAFE_MODE = config("AERICH_SAFE_MODE", cast=int, default=1)
 
 # RAG相关配置
 # OpenAI API配置
-OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
-OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.openai.com/v1")
+OPENAI_API_KEY = config("OPENAI_API_KEY", default="sk-zk21f16b46c63a80f63e49c05308ebd59cb66be108a0fdca")
+OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.zhizengzeng.com/v1/")
 
 # 向量数据库配置（Chroma）
 VECTOR_DB_PATH = os.path.join(BASE_PATH, "vector_db")

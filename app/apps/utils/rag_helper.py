@@ -8,10 +8,13 @@ import pypdf
 from chromadb.config import Settings as ChromaSettings
 from docx import Document as DocxDocument
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from sentence_transformers import SentenceTransformer
 
 from apps.models.document import Document as DocumentModel, DocumentChunk
-from config import CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL, HF_HOME, HF_OFFLINE
+from config import CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL, HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL
 
 
 class DocumentProcessor:
@@ -211,37 +214,101 @@ class VectorSearch:
 
 
 class RAGGenerator:
-    """RAG生成器"""
+    """RAG生成器 - 集成LangChain和OpenAI"""
     
     def __init__(self):
         self.vector_search = VectorSearch()
+        
+        # 初始化LangChain组件
+        self.llm = None
+        self.chain = None
+        
+        # 如果配置了OpenAI API，则初始化LLM
+        if OPENAI_API_KEY and OPENAI_API_KEY.strip():
+            try:
+                self.llm = ChatOpenAI(
+                    api_key=OPENAI_API_KEY,
+                    base_url=OPENAI_BASE_URL,
+                    temperature=0.1,
+                    model="gpt-3.5-turbo"
+                )
+                
+                # 创建提示模板
+                system_template = """你是一个智能文档问答助手。请基于提供的文档内容回答用户的问题。
+
+要求：
+1. 仅基于提供的文档内容回答问题
+2. 如果文档中没有相关信息，请明确说明
+3. 回答要准确、详细且有条理
+4. 可以引用具体的文档名称和内容片段
+5. 用中文回答
+
+文档内容：
+{context}"""
+
+                human_template = "问题：{question}"
+                
+                chat_prompt = ChatPromptTemplate([
+                    ("system", system_template),
+                    ("human", human_template),
+                ])
+                
+                # 创建输出解析器
+                output_parser = StrOutputParser()
+                
+                # 创建处理链
+                self.chain = chat_prompt | self.llm | output_parser
+                
+                print("✅ LangChain + OpenAI 初始化成功")
+                
+            except Exception as e:
+                print(f"⚠️ LLM初始化失败，将使用简单回答模式: {e}")
+                self.llm = None
+                self.chain = None
+        else:
+            print("⚠️ 未配置OpenAI API Key，将使用简单回答模式")
     
     async def generate_answer(self, query: str, context_chunks: List[Dict[str, Any]]) -> str:
         """基于上下文生成答案"""
+        if not context_chunks:
+            return "抱歉，没有找到相关的文档内容来回答您的问题。请确保已上传相关文档。"
+        
         # 构建上下文
-        context = "\n\n".join([
-            f"文档: {chunk['document'].filename}\n内容: {chunk['chunk'].content}"
-            for chunk in context_chunks
-        ])
+        context_parts = []
+        for i, chunk in enumerate(context_chunks, 1):
+            doc_name = chunk['document'].filename
+            content = chunk['chunk'].content
+            similarity = chunk['similarity']
+            context_parts.append(f"文档{i}: {doc_name} (相似度: {similarity:.2f})\n内容: {content}")
         
-        # 构建提示词
-        prompt = f"""
-基于以下文档内容回答问题：
-
-文档内容：
-{context}
-
-问题：{query}
-
-请基于上述文档内容提供准确、详细的回答。如果文档中没有相关信息，请说明无法找到相关信息。
-"""
+        context = "\n\n".join(context_parts)
         
-        # 这里可以集成OpenAI或其他LLM
-        # 暂时返回简单的基于关键词的回答
-        return self._simple_answer(query, context_chunks)
+        # 如果有LLM，使用智能回答
+        if self.chain:
+            try:
+                answer = await self._llm_answer(query, context)
+                return answer
+            except Exception as e:
+                print(f"LLM回答失败，使用简单模式: {e}")
+                return self._simple_answer(query, context_chunks)
+        else:
+            # 使用简单回答
+            return self._simple_answer(query, context_chunks)
+    
+    async def _llm_answer(self, query: str, context: str) -> str:
+        """使用LLM生成智能回答"""
+        try:
+            # 调用LangChain处理链
+            response = await self.chain.ainvoke({
+                "question": query,
+                "context": context
+            })
+            return response
+        except Exception as e:
+            raise Exception(f"LLM调用失败: {str(e)}")
     
     def _simple_answer(self, query: str, context_chunks: List[Dict[str, Any]]) -> str:
-        """简单的基于关键词的回答"""
+        """简单的基于关键词的回答（备用方案）"""
         if not context_chunks:
             return "抱歉，没有找到相关的文档内容来回答您的问题。"
         
@@ -249,8 +316,16 @@ class RAGGenerator:
         best_chunk = context_chunks[0]
         document_name = best_chunk['document'].filename
         content = best_chunk['chunk'].content
+        similarity = best_chunk['similarity']
         
-        return f"根据文档《{document_name}》中的相关内容：\n\n{content}\n\n这个回答基于相似度 {best_chunk['similarity']:.2f} 的相关文档片段。"
+        answer = f"""根据文档《{document_name}》中的相关内容（相似度: {similarity:.2f}）：
+
+{content}
+
+---
+💡 提示：当前使用简单回答模式。如需更智能的回答，请配置OpenAI API Key。"""
+        
+        return answer
 
 
 # 全局实例

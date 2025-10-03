@@ -1,11 +1,8 @@
 # OCR功能使用指南
 
-## 🎯 **支持的OCR引擎**
+## 🎯 **OCR引擎**
 
-系统支持两种免费开源OCR引擎：
-
-1. **PaddleOCR** - 百度开源，中文优化，准确率高 (默认)
-2. **EasyOCR** - 简单易用，支持80+语言
+系统使用 **EasyOCR** 作为OCR引擎，支持80+语言，简单易用，准确率高。
 
 ## 🚀 **快速开始**
 
@@ -23,33 +20,48 @@ sudo apt-get install poppler-utils
 
 ## ⚙️ **配置使用**
 
-### **选择OCR引擎**
+### **OCR功能配置**
 在 `.env` 文件中设置：
 ```bash
-OCR_ENGINE=paddleocr  # 可选: paddleocr, easyocr
+OCR_ENABLED=true              # OCR功能开关
+OCR_AUTO_FALLBACK=true        # 自动降级到OCR
+OCR_MIN_TEXT_LENGTH=100       # 触发OCR的最小文本长度
+OCR_MAX_FILE_SIZE=52428800    # OCR最大文件大小(50MB)
 ```
 
-### **引擎对比**
+### **EasyOCR特点**
 
-| 引擎 | 中文准确率 | 英文准确率 | 推荐场景 |
-|------|------------|------------|----------|
-| **PaddleOCR** | 95% | 80% | 中文文档、复杂排版 |
-| **EasyOCR** | 85% | 90% | 多语言、高精度 |
+| 特性 | 说明 |
+|------|------|
+| **多语言支持** | 支持80+语言，包括中文、英文等 |
+| **准确率高** | 英文准确率90%，中文准确率85% |
+| **简单易用** | 无需复杂配置，开箱即用 |
+| **轻量级** | 相比其他OCR引擎更轻量 |
 
-### **推荐配置**
-- **中文文档**：`OCR_ENGINE=paddleocr` (默认)
-- **多语言文档**：`OCR_ENGINE=easyocr`
+### **推荐场景**
+- **多语言文档**：支持中英文混合文档
+- **高精度需求**：对英文识别准确率要求高
+- **简单部署**：无需复杂配置
 
 ## 🔧 **故障排除**
 
 ### **常见问题**
-- **PaddleOCR首次运行慢**：正常现象，需要下载模型
+- **EasyOCR首次运行慢**：正常现象，需要下载模型
 - **PDF转换失败**：安装 `poppler` 工具
 
-### **切换引擎**
+### **依赖检查**
 ```bash
-# 修改 .env 文件
-OCR_ENGINE=paddleocr  # 或 easyocr
+# 检查OCR依赖
+python check_ocr_deps.py
 ```
 
-现在你可以根据文档类型选择合适的OCR引擎了！
+### **系统依赖安装**
+```bash
+# macOS
+brew install poppler
+
+# Ubuntu
+sudo apt-get install poppler-utils
+```
+
+现在你可以使用EasyOCR进行OCR文本识别了！

@@ -23,7 +23,6 @@ from typing import List, Dict, Any, Optional
 import chromadb
 import openpyxl
 import pypdf
-import pytesseract
 from PIL import Image
 from chromadb.config import Settings as ChromaSettings
 from docx import Document as DocxDocument
@@ -39,7 +38,7 @@ from apps.utils.ocr_engines import get_ocr_engine
 from config import (
     CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL,
     HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD,
-    OCR_ENABLED, OCR_AUTO_FALLBACK, OCR_MIN_TEXT_LENGTH, OCR_MAX_FILE_SIZE, OCR_ENGINE
+    OCR_ENABLED, OCR_AUTO_FALLBACK, OCR_MIN_TEXT_LENGTH, OCR_MAX_FILE_SIZE
 )
 
 
@@ -428,13 +427,9 @@ class DocumentProcessor:
                     processed_image = self._preprocess_image_for_ocr(image)
                     
                     # OCR识别 - 使用配置的OCR引擎
-                    try:
-                        ocr_engine = get_ocr_engine(OCR_ENGINE)
-                        page_text = ocr_engine.extract_text(processed_image)
-                    except Exception as ocr_error:
-                        print(f"❌ {OCR_ENGINE} OCR处理失败: {str(ocr_error)}")
-                        page_text = ""
-                    
+                    ocr_engine = get_ocr_engine()
+                    page_text = ocr_engine.extract_text(processed_image)
+
                     if page_text.strip():
                         content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
                         content += page_text.strip() + "\n"

@@ -1302,7 +1302,7 @@
                                 <td><span class="status-badge status-${doc.status}">${getStatusText(doc.status)}</span></td>
                                 <td>${new Date(doc.upload_time).toLocaleString()}</td>
                                 <td>
-                                    <button class="action-btn view-btn" onclick="viewDocument(${doc.id})">查看</button>
+                                    <button class="action-btn view-btn" onclick="previewDocument(${doc.id})">预览</button>
                                     <button class="action-btn download-btn" onclick="downloadDocument(${doc.id}, '${doc.original_filename}')">下载</button>
                                     <button class="action-btn reprocess-btn" onclick="reprocessDocument(${doc.id})">重新解析</button>
                                     <button class="action-btn delete-btn" onclick="deleteDocument(${doc.id})">删除</button>
@@ -1451,31 +1451,53 @@
             }
         }
 
-        // 查看文档
-        async function viewDocument(documentId) {
-            // 获取文档信息
-            const documentInfo = getDocumentInfo(documentId);
+        // 预览文档
+        async function previewDocument(documentId) {
+            console.log('预览文档被点击，文档ID:', documentId);
             
-            // 打开模态框
-            openDocumentModal(documentInfo ? documentInfo.original_filename : '文档内容');
+            // 直接打开模态框，使用文档ID作为标题
+            openDocumentModal(`文档 ${documentId} 预览`);
             
             try {
-                const response = await fetch(`/api/v1/documents/${documentId}/view`);
+                // 获取文档详情信息
+                const response = await fetch(`/api/v1/documents/${documentId}`);
                 
                 if (response.ok) {
                     const result = await response.json();
                     if (result.code === 200) {
-                        displayDocumentContent(result.data.content);
+                        const doc = result.data.document;
+                        const chunksCount = result.data.chunks_count;
+                        
+                        // 显示文档信息和内容预览
+                        const previewContent = `
+                            <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                                <h4 style="margin: 0 0 10px 0; color: #333;">文档信息</h4>
+                                <p><strong>文件名:</strong> ${doc.original_filename}</p>
+                                <p><strong>文件类型:</strong> ${doc.file_type.toUpperCase()}</p>
+                                <p><strong>文件大小:</strong> ${formatFileSize(doc.file_size)}</p>
+                                <p><strong>处理状态:</strong> <span class="status-badge status-${doc.status}">${getStatusText(doc.status)}</span></p>
+                                <p><strong>上传时间:</strong> ${new Date(doc.upload_time).toLocaleString()}</p>
+                                <p><strong>文档块数:</strong> ${chunksCount} 个</p>
+                            </div>
+                            <div>
+                                <h4 style="margin: 0 0 10px 0; color: #333;">内容预览</h4>
+                                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; background: white;">
+                                    ${doc.content ? doc.content.substring(0, 2000) + (doc.content.length > 2000 ? '...' : '') : '暂无内容'}
+                                </div>
+                            </div>
+                        `;
+                        
+                        document.getElementById('documentModalContent').innerHTML = previewContent;
                     } else {
-                        displayDocumentError('获取文档内容失败: ' + result.message);
+                        displayDocumentError('获取文档信息失败: ' + result.message);
                     }
                 } else {
                     const result = await response.json();
-                    displayDocumentError('查看失败: ' + result.message);
+                    displayDocumentError('预览失败: ' + result.message);
                 }
             } catch (error) {
-                console.error('查看文档失败:', error);
-                displayDocumentError('查看失败: 网络错误');
+                console.error('预览文档失败:', error);
+                displayDocumentError('预览失败: 网络错误');
             }
         }
 
@@ -1485,10 +1507,12 @@
             for (let row of rows) {
                 const buttons = row.querySelectorAll('.action-btn');
                 for (let button of buttons) {
-                    if (button.onclick && button.onclick.toString().includes(`viewDocument(${documentId})`)) {
+                    if (button.onclick && button.onclick.toString().includes(`previewDocument(${documentId})`)) {
                         const cells = row.querySelectorAll('td');
+                        // 现在文件名在第2列（索引1），因为第1列是复选框
+                        const filenameCell = cells[1].querySelector('.filename-cell');
                         return {
-                            original_filename: cells[0].querySelector('.filename-cell').title
+                            original_filename: filenameCell ? filenameCell.title : '未知文档'
                         };
                     }
                 }

@@ -1,9 +1,9 @@
 """
 启动定时任务
 celery -A celery_tasks.app beat -l info
-启动worker
-celery -A celery_tasks.app worker -l info
-Windows启动worker
+启动worker【单进程】
+celery -A celery_tasks.app worker -l info --pool=solo
+Windows启动worker【单进程】
 celery -A celery_tasks.app worker -l info --pool=solo
 """
 

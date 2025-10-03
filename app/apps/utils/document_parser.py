@@ -335,59 +335,6 @@ class DocumentParser:
             # 如果预处理失败，返回原图
             return pil_image
     
-    async def process_document_async(self, document_id: int, file_path: str, file_type: str):
-        """
-        异步处理文档的后台任务
-        
-        这个函数在后台运行，不会阻塞主进程
-        处理完成后会自动更新文档状态
-        
-        Args:
-            document_id: 文档ID
-            file_path: 文件路径
-            file_type: 文件类型
-        """
-        try:
-            print(f"🔄 开始后台处理文档 {document_id} ({file_type})")
-
-            # 调用文档处理器进行异步处理
-            success = await document_processor.process_document(
-                document_id, 
-                file_path,
-                file_type
-            )
-            
-            if success:
-                print(f"✅ 文档 {document_id} 处理完成")
-            else:
-                print(f"❌ 文档 {document_id} 处理失败")
-                # 更新状态为失败
-                await self._update_document_status(document_id, "failed", "文档处理失败")
-                
-        except Exception as e:
-            print(f"❌ 后台处理文档 {document_id} 时出错: {str(e)}")
-            # 更新文档状态为失败
-            await self._update_document_status(document_id, "failed", str(e))
-    
-    async def _update_document_status(self, document_id: int, status: str, error_message: str = None):
-        """
-        更新文档状态
-        
-        Args:
-            document_id: 文档ID
-            status: 状态
-            error_message: 错误信息
-        """
-        try:
-            document = await DocumentModel.get(id=document_id)
-            document.status = status
-            if error_message:
-                document.error_message = error_message
-            await document.save()
-        except Exception as e:
-            print(f"⚠️ 更新文档状态失败: {str(e)}")
-            # 不抛出异常，避免影响主流程
-
 
 class DocumentProcessor:
     """

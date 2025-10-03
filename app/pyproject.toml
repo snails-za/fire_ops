@@ -101,4 +101,5 @@ dependencies = [
     "torchvision>=0.15.0", # 计算机视觉工具包
     "setuptools>=80.9.0",
     "celery>=5.5.3",
+    "psycopg2-binary>=2.9.10",
 ]

@@ -103,5 +103,26 @@ OCR_MAX_FILE_SIZE = config("OCR_MAX_FILE_SIZE", cast=int, default=50) * 1024 * 1
 # OCR GPU加速配置
 OCR_USE_GPU = config("OCR_USE_GPU", cast=bool, default=True)  # 是否启用GPU加速
 
-
+# Celery配置
+# 设置配置
+BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/1'
+CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/2'
+# 指定任务序列化方式
+CELERY_TASK_SERIALIZER = 'json'
+# 指定结果序列化方式
+CELERY_RESULT_SERIALIZER = 'json'
+# 指定任务接受的序列化类型.
+CELERY_ACCEPT_CONTENT = ["json"]
+# 任务过期时间，celery任务执行结果的超时时间
+CELERY_TASK_RESULT_EXPIRES = 60 * 60 * 24
+# 设置默认的队列名称，如果一个消息不符合其他的队列就会放在默认队列里面，如果什么都不设置的话，数据都会发送到默认的队列中
+CELERY_DEFAULT_QUEUE = "default"
+# 队列的详细设置
+CELERY_QUEUES = {
+    "default": {  # 这是上面指定的默认队列
+        "exchange": "default",
+        "exchange_type": "direct",
+        "routing_key": "default"
+    }
+}
 

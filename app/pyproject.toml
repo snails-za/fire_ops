@@ -100,4 +100,5 @@ dependencies = [
     "torch>=2.0.0", # PyTorch深度学习框架（GPU支持）
     "torchvision>=0.15.0", # 计算机视觉工具包
     "setuptools>=80.9.0",
+    "celery>=5.5.3",
 ]

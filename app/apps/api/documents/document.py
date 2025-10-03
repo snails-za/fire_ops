@@ -3,14 +3,15 @@ import traceback
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, Query, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Query
 from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
 from apps.models.document import Document, DocumentChunk
 from apps.utils import response
-from apps.utils.document_parser import document_parser, document_processor
 from apps.utils.rag_helper import vector_search
+from apps.utils.celery_utils import celery_task_manager
+from celery_tasks.task import *
 from config import DOCUMENT_STORE_PATH
 
 router = APIRouter(prefix="/documents", tags=["文档管理"])
@@ -22,7 +23,6 @@ DocumentChunk_Pydantic = pydantic_model_creator(DocumentChunk, name="DocumentChu
 
 @router.post("/upload", summary="上传文档(匿名)", description="上传文档并自动解析向量化（无需登录）")
 async def upload_document(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
 ):
     """上传文档"""
@@ -57,13 +57,16 @@ async def upload_document(
             status="processing"
         )
         
-        # 后台异步处理文档（非阻塞）
-        background_tasks.add_task(
-            document_parser.process_document_async,
+        # 使用Celery异步处理文档（非阻塞）
+        task = process_document_task.delay(
             document.id,
             file_path,
             file_extension
         )
+        
+        # 保存任务ID到文档记录中，用于状态查询
+        document.task_id = task.id
+        await document.save()
         
         data = await Document_Pydantic.from_tortoise_orm(document)
         
@@ -78,6 +81,41 @@ async def upload_document(
     except Exception as e:
         traceback.print_exc()
         return response(code=500, message=f"上传失败: {str(e)}")
+
+
+@router.get("/{document_id}/task-status", summary="查询文档处理状态", description="查询Celery任务处理状态（无需登录）")
+async def get_document_task_status(document_id: int):
+    """获取文档处理任务状态"""
+    try:
+        document = await Document.get_or_none(id=document_id)
+        if not document:
+            return response(code=404, message="文档不存在")
+        
+        if not document.task_id:
+            return response(code=400, message="文档没有关联的处理任务")
+        
+        # 获取任务状态
+        status_info = celery_task_manager.get_task_status(document.task_id)
+        
+        # 构建响应数据
+        response_data = {
+            "document_id": document.id,
+            "filename": document.original_filename,
+            "task_id": document.task_id,
+            "status": status_info.get('state', 'UNKNOWN'),
+            "progress": status_info.get('progress', 0),
+            "message": status_info.get('status', '未知状态'),
+            "upload_time": document.upload_time
+        }
+        
+        # 如果有错误信息，添加到响应中
+        if 'error' in status_info:
+            response_data['error'] = status_info['error']
+        
+        return response(data=response_data, message=status_info.get('status', '状态查询成功'))
+        
+    except Exception as e:
+        return response(code=500, message=f"查询任务状态失败: {str(e)}")
 
 
 @router.get("/list", summary="文档列表(匿名)", description="获取文档列表（无需登录）")
@@ -182,6 +220,10 @@ async def delete_document(
         if not document:
             return response(code=404, message="文档不存在")
         
+        # 如果有正在进行的Celery任务，先停止它
+        if document.task_id:
+            celery_task_manager.revoke_task(document.task_id, terminate=True)
+        
         # 删除文件
         if os.path.exists(document.file_path):
             os.remove(document.file_path)
@@ -200,7 +242,6 @@ async def delete_document(
 @router.post("/{document_id}/reprocess", summary="重新处理文档(匿名)", description="重新处理文档向量化（无需登录）")
 async def reprocess_document(
     document_id: int,
-    background_tasks: BackgroundTasks,
 ):
     """重新处理文档"""
     try:
@@ -208,17 +249,30 @@ async def reprocess_document(
         if not document:
             return response(code=404, message="文档不存在")
         
+        # 如果有正在进行的任务，先停止它
+        if document.task_id:
+            celery_task_manager.revoke_task(document.task_id, terminate=True)
+        
         # 删除现有的分块与 Chroma 向量数据
         await DocumentChunk.filter(document_id=document_id).delete()
         await vector_search.delete_document_vectors(document_id)
         
-        # 重新处理文档
-        background_tasks.add_task(
-            document_processor.process_document,
+        # 更新文档状态
+        document.status = "processing"
+        document.task_id = None
+        document.error_message = None
+        await document.save()
+        
+        # 使用Celery重新处理文档
+        task = process_document_task.delay(
             document.id,
             document.file_path,
             document.file_type
         )
+        
+        # 保存新的任务ID
+        document.task_id = task.id
+        await document.save()
         
         return response(message="文档重新处理已开始")
         

@@ -12,6 +12,7 @@ class Document(BaseModel):
     file_type = fields.CharField(max_length=50, description="文件类型")
     content = fields.TextField(description="文档内容")
     status = fields.CharField(max_length=20, default="processing", description="处理状态: processing, completed, failed")
+    task_id = fields.CharField(max_length=255, null=True, description="Celery任务ID")
     upload_time = fields.DatetimeField(auto_now_add=True, description="上传时间")
     process_time = fields.DatetimeField(null=True, description="处理完成时间")
     error_message = fields.TextField(null=True, description="错误信息")

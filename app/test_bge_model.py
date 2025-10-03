@@ -13,6 +13,8 @@ import numpy as np
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from sklearn.metrics.pairwise import cosine_similarity
+
 from config import HF_HOME, HF_OFFLINE
 
 def setup_environment():
@@ -155,7 +157,6 @@ def test_model_performance(model_name, test_texts):
         
         # 4. 计算相似度
         if len(embeddings) >= 3:
-            from sklearn.metrics.pairwise import cosine_similarity
             
             # 中文文本相似度
             sim_zh = cosine_similarity([embeddings[0]], [embeddings[2]])[0][0]

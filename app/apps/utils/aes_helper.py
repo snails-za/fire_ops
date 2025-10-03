@@ -11,8 +11,9 @@ iv 为16位，且与key相等
 AES加密模式 为cbc
 填充 pkcs7padding
 """
-import random
+
 import base64
+import random
 
 from Crypto.Cipher import AES
 

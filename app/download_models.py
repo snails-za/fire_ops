@@ -12,6 +12,8 @@ import time
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from sklearn.metrics.pairwise import cosine_similarity
+
 from config import EMBEDDING_MODEL, HF_HOME, HF_OFFLINE
 
 def setup_environment():
@@ -216,7 +218,6 @@ def load_and_verify_model():
         
         # 5. 测试相似度计算
         print(f"\n🔗 测试相似度计算...")
-        from sklearn.metrics.pairwise import cosine_similarity
         
         # 计算中文文本间的相似度
         sim_zh = cosine_similarity([embeddings[0]], [embeddings[2]])[0][0]

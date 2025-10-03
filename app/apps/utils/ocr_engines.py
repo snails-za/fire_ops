@@ -3,6 +3,9 @@ EasyOCR引擎适配器
 
 使用EasyOCR进行OCR文本识别，支持中英文等多种语言，支持GPU加速
 """
+
+import numpy as np
+import torch
 import easyocr
 from PIL import Image
 
@@ -41,7 +44,6 @@ class OCREngineAdapter:
     def _check_gpu_availability(self) -> bool:
         """检查GPU是否可用"""
         try:
-            import torch
             if torch.cuda.is_available():
                 gpu_count = torch.cuda.device_count()
                 gpu_name = torch.cuda.get_device_name(0) if gpu_count > 0 else "Unknown"
@@ -50,9 +52,6 @@ class OCREngineAdapter:
             else:
                 print("💻 未检测到CUDA GPU，将使用CPU模式")
                 return False
-        except ImportError:
-            print("⚠️ PyTorch未安装，无法检测GPU，将使用CPU模式")
-            return False
         except Exception as e:
             print(f"⚠️ GPU检测失败: {str(e)}，将使用CPU模式")
             return False
@@ -68,7 +67,6 @@ class OCREngineAdapter:
     def _extract_with_easyocr(self, image: Image.Image) -> str:
         """使用EasyOCR提取文本"""
         # 转换PIL图像为numpy数组
-        import numpy as np
         img_array = np.array(image)
         
         # 使用EasyOCR识别
@@ -81,13 +79,6 @@ class OCREngineAdapter:
                 texts.append(text)
         
         return '\n'.join(texts)
-    
-    def _show_install_guide(self):
-        """显示安装指导"""
-        print("\n❌ EasyOCR 未安装")
-        print("📦 安装命令:")
-        print("pip install easyocr")
-        print("\n💡 或者运行: uv sync")
 
 
 def get_ocr_engine(use_gpu: bool = True) -> OCREngineAdapter:
@@ -114,7 +105,6 @@ def check_gpu_status():
     print("🔍 检查GPU状态...")
     
     try:
-        import torch
         if torch.cuda.is_available():
             gpu_count = torch.cuda.device_count()
             gpu_name = torch.cuda.get_device_name(0) if gpu_count > 0 else "Unknown"
@@ -124,68 +114,9 @@ def check_gpu_status():
         else:
             print("💻 未检测到CUDA GPU")
             return False
-    except ImportError:
-        print("⚠️ PyTorch未安装，无法检测GPU")
-        return False
     except Exception as e:
         print(f"⚠️ GPU检测失败: {str(e)}")
         return False
-
-
-def check_and_install_dependencies():
-    """检查并建议安装缺失的依赖"""
-    print("🔍 检查OCR依赖...")
-    
-    missing_python = []
-    missing_system = []
-    
-    # 检查Python包
-    try:
-        import easyocr
-    except ImportError:
-        missing_python.append("easyocr")
-    
-    # 检查PyTorch（GPU支持需要）
-    try:
-        import torch
-        if not torch.cuda.is_available():
-            print("💡 提示: 如需GPU加速，请安装CUDA版本的PyTorch")
-    except ImportError:
-        print("💡 提示: 如需GPU加速，请安装PyTorch")
-    
-    # 检查系统依赖
-    import shutil
-    if not shutil.which('pdftoppm'):  # poppler工具
-        missing_system.append("poppler")
-    
-    # 显示缺失的依赖
-    if missing_python:
-        print(f"\n❌ 缺失Python包: {', '.join(missing_python)}")
-        print("📦 安装命令:")
-        for pkg in missing_python:
-            print(f"pip install {pkg}")
-        print("\n💡 或者运行: uv sync")
-    
-    if missing_system:
-        import platform
-        system = platform.system().lower()
-        print(f"\n❌ 缺失系统依赖: {', '.join(missing_system)}")
-        print("🔧 系统依赖安装命令:")
-        
-        if system == "darwin":  # macOS
-            if "poppler" in missing_system:
-                print("brew install poppler")
-        elif system == "linux":
-            if "poppler" in missing_system:
-                print("sudo apt-get install poppler-utils")
-        else:
-            print("请根据你的操作系统安装相应的系统依赖")
-    
-    if not missing_python and not missing_system:
-        print("✅ 所有OCR依赖都已安装")
-        return True
-    
-    return False
 
 
 if __name__ == "__main__":

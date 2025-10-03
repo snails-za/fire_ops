@@ -477,7 +477,6 @@ class DocumentProcessor:
         """
         try:
             # 检查EasyOCR
-            import easyocr
             print("✅ EasyOCR包已安装")
             
             # 检查poppler工具（PDF转图片需要）

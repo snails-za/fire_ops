@@ -10,7 +10,7 @@ from tortoise.expressions import Q
 from apps.models.document import Document, DocumentChunk
 from apps.utils import response
 from apps.utils.rag_helper import document_processor, vector_search
-from config import STATIC_PATH, DOCUMENT_STORE_PATH
+from config import DOCUMENT_STORE_PATH
 
 router = APIRouter(prefix="/documents", tags=["文档管理"])
 
@@ -27,7 +27,7 @@ async def upload_document(
     """上传文档"""
     try:
         # 检查文件类型
-        allowed_types = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt']
+        allowed_types = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt', 'md']
         file_extension = file.filename.split('.')[-1].lower()
         
         if file_extension not in allowed_types:

@@ -7,11 +7,20 @@ RAG (Retrieval-Augmented Generation) 系统核心模块
 3. RAGGenerator: RAG生成器，集成LangChain和OpenAI进行智能问答
 
 技术栈：
-- 文档处理: PyPDF, python-docx, openpyxl
+- 文档处理: LangChain文档加载器 (PyPDFLoader, Docx2txtLoader, TextLoader, UnstructuredFileLoader)
 - 文本分割: LangChain RecursiveCharacterTextSplitter
 - 向量化: Sentence Transformers
 - 向量存储: ChromaDB
 - 智能问答: LangChain + OpenAI GPT
+
+文档处理架构：
+- 完全基于LangChain的专业文档加载器，使用标准的loaders.extend()模式
+- PDF处理：PyMuPDFLoader（优先）→ PyPDFLoader → OCR（扫描版PDF）
+- DOCX处理：Docx2txtLoader
+- Excel处理：UnstructuredExcelLoader
+- TXT处理：TextLoader
+- MD处理：UnstructuredMarkdownLoader
+- OCR仅作为PDF扫描件的补充处理手段
 """
 
 import os
@@ -21,12 +30,18 @@ import uuid
 from typing import List, Dict, Any, Optional
 
 import chromadb
-import openpyxl
-import pypdf
 from PIL import Image
 from chromadb.config import Settings as ChromaSettings
-from docx import Document as DocxDocument
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+# LangChain文档加载器
+from langchain_community.document_loaders import (
+    PyPDFLoader,
+    PyMuPDFLoader,
+    Docx2txtLoader,
+    TextLoader,
+    UnstructuredExcelLoader,
+    UnstructuredMarkdownLoader
+)
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
@@ -38,8 +53,7 @@ from apps.utils.ocr_engines import get_ocr_engine
 from config import (
     CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL,
     HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD,
-    OCR_ENABLED, OCR_AUTO_FALLBACK, OCR_MIN_TEXT_LENGTH, OCR_MAX_FILE_SIZE,
-    OCR_USE_GPU
+    OCR_ENABLED, OCR_USE_GPU
 )
 
 
@@ -80,13 +94,21 @@ def get_local_model_path(model_name: str, cache_folder: str) -> Optional[str]:
 
 class DocumentProcessor:
     """
-    文档处理器 - 负责文档内容提取、分块和向量化
+    文档处理器 - 基于LangChain的专业文档处理系统
     
     主要功能：
-    1. 支持多种文档格式（PDF、DOCX、Excel、TXT）
+    1. 使用LangChain文档加载器处理多种格式（PDF、DOCX、Excel、TXT）
     2. 智能文本分块，保持语义完整性
     3. 生成高质量向量嵌入
     4. 与数据库和向量存储同步
+    5. 保留OCR功能处理扫描版PDF
+    
+    文档处理流程：
+    - PDF: PyMuPDFLoader（优先）→ PyPDFLoader → OCR（扫描版PDF）
+    - DOCX: Docx2txtLoader（直接处理）
+    - Excel: UnstructuredExcelLoader（直接处理）
+    - TXT: TextLoader（直接处理）
+    - MD: UnstructuredMarkdownLoader（直接处理）
     """
     
     def __init__(self):
@@ -255,13 +277,14 @@ class DocumentProcessor:
     
     async def _extract_content(self, file_path: str, file_type: str) -> str:
         """
-        根据文件类型提取文档内容
+        使用LangChain文档加载器提取文档内容
         
         支持的文件类型：
-        - PDF: 使用PyPDF提取文本
-        - DOCX/DOC: 使用python-docx提取段落
-        - XLSX/XLS: 使用openpyxl提取表格数据
-        - TXT: 直接读取文本内容
+        - PDF: 使用PyMuPDFLoader（更高效）和PyPDFLoader
+        - DOCX/DOC: 使用Docx2txtLoader
+        - XLSX/XLS: 使用UnstructuredExcelLoader
+        - TXT: 使用TextLoader
+        - MD: 使用UnstructuredMarkdownLoader
         
         Args:
             file_path: 文件路径
@@ -274,123 +297,65 @@ class DocumentProcessor:
             if not os.path.exists(file_path):
                 raise Exception(f"文件不存在: {file_path}")
             
+            print(f"📄 开始使用LangChain加载器处理 {file_type.upper()} 文档: {os.path.basename(file_path)}")
+            
+            # 根据文件类型选择合适的加载器
+            loaders = []
+            
             if file_type == "pdf":
-                return await self._extract_pdf_content(file_path)
+                # PDF优先使用PyMuPDFLoader（更快更准确）
+                try:
+                    loaders.append(PyMuPDFLoader(file_path))
+                except:
+                    loaders.append(PyPDFLoader(file_path))
             elif file_type in ["docx", "doc"]:
-                return await self._extract_docx_content(file_path)
+                loaders.append(Docx2txtLoader(file_path))
             elif file_type in ["xlsx", "xls"]:
-                return await self._extract_excel_content(file_path)
+                loaders.append(UnstructuredExcelLoader(file_path))
             elif file_type == "txt":
-                return await self._extract_txt_content(file_path)
+                loaders.append(TextLoader(file_path, encoding='utf-8'))
+            elif file_type == "md":
+                loaders.append(UnstructuredMarkdownLoader(file_path))
             else:
                 raise Exception(f"不支持的文件类型: {file_type}")
-                
-        except Exception as e:
-            raise Exception(f"提取文档内容失败: {str(e)}")
-    
-    async def _extract_pdf_content(self, file_path: str) -> str:
-        """
-        智能PDF内容提取 - 根据配置和文档特征选择最佳策略
-        
-        处理策略：
-        1. 总是先尝试文本提取（快速、准确）
-        2. 根据配置和结果质量决定是否使用OCR
-        3. 提供清晰的处理状态和错误信息
-        
-        Args:
-            file_path: PDF文件路径
             
-        Returns:
-            str: 提取的文本内容
+            # 加载文档并合并内容
+            texts = []
+            for loader in loaders:
+                try:
+                    documents = loader.load()
+                    texts.extend(documents)
+                except Exception as e:
+                    print(f"⚠️ 加载器失败: {str(e)}")
+                    continue
             
-        Raises:
-            Exception: 当所有提取方法都失败时
-        """
-        try:
-            # 检查文件大小
-            file_size = os.path.getsize(file_path)
-            print(f"📄 开始处理PDF文档，文件大小: {file_size / 1024 / 1024:.2f}MB")
+            if not texts:
+                raise Exception("无法加载任何文档内容")
             
-            # 第一步：总是先尝试文本提取
-            text_content = await self._extract_pdf_text(file_path)
-            text_length = len(text_content.strip()) if text_content else 0
+            # 合并所有文档内容
+            content = "\n\n".join([doc.page_content for doc in texts if doc.page_content.strip()])
             
-            # 判断文本提取质量
-            is_text_sufficient = text_length >= OCR_MIN_TEXT_LENGTH
+            if not content.strip():
+                raise Exception("文档内容为空")
             
-            if is_text_sufficient:
-                print(f"✅ PDF文本提取成功，内容长度: {text_length} 字符")
-                return text_content
-            
-            # 第二步：决定是否使用OCR
-            if not OCR_ENABLED:
-                if text_content:
-                    print(f"⚠️ OCR功能未启用，返回已提取的文本内容 ({text_length} 字符)")
-                    return text_content
-                else:
-                    raise Exception("PDF无法提取文本内容，且OCR功能未启用。请启用OCR或提供文本格式的PDF。")
-            
-            # 检查文件大小限制
-            if file_size > OCR_MAX_FILE_SIZE:
-                if text_content:
-                    print(f"⚠️ 文件过大 ({file_size / 1024 / 1024:.2f}MB > {OCR_MAX_FILE_SIZE / 1024 / 1024}MB)，跳过OCR处理")
-                    return text_content
-                else:
-                    raise Exception(f"PDF文件过大 ({file_size / 1024 / 1024:.2f}MB)，无法进行OCR处理。请提供更小的文件或文本格式的PDF。")
-            
-            # 如果不是自动降级模式，且有一些文本内容，先返回文本内容
-            if not OCR_AUTO_FALLBACK and text_content:
-                print(f"ℹ️ 检测到少量文本内容 ({text_length} 字符)，OCR需手动启用")
-                return text_content
-            
-            # 第三步：执行OCR处理
-            print(f"📸 文本内容不足 ({text_length} < {OCR_MIN_TEXT_LENGTH})，开始OCR处理...")
-            print("⏳ OCR处理可能需要较长时间，请耐心等待...")
-            
-            ocr_content = await self._extract_pdf_with_ocr(file_path)
-            ocr_length = len(ocr_content.strip()) if ocr_content else 0
-            
-            if ocr_content and ocr_length > 10:
-                print(f"✅ PDF OCR处理成功，内容长度: {ocr_length} 字符")
-                return ocr_content
-            
-            # 最后的降级处理
-            if text_content:
-                print(f"⚠️ OCR处理失败，返回原始文本提取结果 ({text_length} 字符)")
-                return text_content
-                
-            raise Exception("PDF文档处理失败：文本提取和OCR识别均未获得有效内容")
-            
-        except Exception as e:
-            print(f"❌ PDF处理出错: {str(e)}")
-            raise Exception(f"PDF内容提取失败: {str(e)}")
-    
-    async def _extract_pdf_text(self, file_path: str) -> str:
-        """
-        使用PyPDF直接提取PDF文本内容
-        
-        Args:
-            file_path: PDF文件路径
-            
-        Returns:
-            str: 提取的文本内容
-        """
-        try:
-            content = ""
-            with open(file_path, 'rb') as file:
-                pdf_reader = pypdf.PdfReader(file)
-                
-                for page_num, page in enumerate(pdf_reader.pages, 1):
-                    page_text = page.extract_text()
-                    if page_text.strip():  # 只添加非空页面
-                        content += f"\n--- 第 {page_num} 页 ---\n"
-                        content += page_text + "\n"
-                        
+            print(f"✅ LangChain加载器成功，提取内容长度: {len(content)} 字符")
             return content.strip()
-            
+                
         except Exception as e:
-            print(f"PDF文本提取出错: {str(e)}")
-            return ""
+            print(f"❌ LangChain加载器处理失败: {str(e)}")
+            # 如果是PDF且失败，尝试OCR处理
+            if file_type == "pdf":
+                print("🔄 尝试OCR处理扫描版PDF...")
+                try:
+                    return await self._extract_pdf_with_ocr(file_path)
+                except Exception as ocr_e:
+                    raise Exception(f"所有PDF处理方法都失败: LangChain({str(e)}), OCR({str(ocr_e)})")
+            else:
+                raise Exception(f"文档内容提取失败: {str(e)}")
+    
+    
+    # ========== OCR辅助方法（仅用于PDF扫描件处理） ==========
+    
     
     async def _extract_pdf_with_ocr(self, file_path: str) -> str:
         """
@@ -476,19 +441,11 @@ class DocumentProcessor:
             Exception: 当依赖缺失时
         """
         try:
-            # 检查EasyOCR
-            print("✅ EasyOCR包已安装")
-            
             # 检查poppler工具（PDF转图片需要）
             poppler_path = shutil.which('pdftoppm')
             if not poppler_path:
                 raise Exception("缺少poppler工具，请安装: brew install poppler (macOS) 或 sudo apt-get install poppler-utils (Ubuntu)")
-            
-            print(f"✅ Poppler工具已安装: {poppler_path}")
             print("✅ OCR依赖检查通过")
-                
-        except ImportError:
-            raise Exception("EasyOCR包未安装，请运行: pip install easyocr")
         except Exception as e:
             raise e
     
@@ -525,104 +482,6 @@ class DocumentProcessor:
             # 如果预处理失败，返回原图
             return pil_image
     
-    async def _extract_docx_content(self, file_path: str) -> str:
-        """
-        提取DOCX文档内容
-        
-        Args:
-            file_path: DOCX文件路径
-            
-        Returns:
-            str: 提取的文本内容
-        """
-        try:
-            doc = DocxDocument(file_path)
-            content = ""
-            paragraph_count = 0
-            
-            for paragraph in doc.paragraphs:
-                if paragraph.text.strip():  # 只添加非空段落
-                    content += paragraph.text + "\n"
-                    paragraph_count += 1
-            
-            if not content.strip():
-                raise Exception("DOCX文档无法提取到有效文本内容")
-                
-            return content.strip()
-            
-        except Exception as e:
-            raise Exception(f"DOCX内容提取失败: {str(e)}")
-    
-    async def _extract_excel_content(self, file_path: str) -> str:
-        """
-        提取Excel文档内容
-        
-        Args:
-            file_path: Excel文件路径
-            
-        Returns:
-            str: 提取的文本内容
-        """
-        try:
-            workbook = openpyxl.load_workbook(file_path, data_only=True)
-            content = ""
-            total_rows = 0
-            
-            for sheet_name in workbook.sheetnames:
-                sheet = workbook[sheet_name]
-                content += f"\n=== 工作表: {sheet_name} ===\n"
-                
-                # 获取有数据的行
-                rows_with_data = []
-                for row in sheet.iter_rows(values_only=True):
-                    if any(cell is not None and str(cell).strip() for cell in row):
-                        row_text = "\t".join([
-                            str(cell).strip() if cell is not None else "" 
-                            for cell in row
-                        ])
-                        rows_with_data.append(row_text)
-                        total_rows += 1
-                
-                if rows_with_data:
-                    content += "\n".join(rows_with_data) + "\n"
-                else:
-                    content += "（此工作表无数据）\n"
-            
-            if not content.strip():
-                raise Exception("Excel文档无法提取到有效内容")
-                
-            return content.strip()
-            
-        except Exception as e:
-            raise Exception(f"Excel内容提取失败: {str(e)}")
-    
-    async def _extract_txt_content(self, file_path: str) -> str:
-        """
-        提取TXT文档内容
-        
-        Args:
-            file_path: TXT文件路径
-            
-        Returns:
-            str: 提取的文本内容
-        """
-        try:
-            # 尝试多种编码格式
-            encodings = ['utf-8', 'gbk', 'gb2312', 'big5', 'latin1']
-            
-            for encoding in encodings:
-                try:
-                    with open(file_path, 'r', encoding=encoding) as file:
-                        content = file.read()
-                        if content.strip():
-                            return content.strip()
-                except UnicodeDecodeError:
-                    continue
-            
-            raise Exception("无法使用支持的编码格式读取文本文件")
-            
-        except Exception as e:
-            raise Exception(f"TXT内容提取失败: {str(e)}")
 
 
 class VectorSearch:

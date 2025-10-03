@@ -2,64 +2,45 @@
 RAG (Retrieval-Augmented Generation) 系统核心模块
 
 该模块包含三个主要组件：
-1. DocumentProcessor: 文档处理器，负责文档内容提取、分块和向量化
+1. DocumentProcessor: 文档处理器，负责文档分块和向量化
 2. VectorSearch: 向量搜索引擎，基于Chroma数据库进行语义相似度搜索
 3. RAGGenerator: RAG生成器，集成LangChain和OpenAI进行智能问答
 
 技术栈：
-- 文档处理: LangChain文档加载器 (PyPDFLoader, Docx2txtLoader, TextLoader, UnstructuredFileLoader)
+- 文档解析: 独立的DocumentParser模块
 - 文本分割: LangChain RecursiveCharacterTextSplitter
 - 向量化: Sentence Transformers
 - 向量存储: ChromaDB
 - 智能问答: LangChain + OpenAI GPT
 
-文档处理架构：
-- 完全基于LangChain的专业文档加载器，使用标准的loaders.extend()模式
-- PDF处理：PyMuPDFLoader（优先）→ PyPDFLoader → OCR（扫描版PDF）
-- DOCX处理：Docx2txtLoader
-- Excel处理：UnstructuredExcelLoader
-- TXT处理：TextLoader
-- MD处理：UnstructuredMarkdownLoader
-- OCR仅作为PDF扫描件的补充处理手段
+架构说明：
+- 文档解析功能已拆分到独立的document_parser模块
+- 本模块专注于向量化、搜索和生成功能
+- 通过依赖注入的方式使用文档解析器
 """
 
 import os
-import shutil
 import traceback
 import uuid
 from typing import List, Dict, Any, Optional
 
 import chromadb
-from PIL import Image
 from chromadb.config import Settings as ChromaSettings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-# LangChain文档加载器
-from langchain_community.document_loaders import (
-    PyPDFLoader,
-    PyMuPDFLoader,
-    Docx2txtLoader,
-    TextLoader,
-    UnstructuredExcelLoader,
-    UnstructuredMarkdownLoader
-)
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from pdf2image import convert_from_path
 from sentence_transformers import SentenceTransformer
 
 from apps.models.document import Document as DocumentModel, DocumentChunk
-from apps.utils.ocr_engines import get_ocr_engine
+from apps.utils.document_parser import document_parser
 from config import (
     CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL,
-    HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD,
-    OCR_ENABLED, OCR_USE_GPU
+    HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD
 )
 
 
 # RAG系统工具函数
-
-
 def get_local_model_path(model_name: str, cache_folder: str) -> Optional[str]:
     """
     获取本地模型路径
@@ -94,21 +75,19 @@ def get_local_model_path(model_name: str, cache_folder: str) -> Optional[str]:
 
 class DocumentProcessor:
     """
-    文档处理器 - 基于LangChain的专业文档处理系统
+    文档处理器 - 负责文档分块和向量化
     
     主要功能：
-    1. 使用LangChain文档加载器处理多种格式（PDF、DOCX、Excel、TXT）
-    2. 智能文本分块，保持语义完整性
-    3. 生成高质量向量嵌入
-    4. 与数据库和向量存储同步
-    5. 保留OCR功能处理扫描版PDF
+    1. 智能文本分块，保持语义完整性
+    2. 生成高质量向量嵌入
+    3. 与数据库和向量存储同步
+    4. 协调文档解析器和向量化流程
     
-    文档处理流程：
-    - PDF: PyMuPDFLoader（优先）→ PyPDFLoader → OCR（扫描版PDF）
-    - DOCX: Docx2txtLoader（直接处理）
-    - Excel: UnstructuredExcelLoader（直接处理）
-    - TXT: TextLoader（直接处理）
-    - MD: UnstructuredMarkdownLoader（直接处理）
+    处理流程：
+    1. 使用DocumentParser提取文档内容
+    2. 智能分块处理
+    3. 生成向量嵌入
+    4. 存储到ChromaDB和数据库
     """
     
     def __init__(self):
@@ -119,7 +98,7 @@ class DocumentProcessor:
         1. 文本分割器：1000字符块大小，200字符重叠
         2. 向量嵌入模型：Sentence Transformers
         3. ChromaDB向量数据库客户端
-        4. OCR引擎：EasyOCR实例
+        4. 文档解析器：独立的DocumentParser实例
         """
         try:
             # 配置文本分割器 - 平衡块大小和语义完整性
@@ -128,16 +107,6 @@ class DocumentProcessor:
                 chunk_overlap=200,    # 块之间的重叠字符数，保持上下文连续性
                 length_function=len,  # 使用字符长度计算
             )
-            
-            # 初始化OCR引擎（如果启用）
-            self.ocr_engine = None
-            if OCR_ENABLED:
-                try:
-                    self.ocr_engine = get_ocr_engine(use_gpu=OCR_USE_GPU)
-                    print("✅ OCR引擎初始化完成")
-                except Exception as e:
-                    print(f"⚠️ OCR引擎初始化失败: {str(e)}")
-                    self.ocr_engine = None
             
             # 配置HuggingFace环境变量
             os.environ["HF_HOME"] = HF_HOME
@@ -205,7 +174,7 @@ class DocumentProcessor:
             await document.save()
             
             # 2. 提取文档内容
-            content = await self._extract_content(file_path, file_type)
+            content = await document_parser.extract_content(file_path, file_type)
             if not content or not content.strip():
                 raise Exception("文档内容为空或无法提取")
             
@@ -275,212 +244,6 @@ class DocumentProcessor:
             
             return False
     
-    async def _extract_content(self, file_path: str, file_type: str) -> str:
-        """
-        使用LangChain文档加载器提取文档内容
-        
-        支持的文件类型：
-        - PDF: 使用PyMuPDFLoader（更高效）和PyPDFLoader
-        - DOCX/DOC: 使用Docx2txtLoader
-        - XLSX/XLS: 使用UnstructuredExcelLoader
-        - TXT: 使用TextLoader
-        - MD: 使用UnstructuredMarkdownLoader
-        
-        Args:
-            file_path: 文件路径
-            file_type: 文件类型
-            
-        Returns:
-            str: 提取的文本内容
-        """
-        try:
-            if not os.path.exists(file_path):
-                raise Exception(f"文件不存在: {file_path}")
-            
-            print(f"📄 开始使用LangChain加载器处理 {file_type.upper()} 文档: {os.path.basename(file_path)}")
-            
-            # 根据文件类型选择合适的加载器
-            loaders = []
-            
-            if file_type == "pdf":
-                # PDF优先使用PyMuPDFLoader（更快更准确）
-                try:
-                    loaders.append(PyMuPDFLoader(file_path))
-                except:
-                    loaders.append(PyPDFLoader(file_path))
-            elif file_type in ["docx", "doc"]:
-                loaders.append(Docx2txtLoader(file_path))
-            elif file_type in ["xlsx", "xls"]:
-                loaders.append(UnstructuredExcelLoader(file_path))
-            elif file_type == "txt":
-                loaders.append(TextLoader(file_path, encoding='utf-8'))
-            elif file_type == "md":
-                loaders.append(UnstructuredMarkdownLoader(file_path))
-            else:
-                raise Exception(f"不支持的文件类型: {file_type}")
-            
-            # 加载文档并合并内容
-            texts = []
-            for loader in loaders:
-                try:
-                    documents = loader.load()
-                    texts.extend(documents)
-                except Exception as e:
-                    print(f"⚠️ 加载器失败: {str(e)}")
-                    continue
-            
-            if not texts:
-                raise Exception("无法加载任何文档内容")
-            
-            # 合并所有文档内容
-            content = "\n\n".join([doc.page_content for doc in texts if doc.page_content.strip()])
-            
-            if not content.strip():
-                raise Exception("文档内容为空")
-            
-            print(f"✅ LangChain加载器成功，提取内容长度: {len(content)} 字符")
-            return content.strip()
-                
-        except Exception as e:
-            print(f"❌ LangChain加载器处理失败: {str(e)}")
-            # 如果是PDF且失败，尝试OCR处理
-            if file_type == "pdf":
-                print("🔄 尝试OCR处理扫描版PDF...")
-                try:
-                    return await self._extract_pdf_with_ocr(file_path)
-                except Exception as ocr_e:
-                    raise Exception(f"所有PDF处理方法都失败: LangChain({str(e)}), OCR({str(ocr_e)})")
-            else:
-                raise Exception(f"文档内容提取失败: {str(e)}")
-    
-    
-    # ========== OCR辅助方法（仅用于PDF扫描件处理） ==========
-    
-    
-    async def _extract_pdf_with_ocr(self, file_path: str) -> str:
-        """
-        使用OCR技术提取PDF中的图片文字
-        
-        包含完整的依赖检查和错误处理
-        
-        Args:
-            file_path: PDF文件路径
-            
-        Returns:
-            str: OCR识别的文本内容
-            
-        Raises:
-            Exception: 当OCR依赖缺失或处理失败时
-        """
-        try:
-            # 检查OCR依赖
-            self._check_ocr_dependencies()
-            
-            # 将PDF转换为图片
-            print("🔄 正在将PDF转换为图片...")
-            try:
-                images = convert_from_path(file_path, dpi=200)  # 降低DPI平衡质量和性能
-            except Exception as e:
-                if "poppler" in str(e).lower():
-                    raise Exception("缺少poppler依赖。请运行: brew install poppler (macOS) 或 apt-get install poppler-utils (Ubuntu)")
-                raise Exception(f"PDF转图片失败: {str(e)}")
-            
-            if not images:
-                raise Exception("PDF转换后未获得任何图片页面")
-            
-            content = ""
-            total_pages = len(images)
-            successful_pages = 0
-            
-            print(f"📄 开始OCR处理 {total_pages} 页...")
-            
-            for page_num, image in enumerate(images, 1):
-                try:
-                    # 显示处理进度
-                    progress = (page_num - 1) / total_pages * 100
-                    print(f"🔍 处理第 {page_num}/{total_pages} 页... ({progress:.1f}%)")
-                    
-                    # 图像预处理
-                    processed_image = self._preprocess_image_for_ocr(image)
-                    
-                    # OCR识别 - 使用已初始化的OCR引擎
-                    if self.ocr_engine is None:
-                        raise Exception("OCR引擎未初始化")
-                    page_text = self.ocr_engine.extract_text(processed_image)
-
-                    if page_text.strip():
-                        content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
-                        content += page_text.strip() + "\n"
-                        successful_pages += 1
-                        
-                except Exception as page_error:
-                    print(f"⚠️ 第 {page_num} 页OCR处理失败: {str(page_error)}")
-                    continue
-            
-            if successful_pages == 0:
-                raise Exception("所有页面的OCR处理均失败")
-            
-            print(f"✅ OCR处理完成，成功处理 {successful_pages}/{total_pages} 页")
-            return content.strip()
-            
-        except Exception as e:
-            error_msg = str(e)
-            if "tesseract" in error_msg.lower():
-                error_msg = "缺少Tesseract OCR引擎。请运行: brew install tesseract (macOS) 或 apt-get install tesseract-ocr (Ubuntu)"
-            elif "chi_sim" in error_msg.lower():
-                error_msg = "缺少中文语言包。请运行: brew install tesseract-lang (macOS) 或 apt-get install tesseract-ocr-chi-sim (Ubuntu)"
-            
-            print(f"❌ PDF OCR处理失败: {error_msg}")
-            raise Exception(f"OCR处理失败: {error_msg}")
-    
-    def _check_ocr_dependencies(self):
-        """
-        检查OCR所需的依赖是否可用
-        
-        Raises:
-            Exception: 当依赖缺失时
-        """
-        try:
-            # 检查poppler工具（PDF转图片需要）
-            poppler_path = shutil.which('pdftoppm')
-            if not poppler_path:
-                raise Exception("缺少poppler工具，请安装: brew install poppler (macOS) 或 sudo apt-get install poppler-utils (Ubuntu)")
-            print("✅ OCR依赖检查通过")
-        except Exception as e:
-            raise e
-    
-    
-    def _preprocess_image_for_ocr(self, pil_image: Image.Image) -> Image.Image:
-        """
-        简单的图像预处理，提高OCR识别准确性
-        
-        Args:
-            pil_image: PIL图像对象
-            
-        Returns:
-            Image.Image: 预处理后的图像
-        """
-        try:
-            # 简单的灰度转换
-            if pil_image.mode != 'L':
-                gray_image = pil_image.convert('L')
-            else:
-                gray_image = pil_image
-            
-            # 如果图像太小，稍微放大
-            width, height = gray_image.size
-            if width < 800 or height < 800:
-                scale_factor = max(800 / width, 800 / height)
-                new_width = int(width * scale_factor)
-                new_height = int(height * scale_factor)
-                gray_image = gray_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            
-            return gray_image
-            
-        except Exception as e:
-            print(f"⚠️ 图像预处理出错: {str(e)}")
-            # 如果预处理失败，返回原图
-            return pil_image
     
 
 

@@ -96,6 +96,7 @@ class DocumentProcessor:
         1. 文本分割器：1000字符块大小，200字符重叠
         2. 向量嵌入模型：Sentence Transformers
         3. ChromaDB向量数据库客户端
+        4. OCR引擎：EasyOCR实例
         """
         try:
             # 配置文本分割器 - 平衡块大小和语义完整性
@@ -104,6 +105,16 @@ class DocumentProcessor:
                 chunk_overlap=200,    # 块之间的重叠字符数，保持上下文连续性
                 length_function=len,  # 使用字符长度计算
             )
+            
+            # 初始化OCR引擎（如果启用）
+            self.ocr_engine = None
+            if OCR_ENABLED:
+                try:
+                    self.ocr_engine = get_ocr_engine()
+                    print("✅ OCR引擎初始化完成")
+                except Exception as e:
+                    print(f"⚠️ OCR引擎初始化失败: {str(e)}")
+                    self.ocr_engine = None
             
             # 配置HuggingFace环境变量
             os.environ["HF_HOME"] = HF_HOME
@@ -426,9 +437,10 @@ class DocumentProcessor:
                     # 图像预处理
                     processed_image = self._preprocess_image_for_ocr(image)
                     
-                    # OCR识别 - 使用配置的OCR引擎
-                    ocr_engine = get_ocr_engine()
-                    page_text = ocr_engine.extract_text(processed_image)
+                    # OCR识别 - 使用已初始化的OCR引擎
+                    if self.ocr_engine is None:
+                        raise Exception("OCR引擎未初始化")
+                    page_text = self.ocr_engine.extract_text(processed_image)
 
                     if page_text.strip():
                         content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
@@ -463,33 +475,21 @@ class DocumentProcessor:
             Exception: 当依赖缺失时
         """
         try:
-            # 检查pytesseract
-            tesseract_path = shutil.which('tesseract')
-            if tesseract_path:
-                pytesseract.pytesseract.tesseract_cmd = tesseract_path
-                print(f"🔧 设置Tesseract路径: {tesseract_path}")
+            # 检查EasyOCR
+            import easyocr
+            print("✅ EasyOCR包已安装")
             
-            # 检查Tesseract可执行文件
-            version = pytesseract.get_tesseract_version()
-            print(f"✅ Tesseract版本: {version}")
+            # 检查poppler工具（PDF转图片需要）
+            poppler_path = shutil.which('pdftoppm')
+            if not poppler_path:
+                raise Exception("缺少poppler工具，请安装: brew install poppler (macOS) 或 sudo apt-get install poppler-utils (Ubuntu)")
             
-            # 检查支持的语言
-            languages = pytesseract.get_languages()
-            print(f"📋 支持的语言: {len(languages)} 种")
-            
-            if 'chi_sim' not in languages:
-                raise Exception("Tesseract缺少中文简体语言包")
-            if 'eng' not in languages:
-                raise Exception("Tesseract缺少英文语言包")
-            
+            print(f"✅ Poppler工具已安装: {poppler_path}")
             print("✅ OCR依赖检查通过")
                 
         except ImportError:
-            raise Exception("pytesseract包未安装")
+            raise Exception("EasyOCR包未安装，请运行: pip install easyocr")
         except Exception as e:
-            error_str = str(e).lower()
-            if "tesseract is not installed" in error_str or "tesseract not found" in error_str:
-                raise Exception("Tesseract OCR引擎未安装或未在PATH中")
             raise e
     
     

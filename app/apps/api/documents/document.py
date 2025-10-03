@@ -10,6 +10,7 @@ from tortoise.expressions import Q
 from apps.models.document import Document, DocumentChunk
 from apps.utils import response
 from apps.utils.rag_helper import document_processor, vector_search
+from apps.utils.document_parser import document_parser
 from config import DOCUMENT_STORE_PATH
 
 router = APIRouter(prefix="/documents", tags=["文档管理"])
@@ -56,9 +57,9 @@ async def upload_document(
             status="processing"
         )
         
-        # 后台处理文档
+        # 后台异步处理文档（非阻塞）
         background_tasks.add_task(
-            document_processor.process_document,
+            document_parser.process_document_async,
             document.id,
             file_path,
             file_extension

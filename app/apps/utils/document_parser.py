@@ -16,6 +16,7 @@
 
 import os
 import shutil
+import asyncio
 
 from PIL import Image
 # LangChain文档加载器
@@ -177,10 +178,14 @@ class DocumentParser:
             # 检查OCR依赖
             self._check_ocr_dependencies()
             
-            # 将PDF转换为图片
+            # 将PDF转换为图片（异步处理，避免阻塞）
             print("🔄 正在将PDF转换为图片...")
             try:
-                images = convert_from_path(file_path, dpi=200)  # 降低DPI平衡质量和性能
+                # 异步处理PDF转图片，避免阻塞
+                images = await asyncio.get_event_loop().run_in_executor(
+                    None, 
+                    lambda: convert_from_path(file_path, dpi=200)  # 降低DPI平衡质量和性能
+                )
             except Exception as e:
                 if "poppler" in str(e).lower():
                     raise Exception("缺少poppler依赖。请运行: brew install poppler (macOS) 或 apt-get install poppler-utils (Ubuntu)")
@@ -195,28 +200,49 @@ class DocumentParser:
             
             print(f"📄 开始OCR处理 {total_pages} 页...")
             
-            for page_num, image in enumerate(images, 1):
-                try:
-                    # 显示处理进度
-                    progress = (page_num - 1) / total_pages * 100
-                    print(f"🔍 处理第 {page_num}/{total_pages} 页... ({progress:.1f}%)")
-                    
-                    # 图像预处理
-                    processed_image = self._preprocess_image_for_ocr(image)
-                    
-                    # OCR识别 - 使用已初始化的OCR引擎
-                    if self.ocr_engine is None:
-                        raise Exception("OCR引擎未初始化")
-                    page_text = self.ocr_engine.extract_text(processed_image)
-
-                    if page_text.strip():
-                        content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
-                        content += page_text.strip() + "\n"
-                        successful_pages += 1
+            # 使用异步处理，避免阻塞主进程
+            # 限制并发数量，避免资源耗尽
+            semaphore = asyncio.Semaphore(2)  # 最多同时处理2页
+            
+            async def process_single_page(page_num, image):
+                async with semaphore:
+                    try:
+                        # 显示处理进度
+                        progress = (page_num - 1) / total_pages * 100
+                        print(f"🔍 处理第 {page_num}/{total_pages} 页... ({progress:.1f}%)")
                         
-                except Exception as page_error:
-                    print(f"⚠️ 第 {page_num} 页OCR处理失败: {str(page_error)}")
-                    continue
+                        # 图像预处理（快速操作，不需要异步）
+                        processed_image = self._preprocess_image_for_ocr(image)
+                        
+                        # OCR识别 - 使用已初始化的OCR引擎
+                        if self.ocr_engine is None:
+                            raise Exception("OCR引擎未初始化")
+                        
+                        # 异步处理OCR，避免阻塞主进程
+                        # 使用线程池执行器，让OCR在独立线程中运行
+                        page_text = await asyncio.get_event_loop().run_in_executor(
+                            None, 
+                            self.ocr_engine.extract_text, 
+                            processed_image
+                        )
+                        
+                        return page_num, page_text, None
+                        
+                    except Exception as page_error:
+                        print(f"⚠️ 第 {page_num} 页OCR处理失败: {str(page_error)}")
+                        return page_num, None, str(page_error)
+            
+            # 创建所有页面的处理任务
+            tasks = [process_single_page(page_num, image) for page_num, image in enumerate(images, 1)]
+            
+            # 并发处理所有页面，但限制并发数量
+            for task in asyncio.as_completed(tasks):
+                page_num, page_text, error = await task
+                
+                if error is None and page_text and page_text.strip():
+                    content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
+                    content += page_text.strip() + "\n"
+                    successful_pages += 1
             
             if successful_pages == 0:
                 raise Exception("所有页面的OCR处理均失败")
@@ -281,6 +307,49 @@ class DocumentParser:
             print(f"⚠️ 图像预处理出错: {str(e)}")
             # 如果预处理失败，返回原图
             return pil_image
+    
+    async def process_document_async(self, document_id: int, file_path: str, file_type: str):
+        """
+        异步处理文档的后台任务
+        
+        这个函数在后台运行，不会阻塞主进程
+        处理完成后会自动更新文档状态
+        
+        Args:
+            document_id: 文档ID
+            file_path: 文件路径
+            file_type: 文件类型
+        """
+        try:
+            print(f"🔄 开始后台处理文档 {document_id} ({file_type})")
+            
+            # 导入必要的模块（避免循环导入）
+            from apps.models.document import Document as DocumentModel
+            from apps.utils.rag_helper import document_processor
+            
+            # 调用文档处理器进行异步处理
+            success = await document_processor.process_document(
+                document_id, 
+                file_path, 
+                file_type
+            )
+            
+            if success:
+                print(f"✅ 文档 {document_id} 处理完成")
+            else:
+                print(f"❌ 文档 {document_id} 处理失败")
+                
+        except Exception as e:
+            print(f"❌ 后台处理文档 {document_id} 时出错: {str(e)}")
+            # 更新文档状态为失败
+            try:
+                from apps.models.document import Document as DocumentModel
+                document = await DocumentModel.get(id=document_id)
+                document.status = "failed"
+                document.error_message = str(e)
+                await document.save()
+            except Exception:
+                pass  # 忽略更新状态的异常
 
 
 # 全局实例 - 单例模式

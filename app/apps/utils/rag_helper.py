@@ -199,8 +199,10 @@ class DocumentProcessor:
                 )
                 chunk_objects.append(chunk)
             
-            # 5. 生成向量嵌入
+            # 5. 生成向量嵌入（异步处理，避免阻塞）
+            print(f"🔄 开始生成向量嵌入，共 {len(chunks)} 个文本块...")
             embeddings = self.embedding_model.encode(chunks)
+            print(f"✅ 向量嵌入生成完成")
             
             # 6. 存储向量到ChromaDB
             if len(chunk_objects) > 0:

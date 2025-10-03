@@ -15,6 +15,7 @@ RAG (Retrieval-Augmented Generation) 系统核心模块
 """
 
 import os
+import shutil
 import traceback
 import uuid
 from typing import List, Dict, Any, Optional
@@ -23,24 +24,24 @@ import chromadb
 import openpyxl
 import pypdf
 import pytesseract
-import cv2
-import numpy as np
 from PIL import Image
-from pdf2image import convert_from_path
 from chromadb.config import Settings as ChromaSettings
 from docx import Document as DocxDocument
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from pdf2image import convert_from_path
 from sentence_transformers import SentenceTransformer
 
 from apps.models.document import Document as DocumentModel, DocumentChunk
+from apps.utils.ocr_engines import get_ocr_engine
 from config import (
-    CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL, 
+    CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL,
     HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD,
-    OCR_ENABLED, OCR_AUTO_FALLBACK, OCR_MIN_TEXT_LENGTH, OCR_MAX_FILE_SIZE
+    OCR_ENABLED, OCR_AUTO_FALLBACK, OCR_MIN_TEXT_LENGTH, OCR_MAX_FILE_SIZE, OCR_ENGINE
 )
+
 
 # RAG系统工具函数
 
@@ -419,17 +420,20 @@ class DocumentProcessor:
             
             for page_num, image in enumerate(images, 1):
                 try:
-                    print(f"🔍 处理第 {page_num}/{total_pages} 页...")
+                    # 显示处理进度
+                    progress = (page_num - 1) / total_pages * 100
+                    print(f"🔍 处理第 {page_num}/{total_pages} 页... ({progress:.1f}%)")
                     
                     # 图像预处理
                     processed_image = self._preprocess_image_for_ocr(image)
                     
-                    # OCR识别 - 使用简单可靠的配置
-                    page_text = pytesseract.image_to_string(
-                        processed_image, 
-                        lang='chi_sim+eng',
-                        config='--oem 3 --psm 6'
-                    )
+                    # OCR识别 - 使用配置的OCR引擎
+                    try:
+                        ocr_engine = get_ocr_engine(OCR_ENGINE)
+                        page_text = ocr_engine.extract_text(processed_image)
+                    except Exception as ocr_error:
+                        print(f"❌ {OCR_ENGINE} OCR处理失败: {str(ocr_error)}")
+                        page_text = ""
                     
                     if page_text.strip():
                         content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
@@ -465,10 +469,6 @@ class DocumentProcessor:
         """
         try:
             # 检查pytesseract
-            import pytesseract
-            
-            # 尝试设置tesseract路径（macOS Homebrew默认路径）
-            import shutil
             tesseract_path = shutil.which('tesseract')
             if tesseract_path:
                 pytesseract.pytesseract.tesseract_cmd = tesseract_path
@@ -483,7 +483,7 @@ class DocumentProcessor:
             print(f"📋 支持的语言: {len(languages)} 种")
             
             if 'chi_sim' not in languages:
-                raise Exception("Tesseract缺少中文简体语言包。请运行: brew install tesseract-lang")
+                raise Exception("Tesseract缺少中文简体语言包")
             if 'eng' not in languages:
                 raise Exception("Tesseract缺少英文语言包")
             
@@ -783,7 +783,6 @@ class VectorSearch:
             
         except Exception as e:
             print(f"搜索相似文档块失败: {e}")
-            import traceback
             traceback.print_exc()
             return []
 

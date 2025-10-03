@@ -1,30 +1,61 @@
 """
 EasyOCR引擎适配器
 
-使用EasyOCR进行OCR文本识别，支持中英文等多种语言
+使用EasyOCR进行OCR文本识别，支持中英文等多种语言，支持GPU加速
 """
-
-from typing import List
+import easyocr
 from PIL import Image
 
 
 class OCREngineAdapter:
     """EasyOCR引擎适配器"""
     
-    def __init__(self):
+    def __init__(self, use_gpu: bool = True):
+        self.use_gpu = use_gpu
         self._init_easyocr()
     
     def _init_easyocr(self):
         """初始化EasyOCR"""
-        try:
-            import easyocr
-        except ImportError:
-            self._show_install_guide()
-            raise ImportError("EasyOCR未安装")
+        # 检测GPU可用性
+        gpu_available = self._check_gpu_availability()
+        actual_use_gpu = self.use_gpu and gpu_available
         
-        # 初始化EasyOCR，支持中英文
-        self.easy_reader = easyocr.Reader(['ch_sim', 'en'])
+        # 尝试初始化，如果GPU失败则自动降级到CPU
+        if actual_use_gpu:
+            try:
+                print("🚀 尝试启用GPU加速模式")
+                self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=True)
+                print("✅ GPU模式初始化成功")
+            except Exception as gpu_error:
+                print(f"⚠️ GPU模式初始化失败: {str(gpu_error)}")
+                print("🔄 自动降级到CPU模式")
+                self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False)
+                print("✅ CPU模式初始化成功")
+        else:
+            print("💻 使用CPU模式")
+            self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False)
+            print("✅ CPU模式初始化成功")
+        
         print("✅ EasyOCR引擎初始化完成")
+    
+    def _check_gpu_availability(self) -> bool:
+        """检查GPU是否可用"""
+        try:
+            import torch
+            if torch.cuda.is_available():
+                gpu_count = torch.cuda.device_count()
+                gpu_name = torch.cuda.get_device_name(0) if gpu_count > 0 else "Unknown"
+                print(f"🎮 检测到 {gpu_count} 个GPU: {gpu_name}")
+                return True
+            else:
+                print("💻 未检测到CUDA GPU，将使用CPU模式")
+                return False
+        except ImportError:
+            print("⚠️ PyTorch未安装，无法检测GPU，将使用CPU模式")
+            return False
+        except Exception as e:
+            print(f"⚠️ GPU检测失败: {str(e)}，将使用CPU模式")
+            return False
     
     def extract_text(self, image: Image.Image) -> str:
         """从图像中提取文本"""
@@ -59,9 +90,9 @@ class OCREngineAdapter:
         print("\n💡 或者运行: uv sync")
 
 
-def get_ocr_engine() -> OCREngineAdapter:
+def get_ocr_engine(use_gpu: bool = True) -> OCREngineAdapter:
     """获取OCR引擎实例"""
-    return OCREngineAdapter()
+    return OCREngineAdapter(use_gpu=use_gpu)
 
 
 def test_ocr_engine() -> bool:
@@ -78,6 +109,29 @@ def test_ocr_engine() -> bool:
         return False
 
 
+def check_gpu_status():
+    """检查GPU状态"""
+    print("🔍 检查GPU状态...")
+    
+    try:
+        import torch
+        if torch.cuda.is_available():
+            gpu_count = torch.cuda.device_count()
+            gpu_name = torch.cuda.get_device_name(0) if gpu_count > 0 else "Unknown"
+            print(f"🎮 检测到 {gpu_count} 个GPU: {gpu_name}")
+            print(f"💾 GPU内存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+            return True
+        else:
+            print("💻 未检测到CUDA GPU")
+            return False
+    except ImportError:
+        print("⚠️ PyTorch未安装，无法检测GPU")
+        return False
+    except Exception as e:
+        print(f"⚠️ GPU检测失败: {str(e)}")
+        return False
+
+
 def check_and_install_dependencies():
     """检查并建议安装缺失的依赖"""
     print("🔍 检查OCR依赖...")
@@ -90,6 +144,14 @@ def check_and_install_dependencies():
         import easyocr
     except ImportError:
         missing_python.append("easyocr")
+    
+    # 检查PyTorch（GPU支持需要）
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            print("💡 提示: 如需GPU加速，请安装CUDA版本的PyTorch")
+    except ImportError:
+        print("💡 提示: 如需GPU加速，请安装PyTorch")
     
     # 检查系统依赖
     import shutil

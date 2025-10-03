@@ -38,7 +38,8 @@ from apps.utils.ocr_engines import get_ocr_engine
 from config import (
     CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL,
     HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD,
-    OCR_ENABLED, OCR_AUTO_FALLBACK, OCR_MIN_TEXT_LENGTH, OCR_MAX_FILE_SIZE
+    OCR_ENABLED, OCR_AUTO_FALLBACK, OCR_MIN_TEXT_LENGTH, OCR_MAX_FILE_SIZE,
+    OCR_USE_GPU
 )
 
 
@@ -110,7 +111,7 @@ class DocumentProcessor:
             self.ocr_engine = None
             if OCR_ENABLED:
                 try:
-                    self.ocr_engine = get_ocr_engine()
+                    self.ocr_engine = get_ocr_engine(use_gpu=OCR_USE_GPU)
                     print("✅ OCR引擎初始化完成")
                 except Exception as e:
                     print(f"⚠️ OCR引擎初始化失败: {str(e)}")

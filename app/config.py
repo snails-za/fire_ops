@@ -100,5 +100,8 @@ OCR_AUTO_FALLBACK = config("OCR_AUTO_FALLBACK", cast=bool, default=True)  # 自�
 OCR_MIN_TEXT_LENGTH = config("OCR_MIN_TEXT_LENGTH", cast=int, default=100)  # 触发OCR的最小文本长度
 OCR_MAX_FILE_SIZE = config("OCR_MAX_FILE_SIZE", cast=int, default=50) * 1024 * 1024  # OCR最大文件大小(50MB)
 
+# OCR GPU加速配置
+OCR_USE_GPU = config("OCR_USE_GPU", cast=bool, default=True)  # 是否启用GPU加速
+
 
 

@@ -14,12 +14,15 @@
 - 图像预处理和优化
 """
 
+import asyncio
 import os
 import shutil
-import asyncio
+import uuid
 
+import chromadb
 from PIL import Image
-# LangChain文档加载器
+from chromadb.config import Settings as ChromaSettings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (
     PyPDFLoader,
     PyMuPDFLoader,
@@ -29,9 +32,13 @@ from langchain_community.document_loaders import (
     UnstructuredMarkdownLoader
 )
 from pdf2image import convert_from_path
+from sentence_transformers import SentenceTransformer
 
+from apps.models.document import Document as DocumentModel, DocumentChunk
+from apps.utils.common import get_local_model_path
 from apps.utils.ocr_engines import get_ocr_engine
-from config import OCR_ENABLED, OCR_USE_GPU
+from config import OCR_ENABLED, OCR_USE_GPU, CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL, HF_HOME, \
+    HF_OFFLINE
 
 
 class DocumentParser:
@@ -204,6 +211,9 @@ class DocumentParser:
             # 限制并发数量，避免资源耗尽
             semaphore = asyncio.Semaphore(2)  # 最多同时处理2页
             
+            # 添加超时控制，避免单个页面处理时间过长
+            TIMEOUT_PER_PAGE = 60  # 每页最多60秒
+            
             async def process_single_page(page_num, image):
                 async with semaphore:
                     try:
@@ -220,14 +230,24 @@ class DocumentParser:
                         
                         # 异步处理OCR，避免阻塞主进程
                         # 使用线程池执行器，让OCR在独立线程中运行
-                        page_text = await asyncio.get_event_loop().run_in_executor(
-                            None, 
-                            self.ocr_engine.extract_text, 
-                            processed_image
+                        # 添加超时控制
+                        page_text = await asyncio.wait_for(
+                            asyncio.get_event_loop().run_in_executor(
+                                None, 
+                                self.ocr_engine.extract_text, 
+                                processed_image
+                            ),
+                            timeout=TIMEOUT_PER_PAGE
                         )
+                        
+                        # 清理图像资源
+                        del processed_image
                         
                         return page_num, page_text, None
                         
+                    except asyncio.TimeoutError:
+                        print(f"⚠️ 第 {page_num} 页OCR处理超时")
+                        return page_num, None, "处理超时"
                     except Exception as page_error:
                         print(f"⚠️ 第 {page_num} 页OCR处理失败: {str(page_error)}")
                         return page_num, None, str(page_error)
@@ -236,13 +256,20 @@ class DocumentParser:
             tasks = [process_single_page(page_num, image) for page_num, image in enumerate(images, 1)]
             
             # 并发处理所有页面，但限制并发数量
+            # 使用 as_completed 但保持顺序
+            results = {}
             for task in asyncio.as_completed(tasks):
                 page_num, page_text, error = await task
-                
-                if error is None and page_text and page_text.strip():
-                    content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
-                    content += page_text.strip() + "\n"
-                    successful_pages += 1
+                results[page_num] = (page_text, error)
+            
+            # 按页面顺序处理结果
+            for page_num in range(1, total_pages + 1):
+                if page_num in results:
+                    page_text, error = results[page_num]
+                    if error is None and page_text and page_text.strip():
+                        content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
+                        content += page_text.strip() + "\n"
+                        successful_pages += 1
             
             if successful_pages == 0:
                 raise Exception("所有页面的OCR处理均失败")
@@ -322,15 +349,11 @@ class DocumentParser:
         """
         try:
             print(f"🔄 开始后台处理文档 {document_id} ({file_type})")
-            
-            # 导入必要的模块（避免循环导入）
-            from apps.models.document import Document as DocumentModel
-            from apps.utils.rag_helper import document_processor
-            
+
             # 调用文档处理器进行异步处理
             success = await document_processor.process_document(
                 document_id, 
-                file_path, 
+                file_path,
                 file_type
             )
             
@@ -338,22 +361,208 @@ class DocumentParser:
                 print(f"✅ 文档 {document_id} 处理完成")
             else:
                 print(f"❌ 文档 {document_id} 处理失败")
+                # 更新状态为失败
+                await self._update_document_status(document_id, "failed", "文档处理失败")
                 
         except Exception as e:
             print(f"❌ 后台处理文档 {document_id} 时出错: {str(e)}")
             # 更新文档状态为失败
-            try:
-                from apps.models.document import Document as DocumentModel
+            await self._update_document_status(document_id, "failed", str(e))
+    
+    async def _update_document_status(self, document_id: int, status: str, error_message: str = None):
+        """
+        更新文档状态
+        
+        Args:
+            document_id: 文档ID
+            status: 状态
+            error_message: 错误信息
+        """
+        try:
+            document = await DocumentModel.get(id=document_id)
+            document.status = status
+            if error_message:
+                document.error_message = error_message
+            await document.save()
+        except Exception as e:
+            print(f"⚠️ 更新文档状态失败: {str(e)}")
+            # 不抛出异常，避免影响主流程
+
+
+class DocumentProcessor:
+    """
+    文档处理器 - 负责文档分块和向量化
+    
+    主要功能：
+    1. 智能文本分块，保持语义完整性
+    2. 生成高质量向量嵌入
+    3. 与数据库和向量存储同步
+    4. 协调文档解析器和向量化流程
+    
+    处理流程：
+    1. 使用DocumentParser提取文档内容
+    2. 智能分块处理
+    3. 生成向量嵌入
+    4. 存储到ChromaDB和数据库
+    """
+    
+    def __init__(self):
+        """
+        初始化文档处理器
+        
+        配置组件：
+        1. 文本分割器：1000字符块大小，200字符重叠
+        2. 向量嵌入模型：Sentence Transformers
+        3. ChromaDB向量数据库客户端
+        4. 文档解析器：独立的DocumentParser实例
+        """
+        try:
+            # 配置文本分割器 - 平衡块大小和语义完整性
+            self.text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,      # 每个文本块的最大字符数
+                chunk_overlap=200,    # 块之间的重叠字符数，保持上下文连续性
+                length_function=len,  # 使用字符长度计算
+            )
+            
+            # 配置HuggingFace环境变量
+            os.environ["HF_HOME"] = HF_HOME
+            os.environ["TRANSFORMERS_CACHE"] = HF_HOME
+            os.environ["HF_HUB_CACHE"] = HF_HOME
+            
+            if HF_OFFLINE:
+                # 离线模式配置
+                os.environ["TRANSFORMERS_OFFLINE"] = "1"
+                os.environ["HF_HUB_OFFLINE"] = "1"
+            
+            # 关闭Chroma遥测，避免网络请求和错误
+            os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
+            os.environ.setdefault("CHROMA_TELEMETRY", "false")
+            
+            # 初始化向量嵌入模型
+            local_model_path = get_local_model_path(EMBEDDING_MODEL, HF_HOME)
+            
+            if local_model_path and HF_OFFLINE:
+                self.embedding_model = SentenceTransformer(local_model_path)
+            else:
+                self.embedding_model = SentenceTransformer(
+                    EMBEDDING_MODEL, 
+                    cache_folder=HF_HOME
+                )
+            
+            # 初始化ChromaDB客户端和集合
+            os.makedirs(CHROMA_PERSIST_DIRECTORY, exist_ok=True)
+            self.chroma_client = chromadb.PersistentClient(
+                path=CHROMA_PERSIST_DIRECTORY, 
+                settings=ChromaSettings(anonymized_telemetry=False)
+            )
+            self.collection = self.chroma_client.get_or_create_collection(
+                name=CHROMA_COLLECTION, 
+                metadata={"hnsw:space": "cosine"}  # 使用余弦相似度
+            )
+            
+        except Exception as e:
+            raise Exception(f"DocumentProcessor初始化失败: {e}")
+        
+    async def process_document(self, document_id: int, file_path: str, file_type: str) -> bool:
+        """
+        处理文档并生成向量嵌入
+        
+        处理流程：
+        1. 提取文档内容
+        2. 智能分块处理
+        3. 生成向量嵌入
+        4. 存储到ChromaDB
+        5. 更新数据库状态
+        
+        Args:
+            document_id: 文档ID
+            file_path: 文件路径
+            file_type: 文件类型
+            
+        Returns:
+            bool: 处理是否成功
+        """
+        document = None
+        try:
+            # 1. 更新文档状态为处理中
+            document = await DocumentModel.get(id=document_id)
+            document.status = "processing"
+            await document.save()
+            
+            # 2. 提取文档内容
+            content = await document_parser.extract_content(file_path, file_type)
+            if not content or not content.strip():
+                raise Exception("文档内容为空或无法提取")
+            
+            # 更新文档内容到数据库
+            document.content = content
+            await document.save()
+            
+            # 3. 智能分块处理
+            chunks = self.text_splitter.split_text(content)
+            if not chunks:
+                raise Exception("文档分块失败")
+            
+            # 4. 创建分块记录
+            chunk_objects = []
+            for i, chunk_text in enumerate(chunks):
+                chunk = await DocumentChunk.create(
+                    document_id=document_id,
+                    chunk_index=i,
+                    content=chunk_text,
+                    content_length=len(chunk_text),
+                    metadata={"chunk_index": i}
+                )
+                chunk_objects.append(chunk)
+            
+            # 5. 生成向量嵌入（异步处理，避免阻塞）
+            print(f"🔄 开始生成向量嵌入，共 {len(chunks)} 个文本块...")
+            embeddings = self.embedding_model.encode(chunks)
+            print(f"✅ 向量嵌入生成完成")
+            
+            # 6. 存储向量到ChromaDB
+            if len(chunk_objects) > 0:
+                ids = []
+                metadatas = []
+                vectors = []
+                
+                for i, (chunk, embedding) in enumerate(zip(chunk_objects, embeddings)):
+                    vector_id = f"doc_{document_id}_chunk_{i}_{uuid.uuid4().hex[:8]}"
+                    ids.append(vector_id)
+                    metadatas.append({
+                        "document_id": document_id,
+                        "chunk_id": chunk.id,
+                        "chunk_index": i,
+                    })
+                    vectors.append(embedding.tolist())
+                
+                # 批量添加到ChromaDB
+                self.collection.add(
+                    ids=ids, 
+                    embeddings=vectors, 
+                    metadatas=metadatas
+                )
+            
+            # 7. 更新文档状态为完成
+            document.status = "completed"
+            await document.save()
+            
+            return True
+            
+        except Exception as e:
+            # 更新文档状态为失败
+            if document is None:
                 document = await DocumentModel.get(id=document_id)
-                document.status = "failed"
-                document.error_message = str(e)
-                await document.save()
-            except Exception:
-                pass  # 忽略更新状态的异常
+            document.status = "failed"
+            document.error_message = str(e)
+            await document.save()
+
+            return False
 
 
 # 全局实例 - 单例模式
 try:
     document_parser = DocumentParser()
+    document_processor = DocumentProcessor()
 except Exception as e:
-    raise Exception(f"文档解析器初始化失败: {e}")
+    raise Exception(f"文档处理系统初始化失败: {e}")

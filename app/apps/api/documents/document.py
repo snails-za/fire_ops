@@ -9,8 +9,8 @@ from tortoise.expressions import Q
 
 from apps.models.document import Document, DocumentChunk
 from apps.utils import response
-from apps.utils.rag_helper import document_processor, vector_search
-from apps.utils.document_parser import document_parser
+from apps.utils.document_parser import document_parser, document_processor
+from apps.utils.rag_helper import vector_search
 from config import DOCUMENT_STORE_PATH
 
 router = APIRouter(prefix="/documents", tags=["文档管理"])

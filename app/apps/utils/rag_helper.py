@@ -21,232 +21,21 @@ RAG (Retrieval-Augmented Generation) 系统核心模块
 
 import os
 import traceback
-import uuid
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 import chromadb
 from chromadb.config import Settings as ChromaSettings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from sentence_transformers import SentenceTransformer
 
-from apps.models.document import Document as DocumentModel, DocumentChunk
-from apps.utils.document_parser import document_parser
+from apps.models.document import DocumentChunk
+from apps.utils.common import get_local_model_path
 from config import (
     CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL,
     HF_HOME, HF_OFFLINE, OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD
 )
-
-
-# RAG系统工具函数
-def get_local_model_path(model_name: str, cache_folder: str) -> Optional[str]:
-    """
-    获取本地模型路径
-    
-    Args:
-        model_name: HuggingFace模型名称
-        cache_folder: 缓存文件夹路径
-        
-    Returns:
-        本地模型路径（如果存在）或None
-    """
-    # HuggingFace将 '/' 转换为 '--'
-    local_model_name = model_name.replace('/', '--')
-    local_model_path = os.path.join(cache_folder, f"models--{local_model_name}")
-    
-    if os.path.exists(local_model_path):
-        # 检查是否有snapshots目录
-        snapshots_dir = os.path.join(local_model_path, "snapshots")
-        if os.path.exists(snapshots_dir):
-            # 获取最新的snapshot
-            snapshots = [d for d in os.listdir(snapshots_dir) 
-                        if os.path.isdir(os.path.join(snapshots_dir, d))]
-            if snapshots:
-                latest_snapshot = os.path.join(snapshots_dir, snapshots[0])
-                return latest_snapshot
-        
-        # 如果没有snapshots，直接返回模型目录
-        return local_model_path
-    
-    return None
-
-
-class DocumentProcessor:
-    """
-    文档处理器 - 负责文档分块和向量化
-    
-    主要功能：
-    1. 智能文本分块，保持语义完整性
-    2. 生成高质量向量嵌入
-    3. 与数据库和向量存储同步
-    4. 协调文档解析器和向量化流程
-    
-    处理流程：
-    1. 使用DocumentParser提取文档内容
-    2. 智能分块处理
-    3. 生成向量嵌入
-    4. 存储到ChromaDB和数据库
-    """
-    
-    def __init__(self):
-        """
-        初始化文档处理器
-        
-        配置组件：
-        1. 文本分割器：1000字符块大小，200字符重叠
-        2. 向量嵌入模型：Sentence Transformers
-        3. ChromaDB向量数据库客户端
-        4. 文档解析器：独立的DocumentParser实例
-        """
-        try:
-            # 配置文本分割器 - 平衡块大小和语义完整性
-            self.text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,      # 每个文本块的最大字符数
-                chunk_overlap=200,    # 块之间的重叠字符数，保持上下文连续性
-                length_function=len,  # 使用字符长度计算
-            )
-            
-            # 配置HuggingFace环境变量
-            os.environ["HF_HOME"] = HF_HOME
-            os.environ["TRANSFORMERS_CACHE"] = HF_HOME
-            os.environ["HF_HUB_CACHE"] = HF_HOME
-            
-            if HF_OFFLINE:
-                # 离线模式配置
-                os.environ["TRANSFORMERS_OFFLINE"] = "1"
-                os.environ["HF_HUB_OFFLINE"] = "1"
-            
-            # 关闭Chroma遥测，避免网络请求和错误
-            os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
-            os.environ.setdefault("CHROMA_TELEMETRY", "false")
-            
-            # 初始化向量嵌入模型
-            local_model_path = get_local_model_path(EMBEDDING_MODEL, HF_HOME)
-            
-            if local_model_path and HF_OFFLINE:
-                self.embedding_model = SentenceTransformer(local_model_path)
-            else:
-                self.embedding_model = SentenceTransformer(
-                    EMBEDDING_MODEL, 
-                    cache_folder=HF_HOME
-                )
-            
-            # 初始化ChromaDB客户端和集合
-            os.makedirs(CHROMA_PERSIST_DIRECTORY, exist_ok=True)
-            self.chroma_client = chromadb.PersistentClient(
-                path=CHROMA_PERSIST_DIRECTORY, 
-                settings=ChromaSettings(anonymized_telemetry=False)
-            )
-            self.collection = self.chroma_client.get_or_create_collection(
-                name=CHROMA_COLLECTION, 
-                metadata={"hnsw:space": "cosine"}  # 使用余弦相似度
-            )
-            
-        except Exception as e:
-            raise Exception(f"DocumentProcessor初始化失败: {e}")
-        
-    async def process_document(self, document_id: int, file_path: str, file_type: str) -> bool:
-        """
-        处理文档并生成向量嵌入
-        
-        处理流程：
-        1. 提取文档内容
-        2. 智能分块处理
-        3. 生成向量嵌入
-        4. 存储到ChromaDB
-        5. 更新数据库状态
-        
-        Args:
-            document_id: 文档ID
-            file_path: 文件路径
-            file_type: 文件类型
-            
-        Returns:
-            bool: 处理是否成功
-        """
-        document = None
-        try:
-            # 1. 更新文档状态为处理中
-            document = await DocumentModel.get(id=document_id)
-            document.status = "processing"
-            await document.save()
-            
-            # 2. 提取文档内容
-            content = await document_parser.extract_content(file_path, file_type)
-            if not content or not content.strip():
-                raise Exception("文档内容为空或无法提取")
-            
-            # 更新文档内容到数据库
-            document.content = content
-            await document.save()
-            
-            # 3. 智能分块处理
-            chunks = self.text_splitter.split_text(content)
-            if not chunks:
-                raise Exception("文档分块失败")
-            
-            # 4. 创建分块记录
-            chunk_objects = []
-            for i, chunk_text in enumerate(chunks):
-                chunk = await DocumentChunk.create(
-                    document_id=document_id,
-                    chunk_index=i,
-                    content=chunk_text,
-                    content_length=len(chunk_text),
-                    metadata={"chunk_index": i}
-                )
-                chunk_objects.append(chunk)
-            
-            # 5. 生成向量嵌入（异步处理，避免阻塞）
-            print(f"🔄 开始生成向量嵌入，共 {len(chunks)} 个文本块...")
-            embeddings = self.embedding_model.encode(chunks)
-            print(f"✅ 向量嵌入生成完成")
-            
-            # 6. 存储向量到ChromaDB
-            if len(chunk_objects) > 0:
-                ids = []
-                metadatas = []
-                vectors = []
-                
-                for i, (chunk, embedding) in enumerate(zip(chunk_objects, embeddings)):
-                    vector_id = f"doc_{document_id}_chunk_{i}_{uuid.uuid4().hex[:8]}"
-                    ids.append(vector_id)
-                    metadatas.append({
-                        "document_id": document_id,
-                        "chunk_id": chunk.id,
-                        "chunk_index": i,
-                    })
-                    vectors.append(embedding.tolist())
-                
-                # 批量添加到ChromaDB
-                self.collection.add(
-                    ids=ids, 
-                    embeddings=vectors, 
-                    metadatas=metadatas
-                )
-            
-            # 7. 更新文档状态为完成
-            document.status = "completed"
-            await document.save()
-            
-            return True
-            
-        except Exception as e:
-            # 更新文档状态为失败
-            try:
-                if document is None:
-                    document = await DocumentModel.get(id=document_id)
-                document.status = "failed"
-                document.error_message = str(e)
-                await document.save()
-            except Exception:
-                pass  # 忽略保存错误状态的异常
-            
-            return False
-    
-    
 
 
 class VectorSearch:
@@ -726,9 +515,6 @@ class RAGGenerator:
 
 # 全局实例 - 单例模式，确保整个应用使用相同的实例
 try:
-    # 文档处理器实例
-    document_processor = DocumentProcessor()
-    
     # 向量搜索实例
     vector_search = VectorSearch()
     

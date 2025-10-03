@@ -220,6 +220,61 @@
             align-items: center;
         }
 
+        .batch-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .batch-controls.hidden {
+            display: none;
+        }
+
+
+        .batch-delete-btn {
+            padding: 8px 16px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .batch-delete-btn:hover {
+            background: #c82333;
+        }
+
+        .batch-delete-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .batch-reprocess-btn {
+            padding: 8px 16px;
+            background: #ffc107;
+            color: #212529;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .batch-reprocess-btn:hover {
+            background: #e0a800;
+        }
+
+        .batch-reprocess-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .document-checkbox {
+            margin-right: 8px;
+        }
+
         .section-title {
             font-size: 20px;
             font-weight: 600;
@@ -263,7 +318,13 @@
         /* 设置各列的宽度 */
         .document-table th:nth-child(1),
         .document-table td:nth-child(1) {
-            width: 30%; /* 文件名 */
+            width: 5%; /* 复选框列 */
+            text-align: center;
+        }
+
+        .document-table th:nth-child(2),
+        .document-table td:nth-child(2) {
+            width: 25%; /* 文件名 */
             white-space: nowrap;
             position: relative;
         }
@@ -561,29 +622,29 @@
             background: #5a6268;
         }
 
-        .document-table th:nth-child(2),
-        .document-table td:nth-child(2) {
-            width: 8%; /* 类型 */
-        }
-
         .document-table th:nth-child(3),
         .document-table td:nth-child(3) {
-            width: 10%; /* 大小 */
+            width: 6%; /* 类型 */
         }
 
         .document-table th:nth-child(4),
         .document-table td:nth-child(4) {
-            width: 12%; /* 状态 */
+            width: 8%; /* 大小 */
         }
 
         .document-table th:nth-child(5),
         .document-table td:nth-child(5) {
-            width: 18%; /* 上传时间 */
+            width: 10%; /* 状态 */
         }
 
         .document-table th:nth-child(6),
         .document-table td:nth-child(6) {
-            width: 22%; /* 操作 */
+            width: 15%; /* 上传时间 */
+        }
+
+        .document-table th:nth-child(7),
+        .document-table td:nth-child(7) {
+            width: 32%; /* 操作列 - 给更多空间 */
             white-space: nowrap;
         }
 
@@ -633,16 +694,16 @@
         }
 
         .action-btn {
-            padding: 4px 12px;
+            padding: 4px 8px;
             border: none;
             border-radius: 15px;
             cursor: pointer;
-            font-size: 12px;
-            margin-right: 5px;
+            font-size: 11px;
+            margin-right: 3px;
             display: inline-block;
             text-decoration: none;
             line-height: 1.5;
-            min-width: 50px;
+            min-width: 45px;
             text-align: center;
             vertical-align: middle;
         }
@@ -730,31 +791,36 @@
             /* 移动端表格调整 */
             .document-table th:nth-child(1),
             .document-table td:nth-child(1) {
-                width: 35%; /* 文件名在移动端稍微宽一点 */
+                width: 8%; /* 复选框列 */
             }
 
             .document-table th:nth-child(2),
             .document-table td:nth-child(2) {
-                width: 10%; /* 类型 */
+                width: 35%; /* 文件名在移动端稍微宽一点 */
             }
 
             .document-table th:nth-child(3),
             .document-table td:nth-child(3) {
-                display: none; /* 隐藏大小列 */
+                width: 10%; /* 类型 */
             }
 
             .document-table th:nth-child(4),
             .document-table td:nth-child(4) {
-                width: 15%; /* 状态 */
+                display: none; /* 隐藏大小列 */
             }
 
             .document-table th:nth-child(5),
             .document-table td:nth-child(5) {
-                display: none; /* 隐藏上传时间列 */
+                width: 15%; /* 状态 */
             }
 
             .document-table th:nth-child(6),
             .document-table td:nth-child(6) {
+                display: none; /* 隐藏上传时间列 */
+            }
+
+            .document-table th:nth-child(7),
+            .document-table td:nth-child(7) {
                 width: 40%; /* 操作列在移动端更宽 */
             }
 
@@ -819,6 +885,10 @@
             <div class="documents-section">
                 <div class="section-header">
                     <h2 class="section-title">文档列表</h2>
+                    <div class="batch-controls" id="batchControls">
+                        <button class="batch-delete-btn" onclick="batchDeleteDocuments()">批量删除</button>
+                        <button class="batch-reprocess-btn" onclick="batchReprocessDocuments()">批量重新解析</button>
+                    </div>
                     <button class="refresh-btn" onclick="loadDocuments()">刷新</button>
                 </div>
                 <div class="documents-list" id="documentsList">
@@ -845,6 +915,7 @@
 
     <script>
         let selectedFiles = [];
+        let selectedDocuments = new Set();
 
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -1207,6 +1278,7 @@
                 <table class="document-table">
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="headerSelectAll" onchange="toggleSelectAll()"></th>
                             <th>文件名</th>
                             <th>类型</th>
                             <th>大小</th>
@@ -1218,6 +1290,7 @@
                     <tbody>
                         ${documents.map(doc => `
                             <tr>
+                                <td><input type="checkbox" class="document-checkbox" value="${doc.id}" onchange="updateBatchControls()"></td>
                                 <td>
                                     <span class="filename-cell" title="${doc.original_filename}">
                                         ${truncateFilename(doc.original_filename)}
@@ -1231,7 +1304,7 @@
                                 <td>
                                     <button class="action-btn view-btn" onclick="viewDocument(${doc.id})">查看</button>
                                     <button class="action-btn download-btn" onclick="downloadDocument(${doc.id}, '${doc.original_filename}')">下载</button>
-                                    ${doc.status === 'failed' ? `<button class="action-btn reprocess-btn" onclick="reprocessDocument(${doc.id})">重新处理</button>` : ''}
+                                    <button class="action-btn reprocess-btn" onclick="reprocessDocument(${doc.id})">重新解析</button>
                                     <button class="action-btn delete-btn" onclick="deleteDocument(${doc.id})">删除</button>
                                 </td>
                             </tr>
@@ -1457,6 +1530,170 @@
         function displayDocumentError(message) {
             const contentDiv = document.getElementById('documentModalContent');
             contentDiv.innerHTML = `<div class="document-error">${message}</div>`;
+        }
+
+        // 批量操作相关函数
+        function toggleSelectAll() {
+            const headerCheckbox = document.getElementById('headerSelectAll');
+            const checkboxes = document.querySelectorAll('.document-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = headerCheckbox.checked;
+            });
+            
+            updateBatchControls();
+        }
+
+        function updateBatchControls() {
+            const checkboxes = document.querySelectorAll('.document-checkbox:checked');
+            const batchControls = document.getElementById('batchControls');
+            const headerCheckbox = document.getElementById('headerSelectAll');
+            const batchDeleteBtn = document.querySelector('.batch-delete-btn');
+            const batchReprocessBtn = document.querySelector('.batch-reprocess-btn');
+            
+            selectedDocuments.clear();
+            checkboxes.forEach(checkbox => {
+                selectedDocuments.add(checkbox.value);
+            });
+            
+            // 始终显示批量操作按钮，但根据选择状态启用/禁用
+            batchControls.classList.remove('hidden');
+            
+            if (selectedDocuments.size > 0) {
+                batchDeleteBtn.disabled = false;
+                batchReprocessBtn.disabled = false;
+            } else {
+                batchDeleteBtn.disabled = true;
+                batchReprocessBtn.disabled = true;
+            }
+            
+            // 更新全选状态
+            const allCheckboxes = document.querySelectorAll('.document-checkbox');
+            if (allCheckboxes.length === 0) {
+                headerCheckbox.checked = false;
+                headerCheckbox.indeterminate = false;
+            } else if (selectedDocuments.size === allCheckboxes.length) {
+                headerCheckbox.checked = true;
+                headerCheckbox.indeterminate = false;
+            } else if (selectedDocuments.size > 0) {
+                headerCheckbox.checked = false;
+                headerCheckbox.indeterminate = true;
+            } else {
+                headerCheckbox.checked = false;
+                headerCheckbox.indeterminate = false;
+            }
+        }
+
+        // 批量删除文档
+        async function batchDeleteDocuments() {
+            if (selectedDocuments.size === 0) {
+                showStatus('请先选择要删除的文档', 'error');
+                return;
+            }
+            
+            if (!confirm(`确定要删除选中的 ${selectedDocuments.size} 个文档吗？此操作不可恢复。`)) {
+                return;
+            }
+            
+            const deleteBtn = document.querySelector('.batch-delete-btn');
+            const originalText = deleteBtn.textContent;
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = '删除中...';
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            try {
+                for (const docId of selectedDocuments) {
+                    try {
+                        const response = await fetch(`/api/v1/documents/${docId}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok && result.code === 200) {
+                            successCount++;
+                        } else {
+                            failCount++;
+                            console.error(`删除文档 ${docId} 失败:`, result.message);
+                        }
+                    } catch (error) {
+                        failCount++;
+                        console.error(`删除文档 ${docId} 失败:`, error);
+                    }
+                }
+                
+                if (successCount > 0) {
+                    showStatus(`批量删除完成！成功 ${successCount} 个，失败 ${failCount} 个`, successCount === selectedDocuments.size ? 'success' : 'error');
+                    loadDocuments();
+                    loadStats();
+                } else {
+                    showStatus('批量删除失败！', 'error');
+                }
+            } finally {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = originalText;
+                selectedDocuments.clear();
+                updateBatchControls();
+            }
+        }
+
+        // 批量重新解析文档
+        async function batchReprocessDocuments() {
+            if (selectedDocuments.size === 0) {
+                showStatus('请先选择要重新解析的文档', 'error');
+                return;
+            }
+            
+            if (!confirm(`确定要重新解析选中的 ${selectedDocuments.size} 个文档吗？`)) {
+                return;
+            }
+            
+            const reprocessBtn = document.querySelector('.batch-reprocess-btn');
+            const originalText = reprocessBtn.textContent;
+            reprocessBtn.disabled = true;
+            reprocessBtn.textContent = '处理中...';
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            try {
+                for (const docId of selectedDocuments) {
+                    try {
+                        const response = await fetch(`/api/v1/documents/${docId}/reprocess`, {
+                            method: 'POST'
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok && result.code === 200) {
+                            successCount++;
+                        } else {
+                            failCount++;
+                            console.error(`重新解析文档 ${docId} 失败:`, result.message);
+                        }
+                    } catch (error) {
+                        failCount++;
+                        console.error(`重新解析文档 ${docId} 失败:`, error);
+                    }
+                }
+                
+                if (successCount > 0) {
+                    showStatus(`批量重新解析完成！成功 ${successCount} 个，失败 ${failCount} 个`, successCount === selectedDocuments.size ? 'success' : 'error');
+                    setTimeout(() => {
+                        loadDocuments();
+                        loadStats();
+                    }, 1000);
+                } else {
+                    showStatus('批量重新解析失败！', 'error');
+                }
+            } finally {
+                reprocessBtn.disabled = false;
+                reprocessBtn.textContent = originalText;
+                selectedDocuments.clear();
+                updateBatchControls();
+            }
         }
     </script>
 </body>

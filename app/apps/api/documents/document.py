@@ -54,7 +54,7 @@ async def upload_document(
             file_size=len(content),
             file_type=file_extension,
             content="",  # 稍后处理
-            status="processing"
+            status="queued"  # 初始状态为排队中
         )
         
         # 使用Celery异步处理文档（非阻塞）
@@ -285,6 +285,7 @@ async def get_document_stats():
     """获取文档统计信息"""
     try:
         total_documents = await Document.all().count()
+        queued_documents = await Document.filter(status="queued").count()
         processing_documents = await Document.filter(status="processing").count()
         completed_documents = await Document.filter(status="completed").count()
         failed_documents = await Document.filter(status="failed").count()
@@ -295,6 +296,7 @@ async def get_document_stats():
         return response(data={
             "documents": {
                 "total": total_documents,
+                "queued": queued_documents,
                 "processing": processing_documents,
                 "completed": completed_documents,
                 "failed": failed_documents

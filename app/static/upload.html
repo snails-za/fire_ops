@@ -607,6 +607,11 @@
             font-weight: 500;
         }
 
+        .status-queued {
+            background: #e2e3e5;
+            color: #495057;
+        }
+
         .status-processing {
             background: #fff3cd;
             color: #856404;
@@ -1146,12 +1151,16 @@
                     <div class="stat-label">总文档数</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">${data.documents.completed}</div>
-                    <div class="stat-label">已完成</div>
+                    <div class="stat-number">${data.documents.queued || 0}</div>
+                    <div class="stat-label">排队中</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number">${data.documents.processing}</div>
                     <div class="stat-label">处理中</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${data.documents.completed}</div>
+                    <div class="stat-label">已完成</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number">${data.chunks.total}</div>
@@ -1252,6 +1261,7 @@
         // 获取状态文本
         function getStatusText(status) {
             const statusMap = {
+                'queued': '排队中',
                 'processing': '处理中',
                 'completed': '已完成',
                 'failed': '失败'

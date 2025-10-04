@@ -18,6 +18,7 @@ import asyncio
 import os
 import shutil
 import uuid
+from datetime import datetime
 
 import chromadb
 from PIL import Image
@@ -490,8 +491,9 @@ class DocumentProcessor:
                     metadatas=metadatas
                 )
             
-            # 7. 更新文档状态为完成
+            # 7. 更新文档状态为完成并设置处理时间
             document.status = "completed"
+            document.process_time = datetime.now()
             await document.save()
             
             return True

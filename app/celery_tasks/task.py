@@ -51,27 +51,45 @@ def process_document_task(self, document_id: int, file_path: str, file_type: str
             
             if success:
                 print(f"✅ 文档 {document_id} 处理完成")
-                return {
-                    'status': 'success',
-                    'document_id': document_id,
-                    'message': '文档处理完成'
-                }
+                # 设置任务状态为成功
+                self.update_state(
+                    state='SUCCESS',
+                    meta={
+                        'status': '文档处理完成',
+                        'current': 100,
+                        'total': 100,
+                        'document_id': document_id,
+                        'result': 'success'
+                    }
+                )
             else:
                 print(f"❌ 文档 {document_id} 处理失败")
-                return {
-                    'status': 'failed',
-                    'document_id': document_id,
-                    'message': '文档处理失败'
-                }
-                
+                # 设置任务状态为失败
+                self.update_state(
+                    state='FAILURE',
+                    meta={
+                        'status': '文档处理失败',
+                        'current': 0,
+                        'total': 100,
+                        'document_id': document_id,
+                        'error': '文档处理失败'
+                    }
+                )
+
         except Exception as e:
             traceback.print_exc()
             print(f"❌ 后台处理文档 {document_id} 时出错: {str(e)}")
-            return {
-                'status': 'failed',
-                'document_id': document_id,
-                'error': str(e)
-            }
+            # 设置任务状态为失败
+            self.update_state(
+                state='FAILURE',
+                meta={
+                    'status': f'处理出错: {str(e)}',
+                    'current': 0,
+                    'total': 100,
+                    'document_id': document_id,
+                    'error': str(e)
+                }
+            )
         finally:
             # 关闭数据库连接
             await Tortoise.close_connections()
@@ -81,9 +99,15 @@ def process_document_task(self, document_id: int, file_path: str, file_type: str
         return asyncio.run(_process_document())
     except Exception as e:
         print(f"❌ Celery任务执行失败: {str(e)}")
-        return {
-            'status': 'failed',
-            'document_id': document_id,
-            'error': str(e)
-        }
+        # 设置任务状态为失败
+        self.update_state(
+            state='FAILURE',
+            meta={
+                'status': f'Celery任务执行失败: {str(e)}',
+                'current': 0,
+                'total': 100,
+                'document_id': document_id,
+                'error': str(e)
+            }
+        )
 

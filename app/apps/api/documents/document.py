@@ -258,8 +258,9 @@ async def reprocess_document(
         await vector_search.delete_document_vectors(document_id)
         
         # 更新文档状态
-        document.status = "processing"
+        document.status = "queued"
         document.task_id = None
+        document.process_time = None
         document.error_message = None
         await document.save()
         

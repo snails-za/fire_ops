@@ -83,41 +83,6 @@ async def upload_document(
         return response(code=500, message=f"上传失败: {str(e)}")
 
 
-@router.get("/{document_id}/task-status", summary="查询文档处理状态", description="查询Celery任务处理状态（无需登录）")
-async def get_document_task_status(document_id: int):
-    """获取文档处理任务状态"""
-    try:
-        document = await Document.get_or_none(id=document_id)
-        if not document:
-            return response(code=404, message="文档不存在")
-        
-        if not document.task_id:
-            return response(code=400, message="文档没有关联的处理任务")
-        
-        # 获取任务状态
-        status_info = celery_task_manager.get_task_status(document.task_id)
-        
-        # 构建响应数据
-        response_data = {
-            "document_id": document.id,
-            "filename": document.original_filename,
-            "task_id": document.task_id,
-            "status": status_info.get('state', 'UNKNOWN'),
-            "progress": status_info.get('progress', 0),
-            "message": status_info.get('status', '未知状态'),
-            "upload_time": document.upload_time
-        }
-        
-        # 如果有错误信息，添加到响应中
-        if 'error' in status_info:
-            response_data['error'] = status_info['error']
-        
-        return response(data=response_data, message=status_info.get('status', '状态查询成功'))
-        
-    except Exception as e:
-        return response(code=500, message=f"查询任务状态失败: {str(e)}")
-
-
 @router.get("/list", summary="文档列表(匿名)", description="获取文档列表（无需登录）")
 async def get_documents(
     page: int = Query(1, ge=1, description="页码"),

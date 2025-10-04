@@ -1,13 +1,11 @@
-import os
-import json
-import psycopg2
-import traceback
 import asyncio
+import traceback
+
 from tortoise import Tortoise
 
+import config
 from apps.utils.document_parser import document_processor
 from celery_tasks.app import celery_
-import config
 
 
 @celery_.task(bind=True, max_retries=3, default_retry_delay=60)

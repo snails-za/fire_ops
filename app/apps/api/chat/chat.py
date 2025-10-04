@@ -88,6 +88,7 @@ async def ask_question_stream(
                 sources.append({
                     "document_name": document.filename if document else "未知文档",
                     "original_filename": document.original_filename if document else None,
+                    "file_type": document.file_type if document else None,
                     "chunk_text": chunk_content,
                     "content_preview": chunk_content[:200] + "..." if len(chunk_content) > 200 else chunk_content,
                     "similarity": round(result.get("similarity", 0), 4),
@@ -252,6 +253,7 @@ async def ask_question_anonymous(
             sources.append({
                 "document_name": document.filename if document else "未知文档",
                 "original_filename": document.original_filename if document else None,
+                "file_type": document.file_type if document else None,
                 "chunk_text": chunk_content,
                 "content_preview": chunk_content[:200] + "..." if len(chunk_content) > 200 else chunk_content,
                 "similarity": round(result.get("similarity", 0), 4),

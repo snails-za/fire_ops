@@ -183,6 +183,16 @@
             background: #e0a800;
         }
 
+        .preview-btn {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .preview-btn:hover {
+            background: #138496;
+        }
+
+
         .document-modal {
             display: none;
             position: fixed;
@@ -279,6 +289,100 @@
             max-height: calc(95vh - 120px);
             overflow-y: auto;
             background: #fefefe;
+        }
+
+        /* PDF预览样式 */
+        .pdf-preview {
+            text-align: center;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .pdf-preview img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .pdf-controls {
+            margin: 15px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pdf-controls button {
+            padding: 8px 16px;
+            border: 1px solid #007bff;
+            background: white;
+            color: #007bff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pdf-controls button:hover {
+            background: #007bff;
+            color: white;
+        }
+
+        .pdf-controls button:disabled {
+            background: #f8f9fa;
+            color: #6c757d;
+            border-color: #dee2e6;
+            cursor: not-allowed;
+        }
+
+        .pdf-page-info {
+            font-size: 14px;
+            color: #666;
+            margin: 0 10px;
+        }
+
+        /* 下载提示样式 */
+        .download-preview {
+            text-align: center;
+            padding: 40px 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .download-preview .icon {
+            font-size: 48px;
+            color: #007bff;
+            margin-bottom: 15px;
+        }
+
+        .download-preview h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .download-preview p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .download-preview .download-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .download-preview .download-btn:hover {
+            background: #0056b3;
+            color: white;
+            text-decoration: none;
         }
 
         .document-content::-webkit-scrollbar {
@@ -762,6 +866,7 @@
                                 document_id: source.document_id,
                                 document_name: docName,
                                 original_filename: source.original_filename,
+                                file_type: source.file_type,
                                 chunks: []
                             };
                         }
@@ -784,6 +889,11 @@
                                             <button class="action-btn highlight-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
                                                     style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;" 
                                                     title="高亮查看（基于问题关键词）">🔍</button>
+                                            ${doc.file_type === 'pdf' ? `
+                                            <button class="action-btn preview-btn" data-doc-id="${doc.document_id}" data-doc-name="${doc.document_name}"
+                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;" 
+                                                    title="预览PDF源文件">👁️</button>
+                                            ` : ''}
                                         ` : ''}
                                     </div>
                                 </div>
@@ -871,6 +981,7 @@
                                 document_id: source.document_id,
                                 document_name: docName,
                                 original_filename: source.original_filename,
+                                file_type: source.file_type,
                                 chunks: []
                             };
                         }
@@ -893,6 +1004,11 @@
                                             <button class="action-btn highlight-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
                                                     style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;" 
                                                     title="高亮查看（基于问题关键词）">🔍</button>
+                                            ${doc.file_type === 'pdf' ? `
+                                            <button class="action-btn preview-btn" data-doc-id="${doc.document_id}" data-doc-name="${doc.document_name}"
+                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;" 
+                                                    title="预览PDF源文件">👁️</button>
+                                            ` : ''}
                                         ` : ''}
                                     </div>
                                 </div>
@@ -1028,6 +1144,29 @@
             }
         }
 
+
+
+        // 在新窗口中预览PDF源文件
+        function openPdfStream(documentId) {
+            try {
+                // 使用专门的预览API
+                const previewUrl = `/api/v1/documents/${documentId}/preview`;
+                
+                // 在新窗口中打开PDF源文件进行预览
+                const newWindow = window.open(previewUrl, '_blank');
+                if (!newWindow) {
+                    alert('请允许弹出窗口以预览PDF');
+                }
+            } catch (error) {
+                console.error('预览PDF失败:', error);
+                alert('预览PDF失败: ' + error.message);
+            }
+        }
+
+
+
+
+
         // 获取最近的用户问题
         function getLastUserQuestion() {
             const messages = document.querySelectorAll('.message.user .message-content');
@@ -1116,6 +1255,12 @@
                 const docName = target.getAttribute('data-doc-name');
                 if (docId && chunkId && docName) {
                     viewWithSmartHighlight(docId, chunkId, docName);
+                }
+            } else if (target.classList.contains('preview-btn')) {
+                const docId = target.getAttribute('data-doc-id');
+                const docName = target.getAttribute('data-doc-name');
+                if (docId && docName) {
+                    openPdfStream(docId);
                 }
             }
         });

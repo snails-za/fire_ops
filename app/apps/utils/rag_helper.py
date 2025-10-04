@@ -376,7 +376,8 @@ class RAGGenerator:
             context_parts = []
             for i, chunk in enumerate(context_chunks, 1):
                 doc_name = chunk.get('document_name', '未知文档')
-                content = chunk.get('content', '')
+                # 尝试获取chunk_text字段，如果没有则使用content字段
+                content = chunk.get('chunk_text', chunk.get('content', ''))
                 context_parts.append(f"文档{i}: {doc_name}\n内容: {content}")
             
             context = "\n\n" + "="*50 + "\n\n".join(context_parts)

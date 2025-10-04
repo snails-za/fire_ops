@@ -102,4 +102,5 @@ dependencies = [
     "setuptools>=80.9.0",
     "celery>=5.5.3",
     "psycopg2-binary>=2.9.10",
+    # PDF预览功能（仅支持PDF文件）
 ]

@@ -428,7 +428,7 @@ class DocumentProcessor:
                 )
                 chunk_objects.append(chunk)
             
-            # 5. 存储到ChromaDB
+            # 5. 存储到向量库
             if len(chunk_objects) > 0:
                 # 使用LangChain向量存储添加文档（直接使用已分块的文档）
                 metadata = {

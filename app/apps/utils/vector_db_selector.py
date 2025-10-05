@@ -5,6 +5,7 @@
 """
 from typing import List, Dict, Any
 
+import torch
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
@@ -27,6 +28,7 @@ class VectorDBSelector:
     def __init__(self):
         self.db_type = VECTOR_DB_TYPE
         self.vectorstore = None
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self._init_database()
 
     def _init_database(self):
@@ -45,14 +47,14 @@ class VectorDBSelector:
         if local_model_path and HF_OFFLINE:
             embeddings = HuggingFaceEmbeddings(
                 model_name=local_model_path,
-                model_kwargs={'device': 'cpu'},
+                model_kwargs={'device': self.device},
                 encode_kwargs={'normalize_embeddings': True}
             )
         else:
             embeddings = HuggingFaceEmbeddings(
                 model_name=EMBEDDING_MODEL,
                 cache_folder=HF_HOME,
-                model_kwargs={'device': 'cpu'},
+                model_kwargs={'device': self.device},
                 encode_kwargs={'normalize_embeddings': True}
             )
 
@@ -82,14 +84,14 @@ class VectorDBSelector:
             if local_model_path and HF_OFFLINE:
                 embeddings = HuggingFaceEmbeddings(
                     model_name=local_model_path,
-                    model_kwargs={'device': 'cpu'},
+                    model_kwargs={'device': self.device},
                     encode_kwargs={'normalize_embeddings': True}
                 )
             else:
                 embeddings = HuggingFaceEmbeddings(
                     model_name=EMBEDDING_MODEL,
                     cache_folder=HF_HOME,
-                    model_kwargs={'device': 'cpu'},
+                    model_kwargs={'device': self.device},
                     encode_kwargs={'normalize_embeddings': True}
                 )
 

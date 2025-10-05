@@ -66,7 +66,7 @@ async def ask_question_stream(
             yield f"data: {json.dumps({'type': 'status', 'message': '🔍 正在搜索相关文档...'}, ensure_ascii=False)}\n\n"
             
             # 2. 向量搜索相关文档（使用MMR算法）
-            search_results = await vector_search.search_similar_chunks_with_mmr(
+            search_results = await vector_search.search_similar_documents(
                 query=optimized_query,
                 top_k=top_k,
                 use_threshold=True
@@ -207,7 +207,7 @@ async def ask_question_anonymous(
                 optimized_query = question
         
         # 2. 向量搜索相关文档
-        search_results = await vector_search.search_similar_chunks_with_mmr(
+        search_results = await vector_search.search_similar_documents(
             query=optimized_query,
             top_k=top_k,
             use_threshold=True,  # 不使用阈值过滤，返回所有找到的结果
@@ -309,7 +309,7 @@ async def search_documents(
                 print(f"搜索优化失败: {e}")
         
         # 执行搜索
-        search_results = await vector_search.search_similar_chunks_with_mmr(
+        search_results = await vector_search.search_similar_documents(
             query=search_query, 
             top_k=top_k,
             use_threshold=False,  # 不使用阈值过滤，返回所有找到的结果
@@ -318,7 +318,7 @@ async def search_documents(
         
         # 如果优化查询无结果，尝试原查询
         if not search_results and search_query != original_query:
-            search_results = await vector_search.search_similar_chunks_with_mmr(
+            search_results = await vector_search.search_similar_documents(
                 query=original_query, 
                 top_k=top_k,
                 use_threshold=False,  # 不使用阈值过滤，返回所有找到的结果

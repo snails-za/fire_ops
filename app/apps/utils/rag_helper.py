@@ -233,26 +233,6 @@ class VectorStore:
         except Exception as e:
             raise Exception(f"删除文档 {document_id} 向量数据失败: {e}")
 
-    async def search_similar_chunks_with_mmr(self, query: str, top_k: int = 5,
-                                             use_threshold: bool = True) -> List[Dict[str, Any]]:
-        """
-        使用MMR算法搜索语义相似的文档块（兼容性方法）
-        
-        Args:
-            query: 查询文本
-            top_k: 返回结果数量
-            use_threshold: 是否使用相似度阈值过滤
-
-        Returns:
-            List[Dict]: 相似文档块列表
-        """
-        # 使用改进的搜索逻辑，确保总是有结果返回
-        return await self.search_similar_documents(
-            query=query,
-            top_k=top_k,
-            use_threshold=use_threshold
-        )
-
 
 class RAGGenerator:
     """

@@ -179,7 +179,12 @@ gunicorn -w 4 -k uvicorn.workers.UvicornWorker asgi:app
 
 ### 6. 启动Celery Worker (异步任务)
 ```bash
-python start_celery_worker.py
+启动定时任务
+celery -A celery_tasks.app beat -l info
+启动worker【单进程】
+celery -A celery_tasks.app worker -l info --pool=solo
+Windows启动worker【单进程】
+celery -A celery_tasks.app worker -l info --pool=solo
 ```
 
 ### 7. 访问系统

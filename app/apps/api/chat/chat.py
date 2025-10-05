@@ -17,7 +17,8 @@ from fastapi.responses import StreamingResponse
 
 from apps.utils import response
 from apps.utils.llm_optimizers import get_question_optimizer, get_search_optimizer, optimize_question
-from apps.utils.rag_helper import vector_search, rag_generator
+from apps.utils.rag_helper import rag_generator
+from apps.utils.vector_db_selector import vector_search
 from config import SIMILARITY_THRESHOLD
 
 # 智能问答API路由

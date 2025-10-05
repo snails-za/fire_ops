@@ -94,6 +94,15 @@ SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.6)  
 # 搜索配置
 DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
 
+# 向量数据库配置
+VECTOR_DB_TYPE = config("VECTOR_DB_TYPE", default="chroma")  # 向量数据库类型: chroma, qdrant
+
+# Qdrant配置
+QDRANT_HOST = config("QDRANT_HOST", default="localhost")
+QDRANT_PORT = config("QDRANT_PORT", cast=int, default=6333)
+QDRANT_COLLECTION_NAME = config("QDRANT_COLLECTION_NAME", default="documents")
+QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
+
 # OCR配置 - 固定使用EasyOCR
 OCR_ENABLED = config("OCR_ENABLED", cast=bool, default=True)  # OCR功能开关
 # GPU加速配置

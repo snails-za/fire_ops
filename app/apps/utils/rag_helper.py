@@ -20,218 +20,17 @@ RAG (Retrieval-Augmented Generation) 系统核心模块
 - 现在支持LangChain集成，提供更强大的文档处理能力
 """
 
-import os
 import traceback
 from typing import List, Dict, Any
 
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
-from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
-from apps.models.document import Document as DocumentModel, DocumentChunk
-from apps.utils.common import get_local_model_path
+from apps.utils.vector_db_selector import vector_search
 from config import (
-    OPENAI_API_KEY, OPENAI_BASE_URL, CHROMA_PERSIST_DIRECTORY,
-    CHROMA_COLLECTION, EMBEDDING_MODEL, HF_HOME, HF_OFFLINE,
-    SIMILARITY_THRESHOLD
+    OPENAI_API_KEY, OPENAI_BASE_URL
 )
-
-
-class VectorStore:
-    """
-    向量搜索引擎 - 基于ChromaDB的语义相似度搜索
-    
-    功能：
-    1. 文档向量化和存储
-    2. 语义相似度搜索
-    3. 文档删除
-    4. 自动向量化处理
-    """
-
-    def __init__(self):
-        """
-        初始化向量搜索引擎
-        """
-        try:
-            # 配置HuggingFace环境
-            os.environ["HF_HOME"] = HF_HOME
-            os.environ["TRANSFORMERS_CACHE"] = HF_HOME
-            os.environ["HF_HUB_CACHE"] = HF_HOME
-
-            if HF_OFFLINE:
-                os.environ["TRANSFORMERS_OFFLINE"] = "1"
-                os.environ["HF_HUB_OFFLINE"] = "1"
-
-            # 关闭Chroma遥测
-            os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
-            os.environ.setdefault("CHROMA_TELEMETRY", "false")
-
-            # 初始化向量嵌入模型（与DocumentProcessor使用相同模型）
-            local_model_path = get_local_model_path(EMBEDDING_MODEL, HF_HOME)
-
-            if local_model_path and HF_OFFLINE:
-                self.embeddings = HuggingFaceEmbeddings(
-                    model_name=local_model_path,
-                    model_kwargs={'device': 'cpu'},
-                    encode_kwargs={'normalize_embeddings': True}
-                )
-            else:
-                self.embeddings = HuggingFaceEmbeddings(
-                    model_name=EMBEDDING_MODEL,
-                    cache_folder=HF_HOME,
-                    model_kwargs={'device': 'cpu'},
-                    encode_kwargs={'normalize_embeddings': True}
-                )
-
-            # 初始化ChromaDB向量存储
-            self.vectorstore = Chroma(
-                collection_name=CHROMA_COLLECTION,
-                embedding_function=self.embeddings,
-                persist_directory=CHROMA_PERSIST_DIRECTORY,
-            )
-
-        except Exception as e:
-            raise Exception(f"VectorSearch初始化失败: {e}")
-
-    async def add_documents_from_chunks(self, document_id: int, chunks: List[str], chunk_objects: List,
-                                        metadata: Dict[str, Any] = None) -> List[str]:
-        """
-        从已分块的文档添加到向量存储
-        
-        Args:
-            document_id: 文档ID
-            chunks: 已分块的文本列表
-            chunk_objects: 已创建的DocumentChunk对象列表
-            metadata: 文档元数据
-            
-        Returns:
-            List[str]: 添加的文档块ID列表
-        """
-        try:
-            if not chunks or not chunk_objects:
-                raise Exception("文档块为空")
-
-            # 创建LangChain文档对象
-            documents = []
-            chunk_ids = []
-
-            for i, (chunk_text, chunk_obj) in enumerate(zip(chunks, chunk_objects)):
-                # 创建LangChain文档对象
-                doc_metadata = {
-                    "document_id": document_id,
-                    "chunk_id": chunk_obj.id,
-                    "chunk_index": i,
-                    "source": metadata.get("filename",
-                                           f"document_{document_id}") if metadata else f"document_{document_id}",
-                }
-
-                langchain_doc = Document(
-                    page_content=chunk_text,
-                    metadata=doc_metadata
-                )
-
-                documents.append(langchain_doc)
-                chunk_ids.append(str(chunk_obj.id))
-
-            # 批量添加到向量存储
-            if documents:
-                self.vectorstore.add_documents(documents)
-
-            return chunk_ids
-
-        except Exception as e:
-            raise Exception(f"添加文档到向量存储失败: {e}")
-
-    async def search_similar_documents(self, query: str, top_k: int = 5, use_threshold: bool = True) -> List[
-        Dict[str, Any]]:
-        """
-        搜索语义相似的文档
-        
-        Args:
-            query: 查询文本
-            top_k: 返回结果数量
-            use_threshold: 是否使用相似度阈值过滤
-            
-        Returns:
-            List[Dict]: 相似文档列表
-        """
-        try:
-            # 使用LangChain进行相似度搜索，获取更多结果以便过滤
-            results = self.vectorstore.similarity_search_with_score(
-                query, k=top_k  # 获取更多结果以便过滤
-            )
-
-            # 转换为标准格式
-            all_results = []
-            filtered_results = []
-
-            for doc, distance in results:
-                # 计算相似度，确保不为负
-                similarity = max(0.0, 1.0 - distance)
-
-                # 从metadata获取信息
-                metadata = doc.metadata
-                document_id = metadata.get('document_id')
-                chunk_id = metadata.get('chunk_id')
-
-                if document_id and chunk_id:
-                    try:
-                        # 获取数据库中的文档和块信息
-                        document = await DocumentModel.get_or_none(id=document_id)
-                        chunk = await DocumentChunk.get_or_none(id=chunk_id)
-
-                        if document and chunk:
-                            result_item = {
-                                'document': document,
-                                'chunk': chunk,
-                                'similarity': similarity,
-                                'metadata': metadata,
-                                'above_threshold': similarity >= SIMILARITY_THRESHOLD
-                            }
-
-                            all_results.append(result_item)
-
-                            # 如果使用阈值过滤，只保留相似度大于阈值的结果
-                            if use_threshold and similarity >= SIMILARITY_THRESHOLD:
-                                filtered_results.append(result_item)
-                    except Exception as e:
-                        print(f"处理搜索结果项失败 (chunk_id: {metadata.get('chunk_id', 'unknown')}): {e}")
-                        continue
-
-            # 选择返回结果
-            if filtered_results:
-                # 有超过阈值的结果，返回过滤后的结果
-                filtered_results.sort(key=lambda x: x['similarity'], reverse=True)
-                return filtered_results[:top_k]
-            elif all_results:
-                # 没有超过阈值的结果，返回所有结果（降级处理）
-                all_results.sort(key=lambda x: x['similarity'], reverse=True)
-                return all_results[:min(top_k, 3)]  # 最多返回3个结果
-            else:
-                return []
-
-        except Exception as e:
-            print(f"搜索相似文档失败: {e}")
-            return []
-
-    async def delete_document(self, document_id: int):
-        """
-        删除指定文档的所有向量数据
-        
-        Args:
-            document_id: 文档ID
-        """
-        try:
-            # 直接使用ChromaDB客户端删除，这是最可靠的方法
-            # 通过metadata条件删除指定文档的所有向量
-            self.vectorstore._collection.delete(where={"document_id": document_id})
-            print(f"✅ 成功删除文档 {document_id} 的向量数据")
-
-        except Exception as e:
-            raise Exception(f"删除文档 {document_id} 向量数据失败: {e}")
 
 
 class RAGGenerator:
@@ -256,7 +55,7 @@ class RAGGenerator:
         """
         try:
             # 使用LangChain向量存储
-            self.vector_search = VectorStore()
+            self.vector_search = vector_search
 
             # 初始化LLM组件
             self.llm = None
@@ -504,14 +303,4 @@ class RAGGenerator:
             return "抱歉，生成回答时出现错误。"
 
 
-# 全局实例 - 单例模式，确保整个应用使用相同的实例
-try:
-    # 使用LangChain向量存储
-    vector_search = VectorStore()
-    print("✅ 使用LangChain向量存储")
-
-    # RAG生成器实例
-    rag_generator = RAGGenerator()
-
-except Exception as e:
-    raise Exception(f"RAG系统初始化失败: {e}")
+rag_generator = RAGGenerator()

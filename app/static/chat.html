@@ -847,19 +847,14 @@
             const messageDiv = document.getElementById(messageId);
             if (!messageDiv) return;
 
-            // 显示相关文档（只显示大于阈值的文档）
+            // 显示相关文档（显示所有搜索结果）
             let sourcesHtml = '';
             if (sources && Array.isArray(sources) && sources.length > 0) {
-                // 只处理相似度大于阈值的文档
-                const highQualitySources = sources.filter(source => {
-                    // 使用后端提供的above_threshold字段判断
-                    return source.above_threshold === true;
-                });
-                
-                if (highQualitySources.length > 0) {
+                // 显示所有搜索结果，不进行阈值过滤
+                if (sources.length > 0) {
                     // 按文档分组，保留操作功能
                     const docGroups = {};
-                    highQualitySources.forEach(source => {
+                    sources.forEach(source => {
                         const docName = source.original_filename || source.document_name;
                         if (!docGroups[docName]) {
                             docGroups[docName] = {
@@ -877,10 +872,18 @@
                 sourcesHtml = `
                     <div class="sources delayed-content" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #007bff;">
                         <div style="font-size: 12px; color: #666; margin-bottom: 8px;">📚 相关文档 (${docList.length}个):</div>
-                        ${docList.map(doc => `
+                        ${docList.map(doc => {
+                            // 计算该文档的最高相似度
+                            const maxSimilarity = Math.max(...doc.chunks.map(chunk => chunk.similarity || 0));
+                            const similarityPercent = (maxSimilarity * 100).toFixed(1);
+                            
+                            return `
                             <div style="margin-bottom: 6px; padding: 4px; background: white; border-radius: 4px; border: 1px solid #e9ecef;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-size: 13px; color: #333; font-weight: 500;">📄 ${doc.document_name}</span>
+                                    <div style="flex: 1;">
+                                        <span style="font-size: 13px; color: #333; font-weight: 500;">📄 ${doc.document_name}</span>
+                                        <span style="font-size: 11px; color: #666; margin-left: 8px;">相似度: ${similarityPercent}%</span>
+                                    </div>
                                     <div style="display: flex; gap: 4px;">
                                         ${doc.document_id ? `
                                             <button class="action-btn download-btn" data-doc-id="${doc.document_id}" data-filename="${doc.original_filename || doc.document_name}" 
@@ -898,7 +901,8 @@
                                     </div>
                                 </div>
                             </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
                 `;
                 }
@@ -962,19 +966,14 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
 
-            // 显示相关文档（只显示大于阈值的文档）
+            // 显示相关文档（显示所有搜索结果）
             let sourcesHtml = '';
             if (metadata && Array.isArray(metadata) && metadata.length > 0) {
-                // 只处理相似度大于阈值的文档
-                const highQualitySources = metadata.filter(source => {
-                    // 使用后端提供的above_threshold字段判断
-                    return source.above_threshold === true;
-                });
-                
-                if (highQualitySources.length > 0) {
+                // 显示所有搜索结果，不进行阈值过滤
+                if (metadata.length > 0) {
                     // 按文档分组，保留操作功能
                     const docGroups = {};
-                    highQualitySources.forEach(source => {
+                    metadata.forEach(source => {
                         const docName = source.original_filename || source.document_name;
                         if (!docGroups[docName]) {
                             docGroups[docName] = {
@@ -992,10 +991,18 @@
                 sourcesHtml = `
                     <div class="sources delayed-content" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #007bff;">
                         <div style="font-size: 12px; color: #666; margin-bottom: 8px;">📚 相关文档 (${docList.length}个):</div>
-                        ${docList.map(doc => `
+                        ${docList.map(doc => {
+                            // 计算该文档的最高相似度
+                            const maxSimilarity = Math.max(...doc.chunks.map(chunk => chunk.similarity || 0));
+                            const similarityPercent = (maxSimilarity * 100).toFixed(1);
+                            
+                            return `
                             <div style="margin-bottom: 6px; padding: 4px; background: white; border-radius: 4px; border: 1px solid #e9ecef;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-size: 13px; color: #333; font-weight: 500;">📄 ${doc.document_name}</span>
+                                    <div style="flex: 1;">
+                                        <span style="font-size: 13px; color: #333; font-weight: 500;">📄 ${doc.document_name}</span>
+                                        <span style="font-size: 11px; color: #666; margin-left: 8px;">相似度: ${similarityPercent}%</span>
+                                    </div>
                                     <div style="display: flex; gap: 4px;">
                                         ${doc.document_id ? `
                                             <button class="action-btn download-btn" data-doc-id="${doc.document_id}" data-filename="${doc.original_filename || doc.document_name}" 
@@ -1013,7 +1020,8 @@
                                     </div>
                                 </div>
                             </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
                 `;
                 }

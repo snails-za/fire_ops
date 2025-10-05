@@ -163,16 +163,14 @@ class VectorDBSelector:
                     similarity = score
                 else:
                     similarity = max(0.0, 1.0 - score)
-
-                print(f"📈 结果 {i + 1}: 距离={score:.4f}, 相似度={similarity:.4f}")
-
+                print(f"📈 结果 {i + 1}: score={score:.4f}, similarity={similarity:.4f}")
+                # 获取元数据
                 metadata = doc.metadata
                 document_id = metadata.get('document_id')
                 chunk_id = metadata.get('chunk_id')
 
                 if document_id and chunk_id:
                     try:
-
                         # 获取数据库中的文档和块信息
                         document = await DocumentModel.get_or_none(id=document_id)
                         chunk = await DocumentChunk.get_or_none(id=chunk_id)

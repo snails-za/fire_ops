@@ -65,10 +65,12 @@ async def ask_question_stream(
             # 发送搜索状态
             yield f"data: {json.dumps({'type': 'status', 'message': '🔍 正在搜索相关文档...'}, ensure_ascii=False)}\n\n"
             
-            # 2. 向量搜索相关文档
-            search_results = await vector_search.search_similar_chunks(
+            # 2. 向量搜索相关文档（使用MMR算法）
+            search_results = await vector_search.search_similar_chunks_with_mmr(
                 query=optimized_query,
-                top_k=top_k
+                top_k=top_k,
+                use_threshold=True,
+                lambda_param=0.7  # MMR参数：0.7表示70%相关性，30%多样性
             )
             
             if not search_results:
@@ -206,9 +208,11 @@ async def ask_question_anonymous(
                 optimized_query = question
         
         # 2. 向量搜索相关文档
-        search_results = await vector_search.search_similar_chunks(
+        search_results = await vector_search.search_similar_chunks_with_mmr(
             query=optimized_query,
-            top_k=top_k
+            top_k=top_k,
+            use_threshold=True,
+            lambda_param=0.7  # MMR参数：0.7表示70%相关性，30%多样性
         )
         
         if not search_results:
@@ -235,10 +239,7 @@ async def ask_question_anonymous(
         )
         
         # 根据结果质量调整回答
-        if high_quality_results:
-            # 有高质量结果，正常回答
-            pass
-        elif low_quality_results:
+        if low_quality_results:
             # 只有低质量结果，添加提示
             answer = f"{answer}\n\n💡 提示：以上回答基于相似度较低的文档内容，可能不够准确。建议您：\n• 尝试更具体的问题描述\n• 使用不同的关键词重新提问"
         
@@ -309,11 +310,21 @@ async def search_documents(
                 print(f"搜索优化失败: {e}")
         
         # 执行搜索
-        search_results = await vector_search.search_similar_chunks(search_query, top_k)
+        search_results = await vector_search.search_similar_chunks_with_mmr(
+            query=search_query, 
+            top_k=top_k,
+            use_threshold=True,
+            lambda_param=0.7
+        )
         
         # 如果优化查询无结果，尝试原查询
         if not search_results and search_query != original_query:
-            search_results = await vector_search.search_similar_chunks(original_query, top_k)
+            search_results = await vector_search.search_similar_chunks_with_mmr(
+                query=original_query, 
+                top_k=top_k,
+                use_threshold=True,
+                lambda_param=0.7
+            )
         
         results = []
         for result in search_results:

@@ -21,6 +21,7 @@ RAG (Retrieval-Augmented Generation) 系统核心模块
 
 import os
 import traceback
+import numpy as np
 from typing import List, Dict, Any
 
 import chromadb
@@ -222,6 +223,195 @@ class VectorSearch:
         except Exception:
             return 0
 
+    def apply_mmr(self, results: List[Dict[str, Any]], query_embedding: np.ndarray, 
+                  lambda_param: float = 0.7, top_k: int = 5) -> List[Dict[str, Any]]:
+        """
+        应用最大边界算法(MMR)来优化搜索结果
+        
+        MMR算法在保持相关性的同时增加结果的多样性，避免返回过于相似的文档片段。
+        
+        Args:
+            results: 原始搜索结果列表
+            query_embedding: 查询向量
+            lambda_param: MMR参数，控制相关性和多样性的平衡 (0-1)
+                         0.0: 只考虑多样性
+                         1.0: 只考虑相关性
+            top_k: 返回结果数量
+            
+        Returns:
+            List[Dict]: 经过MMR优化的结果列表
+        """
+        try:
+            if not results or len(results) <= 1:
+                return results[:top_k]
+            
+            # 提取所有文档的向量
+            doc_embeddings = []
+            for result in results:
+                # 从metadata中获取向量ID，然后从ChromaDB获取向量
+                vector_id = result.get('vector_id')
+                if vector_id:
+                    try:
+                        # 从ChromaDB获取向量
+                        vector_data = self.collection.get(ids=[vector_id])
+                        if vector_data and 'embeddings' in vector_data and vector_data['embeddings']:
+                            doc_embeddings.append(np.array(vector_data['embeddings'][0]))
+                        else:
+                            # 如果无法获取向量，使用零向量
+                            doc_embeddings.append(np.zeros_like(query_embedding))
+                    except:
+                        doc_embeddings.append(np.zeros_like(query_embedding))
+                else:
+                    doc_embeddings.append(np.zeros_like(query_embedding))
+            
+            # 转换为numpy数组
+            doc_embeddings = np.array(doc_embeddings)
+            
+            # 计算查询与所有文档的相似度
+            query_similarities = np.dot(doc_embeddings, query_embedding)
+            
+            # MMR算法
+            selected_indices = []
+            remaining_indices = list(range(len(results)))
+            
+            # 选择第一个最相关的文档
+            first_idx = np.argmax(query_similarities)
+            selected_indices.append(first_idx)
+            remaining_indices.remove(first_idx)
+            
+            # 迭代选择剩余文档
+            while len(selected_indices) < min(top_k, len(results)) and remaining_indices:
+                best_score = -float('inf')
+                best_idx = None
+                
+                for idx in remaining_indices:
+                    # 计算相关性分数
+                    relevance = query_similarities[idx]
+                    
+                    # 计算多样性分数（与已选择文档的最大相似度）
+                    max_similarity = 0
+                    if selected_indices:
+                        selected_embeddings = doc_embeddings[selected_indices]
+                        similarities = np.dot(doc_embeddings[idx], selected_embeddings.T)
+                        max_similarity = np.max(similarities)
+                    
+                    # MMR分数 = λ * 相关性 - (1-λ) * 多样性
+                    mmr_score = lambda_param * relevance - (1 - lambda_param) * max_similarity
+                    
+                    if mmr_score > best_score:
+                        best_score = mmr_score
+                        best_idx = idx
+                
+                if best_idx is not None:
+                    selected_indices.append(best_idx)
+                    remaining_indices.remove(best_idx)
+                else:
+                    break
+            
+            # 返回按MMR算法选择的结果
+            mmr_results = [results[i] for i in selected_indices]
+            return mmr_results
+            
+        except Exception as e:
+            print(f"MMR算法应用失败: {e}")
+            # 如果MMR失败，返回原始结果
+            return results[:top_k]
+
+    async def search_similar_chunks_with_mmr(self, query: str, top_k: int = 5, 
+                                           use_threshold: bool = True, 
+                                           lambda_param: float = 0.7) -> List[Dict[str, Any]]:
+        """
+        使用MMR算法搜索语义相似的文档块
+        
+        Args:
+            query: 查询文本
+            top_k: 返回结果数量
+            use_threshold: 是否使用相似度阈值过滤
+            lambda_param: MMR参数，控制相关性和多样性的平衡
+            
+        Returns:
+            List[Dict]: 经过MMR优化的相似文档块列表
+        """
+        try:
+            if not query or not query.strip():
+                return []
+            
+            # 1. 生成查询向量
+            query_embedding = self.embedding_model.encode([query.strip()])[0]
+            
+            # 2. 在ChromaDB中搜索更多相似向量（用于MMR算法）
+            search_k = min(top_k * 3, 20)  # 搜索更多结果用于MMR选择
+            results = self.collection.query(
+                query_embeddings=[query_embedding.tolist()], 
+                n_results=search_k
+            )
+            
+            if not results or not results.get('ids') or not results['ids'][0]:
+                return []
+            
+            # 3. 处理搜索结果
+            all_similarities = []
+            filtered_similarities = []
+            
+            ids = results['ids'][0]
+            distances = results['distances'][0] if results.get('distances') else []
+            metadatas = results['metadatas'][0] if results.get('metadatas') else []
+            
+            for i, (vector_id, metadata) in enumerate(zip(ids, metadatas)):
+                try:
+                    # 获取文档块信息
+                    chunk_id = metadata.get('chunk_id')
+                    if not chunk_id:
+                        continue
+                    
+                    chunk = await DocumentChunk.get_or_none(id=chunk_id)
+                    if not chunk:
+                        continue
+                    
+                    # 获取关联的文档
+                    document = await chunk.document
+                    if not document:
+                        continue
+                    
+                    # 计算相似度分数
+                    distance = distances[i] if i < len(distances) else 1.0
+                    similarity = max(0.0, 1.0 - float(distance))
+                    
+                    result_item = {
+                        'vector_id': vector_id,
+                        'similarity': similarity,
+                        'chunk': chunk,
+                        'document': document,
+                        'metadata': metadata,
+                        'above_threshold': similarity >= SIMILARITY_THRESHOLD
+                    }
+                    
+                    all_similarities.append(result_item)
+                    
+                    # 如果使用阈值过滤，只保留相似度大于阈值的结果
+                    if not use_threshold or similarity >= SIMILARITY_THRESHOLD:
+                        filtered_similarities.append(result_item)
+                    
+                except Exception as e:
+                    print(f"处理搜索结果项失败 (chunk_id: {metadata.get('chunk_id', 'unknown')}): {e}")
+                    continue
+            
+            # 4. 应用MMR算法
+            if filtered_similarities:
+                # 有超过阈值的结果，对过滤后的结果应用MMR
+                mmr_results = self.apply_mmr(filtered_similarities, query_embedding, lambda_param, top_k)
+                return mmr_results
+            elif all_similarities:
+                # 没有超过阈值的结果，对所有结果应用MMR
+                mmr_results = self.apply_mmr(all_similarities, query_embedding, lambda_param, min(top_k, 3))
+                return mmr_results
+            else:
+                return []
+            
+        except Exception as e:
+            print(f"MMR搜索相似文档块失败: {e}")
+            traceback.print_exc()
+            return []
 
 class RAGGenerator:
     """

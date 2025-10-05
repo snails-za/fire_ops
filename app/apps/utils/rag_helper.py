@@ -523,33 +523,6 @@ class RAGGenerator:
         except Exception:
             return "抱歉，生成回答时出现错误。"
 
-    def _build_sources_info(self, context_chunks: List[Dict[str, Any]]) -> str:
-        """
-        构建来源信息
-        
-        Args:
-            context_chunks: 文档块列表
-            
-        Returns:
-            str: 格式化的来源信息
-        """
-        try:
-            sources = []
-            for i, chunk in enumerate(context_chunks, 1):
-                doc_name = chunk['document'].original_filename or chunk['document'].filename
-                similarity = chunk['similarity']
-                sources.append(f"• {doc_name} (相似度: {similarity:.1%})")
-
-            sources_text = "\n".join(sources)
-            return f"""---
-📋 **参考来源**：
-{sources_text}
-
-💡 基于 {len(context_chunks)} 个相关文档片段生成此回答"""
-
-        except Exception:
-            return "---\n📋 **参考来源**：信息获取失败"
-
 
 # 全局实例 - 单例模式，确保整个应用使用相同的实例
 try:

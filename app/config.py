@@ -94,7 +94,9 @@ SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.6)  
 # 搜索配置
 DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
 
-# OCR GPU加速配置
+# OCR配置 - 固定使用EasyOCR
+OCR_ENABLED = config("OCR_ENABLED", cast=bool, default=True)  # OCR功能开关
+# GPU加速配置
 OCR_USE_GPU = config("OCR_USE_GPU", cast=bool, default=True)  # 是否启用GPU加速
 
 # Celery配置

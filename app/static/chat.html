@@ -787,7 +787,7 @@
                                         updateStreamingMessage(assistantMessageId, currentContent, null, null);
                                         break;
                                     case 'error':
-                                        updateStreamingMessage(assistantMessageId, '抱歉，' + data.message, sources, searchInfo);
+                                        updateStreamingMessage(assistantMessageId + data.message, sources, searchInfo);
                                         break;
                                     case 'done':
                                         // 流式输出完成，移除光标动画并显示相关文档和搜索信息

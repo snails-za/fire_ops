@@ -194,7 +194,7 @@ async def delete_document(
 
         # 删除相关数据（级联删除）
         # 先删除 Chroma 中对应向量
-        await vector_search.delete_document_vectors(document_id)
+        await vector_search.delete_document(document_id)
         await document.delete()
 
         return response(message="文档删除成功")
@@ -219,7 +219,7 @@ async def reprocess_document(
 
         # 删除现有的分块与 Chroma 向量数据
         await DocumentChunk.filter(document_id=document_id).delete()
-        await vector_search.delete_document_vectors(document_id)
+        await vector_search.delete_document(document_id)
 
         # 更新文档状态
         document.status = "queued"

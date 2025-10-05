@@ -20,9 +20,7 @@ import shutil
 import uuid
 from datetime import datetime
 
-import chromadb
 from PIL import Image
-from chromadb.config import Settings as ChromaSettings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (
     PyPDFLoader,
@@ -33,13 +31,10 @@ from langchain_community.document_loaders import (
     UnstructuredMarkdownLoader
 )
 from pdf2image import convert_from_path
-from sentence_transformers import SentenceTransformer
-
 from apps.models.document import Document as DocumentModel, DocumentChunk
-from apps.utils.common import get_local_model_path
 from apps.utils.ocr_engines import get_ocr_engine
-from config import OCR_ENABLED, OCR_USE_GPU, CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, EMBEDDING_MODEL, HF_HOME, \
-    HF_OFFLINE
+from apps.utils.rag_helper import vector_search
+from config import OCR_ENABLED, OCR_USE_GPU, HF_HOME, HF_OFFLINE
 
 
 class DocumentParser:
@@ -351,7 +346,7 @@ class DocumentProcessor:
     1. 使用DocumentParser提取文档内容
     2. 智能分块处理
     3. 生成向量嵌入
-    4. 存储到ChromaDB和数据库
+    4. 存储到LangChain向量数据库
     """
     
     def __init__(self):
@@ -360,9 +355,8 @@ class DocumentProcessor:
         
         配置组件：
         1. 文本分割器：1000字符块大小，200字符重叠
-        2. 向量嵌入模型：Sentence Transformers
-        3. ChromaDB向量数据库客户端
-        4. 文档解析器：独立的DocumentParser实例
+        2. 文档解析器：独立的DocumentParser实例
+        3. LangChain向量存储：自动处理向量化
         """
         try:
             # 配置文本分割器 - 平衡块大小和语义完整性
@@ -381,33 +375,6 @@ class DocumentProcessor:
                 # 离线模式配置
                 os.environ["TRANSFORMERS_OFFLINE"] = "1"
                 os.environ["HF_HUB_OFFLINE"] = "1"
-            
-            # 关闭Chroma遥测，避免网络请求和错误
-            os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
-            os.environ.setdefault("CHROMA_TELEMETRY", "false")
-            
-            # 初始化向量嵌入模型
-            local_model_path = get_local_model_path(EMBEDDING_MODEL, HF_HOME)
-            
-            if local_model_path and HF_OFFLINE:
-                self.embedding_model = SentenceTransformer(local_model_path)
-            else:
-                self.embedding_model = SentenceTransformer(
-                    EMBEDDING_MODEL, 
-                    cache_folder=HF_HOME
-                )
-            
-            # 初始化ChromaDB客户端和集合
-            os.makedirs(CHROMA_PERSIST_DIRECTORY, exist_ok=True)
-            self.chroma_client = chromadb.PersistentClient(
-                path=CHROMA_PERSIST_DIRECTORY, 
-                settings=ChromaSettings(anonymized_telemetry=False)
-            )
-            self.collection = self.chroma_client.get_or_create_collection(
-                name=CHROMA_COLLECTION, 
-                metadata={"hnsw:space": "cosine"}  # 使用余弦相似度
-            )
-            
         except Exception as e:
             raise Exception(f"DocumentProcessor初始化失败: {e}")
         
@@ -418,9 +385,8 @@ class DocumentProcessor:
         处理流程：
         1. 提取文档内容
         2. 智能分块处理
-        3. 生成向量嵌入
-        4. 存储到ChromaDB
-        5. 更新数据库状态
+        3. 存储到ChromaDB
+        4. 更新数据库状态
         
         Args:
             document_id: 文档ID
@@ -463,34 +429,21 @@ class DocumentProcessor:
                 )
                 chunk_objects.append(chunk)
             
-            # 5. 生成向量嵌入（异步处理，避免阻塞）
-            print(f"🔄 开始生成向量嵌入，共 {len(chunks)} 个文本块...")
-            embeddings = self.embedding_model.encode(chunks)
-            print(f"✅ 向量嵌入生成完成")
-            
-            # 6. 存储向量到ChromaDB
+            # 5. 存储到ChromaDB
             if len(chunk_objects) > 0:
-                ids = []
-                metadatas = []
-                vectors = []
+                # 使用LangChain向量存储添加文档（直接使用已分块的文档）
+                metadata = {
+                    "filename": document.original_filename or document.filename,
+                    "file_type": file_type,
+                    "upload_time": document.upload_time.isoformat() if document.upload_time else None
+                }
                 
-                for i, (chunk, embedding) in enumerate(zip(chunk_objects, embeddings)):
-                    vector_id = f"doc_{document_id}_chunk_{i}_{uuid.uuid4().hex[:8]}"
-                    ids.append(vector_id)
-                    metadatas.append({
-                        "document_id": document_id,
-                        "chunk_id": chunk.id,
-                        "chunk_index": i,
-                    })
-                    vectors.append(embedding.tolist())
-                
-                # 批量添加到ChromaDB
-                self.collection.add(
-                    ids=ids, 
-                    embeddings=vectors, 
-                    metadatas=metadatas
+                await vector_search.add_documents_from_chunks(
+                    document_id=document_id,
+                    chunks=chunks,
+                    chunk_objects=chunk_objects,
+                    metadata=metadata
                 )
-            
             # 7. 更新文档状态为完成并设置处理时间
             document.status = "completed"
             document.process_time = datetime.now()

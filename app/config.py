@@ -95,7 +95,7 @@ SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.6)  
 DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
 
 # 向量数据库配置
-VECTOR_DB_TYPE = config("VECTOR_DB_TYPE", default="chroma")  # 向量数据库类型: chroma, qdrant
+VECTOR_DB_TYPE = config("VECTOR_DB_TYPE", default="qdrant")  # 向量数据库类型: chroma, qdrant
 
 # Qdrant配置
 QDRANT_HOST = config("QDRANT_HOST", default="localhost")

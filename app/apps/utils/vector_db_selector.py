@@ -3,6 +3,7 @@
 
 支持ChromaDB和Qdrant两个数据库的切换
 """
+import traceback
 from typing import List, Dict, Any
 
 import torch
@@ -11,6 +12,8 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langchain_qdrant import Qdrant
 from qdrant_client import QdrantClient
+from qdrant_client.http.models import Filter, FieldCondition, MatchValue
+from qdrant_client.http.models import VectorParams
 
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from apps.utils.common import get_local_model_path
@@ -67,35 +70,34 @@ class VectorDBSelector:
         print("✅ 使用ChromaDB向量存储")
 
     def _init_qdrant(self):
-        """初始化Qdrant"""
+        """初始化 Qdrant（修正版）"""
         try:
+            host, port, collection_name = QDRANT_HOST, QDRANT_PORT, QDRANT_COLLECTION_NAME
 
-            # 使用配置文件中的Qdrant配置
-            host = QDRANT_HOST
-            port = QDRANT_PORT
-            collection_name = QDRANT_COLLECTION_NAME
+            # ✅ 必须用 url= 显式指定 HTTP 访问，否则默认走 gRPC！
+            client = QdrantClient(url=f"http://{host}:{port}", timeout=30)
+            print(f"🌐 正在连接 Qdrant: http://{host}:{port}")
 
-            # 初始化Qdrant客户端
-            client = QdrantClient(host=host, port=port)
-
-            # 初始化嵌入模型
+            # ✅ 初始化嵌入模型
             local_model_path = get_local_model_path(EMBEDDING_MODEL, HF_HOME)
+            model_name = local_model_path or EMBEDDING_MODEL
+            embeddings = HuggingFaceEmbeddings(
+                model_name=model_name,
+                cache_folder=HF_HOME,
+                model_kwargs={'device': self.device},
+                encode_kwargs={'normalize_embeddings': True},
+            )
 
-            if local_model_path and HF_OFFLINE:
-                embeddings = HuggingFaceEmbeddings(
-                    model_name=local_model_path,
-                    model_kwargs={'device': self.device},
-                    encode_kwargs={'normalize_embeddings': True}
+            # ✅ 如果 collection 不存在则自动创建
+            if not client.collection_exists(collection_name):
+                dim = embeddings.client.get_sentence_embedding_dimension()
+                client.create_collection(
+                    collection_name=collection_name,
+                    vectors_config=VectorParams(size=dim, distance="Cosine")
                 )
-            else:
-                embeddings = HuggingFaceEmbeddings(
-                    model_name=EMBEDDING_MODEL,
-                    cache_folder=HF_HOME,
-                    model_kwargs={'device': self.device},
-                    encode_kwargs={'normalize_embeddings': True}
-                )
+                print(f"✅ 自动创建 Qdrant collection: {collection_name} (dim={dim})")
 
-            # 初始化Qdrant向量存储
+            # ✅ 初始化 LangChain 向量存储
             self.vectorstore = Qdrant(
                 client=client,
                 collection_name=collection_name,
@@ -103,12 +105,9 @@ class VectorDBSelector:
             )
             print("✅ 使用Qdrant向量存储")
 
-        except ImportError:
-            print("⚠️  Qdrant未安装，回退到ChromaDB")
-            self.db_type = "chroma"
-            self._init_chroma()
         except Exception as e:
-            print(f"⚠️  Qdrant初始化失败: {e}，回退到ChromaDB")
+            traceback.print_exc()
+            print(f"⚠️ Qdrant初始化失败: {type(e).__name__}: {e}，回退到ChromaDB")
             self.db_type = "chroma"
             self._init_chroma()
 
@@ -147,6 +146,7 @@ class VectorDBSelector:
             return chunk_ids
 
         except Exception as e:
+            traceback.print_exc()
             raise Exception(f"添加文档到向量存储失败: {e}")
 
     async def search_similar_documents(self, query: str, top_k: int = 5, use_threshold: bool = True) -> List[
@@ -203,6 +203,7 @@ class VectorDBSelector:
                 return []
 
         except Exception as e:
+            traceback.print_exc()
             print(f"搜索相似文档失败: {e}")
             return []
 
@@ -211,9 +212,16 @@ class VectorDBSelector:
         try:
             if self.db_type == "qdrant":
                 # Qdrant删除
-                self.vectorstore._client.delete(
-                    collection_name=self.vectorstore._collection_name,
-                    points_selector={"filter": {"must": [{"key": "document_id", "match": {"value": document_id}}]}}
+                self.vectorstore.client.delete(
+                    collection_name=QDRANT_COLLECTION_NAME,
+                    points_selector=Filter(
+                        must=[
+                            FieldCondition(
+                                key="document_id",
+                                match=MatchValue(value=document_id)
+                            )
+                        ]
+                    )
                 )
             else:
                 # ChromaDB删除
@@ -222,6 +230,7 @@ class VectorDBSelector:
             print(f"✅ 成功删除文档 {document_id} 的向量数据")
 
         except Exception as e:
+            traceback.print_exc()
             raise Exception(f"删除文档 {document_id} 向量数据失败: {e}")
 
 

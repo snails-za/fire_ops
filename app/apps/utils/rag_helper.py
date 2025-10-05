@@ -220,8 +220,7 @@ class VectorStore:
             raise Exception(f"删除文档 {document_id} 向量数据失败: {e}")
 
     async def search_similar_chunks_with_mmr(self, query: str, top_k: int = 5,
-                                             use_threshold: bool = True,
-                                             lambda_param: float = 0.7) -> List[Dict[str, Any]]:
+                                             use_threshold: bool = True) -> List[Dict[str, Any]]:
         """
         使用MMR算法搜索语义相似的文档块（兼容性方法）
         

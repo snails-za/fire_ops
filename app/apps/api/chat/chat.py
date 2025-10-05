@@ -69,8 +69,7 @@ async def ask_question_stream(
             search_results = await vector_search.search_similar_chunks_with_mmr(
                 query=optimized_query,
                 top_k=top_k,
-                use_threshold=True,
-                lambda_param=0.7  # MMR参数：0.7表示70%相关性，30%多样性
+                use_threshold=True
             )
             
             if not search_results:

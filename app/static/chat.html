@@ -860,7 +860,7 @@
                     // 按文档分组，保留操作功能
                     const docGroups = {};
                     highQualitySources.forEach(source => {
-                        const docName = source.document_name;
+                        const docName = source.original_filename || source.document_name;
                         if (!docGroups[docName]) {
                             docGroups[docName] = {
                                 document_id: source.document_id,
@@ -975,7 +975,7 @@
                     // 按文档分组，保留操作功能
                     const docGroups = {};
                     highQualitySources.forEach(source => {
-                        const docName = source.document_name;
+                        const docName = source.original_filename || source.document_name;
                         if (!docGroups[docName]) {
                             docGroups[docName] = {
                                 document_id: source.document_id,

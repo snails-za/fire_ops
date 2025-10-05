@@ -62,7 +62,7 @@ async def ask_question_stream(
                 except Exception as e:
                     print(f"问题优化失败: {e}")
                     optimized_query = question
-            
+            print("问题优化结果：", optimized_query)
             # 发送搜索状态
             yield f"data: {json.dumps({'type': 'status', 'message': '🔍 正在搜索相关文档...'}, ensure_ascii=False)}\n\n"
             

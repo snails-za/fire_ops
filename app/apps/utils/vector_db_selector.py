@@ -17,7 +17,7 @@ from qdrant_client.http.models import VectorParams
 
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from apps.utils.common import get_local_model_path
-from config import CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION
+from config import CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, SIMILARITY_THRESHOLD
 from config import (
     EMBEDDING_MODEL, HF_HOME, HF_OFFLINE,
     QDRANT_HOST, QDRANT_PORT, QDRANT_COLLECTION_NAME
@@ -154,14 +154,19 @@ class VectorDBSelector:
         """搜索相似文档"""
         try:
             # 执行搜索
+            print(f"🔍 执行向量搜索: 查询='{query}', top_k={top_k}, 数据库类型={self.db_type}")
             results = self.vectorstore.similarity_search_with_score(query, k=top_k)
+            print(f"📊 搜索结果数量: {len(results)}")
 
             # 转换为标准格式
             all_results = []
             filtered_results = []
 
-            for doc, distance in results:
-                similarity = max(0.0, 1.0 - distance)
+            for i, (doc, distance) in enumerate(results):
+                # 对于余弦距离，相似度 = 1 - 距离
+                similarity = 1.0 - distance
+
+                print(f"📈 结果 {i+1}: 距离={distance:.4f}, 相似度={similarity:.4f}")
 
                 metadata = doc.metadata
                 document_id = metadata.get('document_id')
@@ -180,26 +185,31 @@ class VectorDBSelector:
                                 'chunk': chunk,
                                 'similarity': similarity,
                                 'metadata': metadata,
-                                'above_threshold': similarity >= 0.6  # 使用固定阈值
+                                'above_threshold': similarity >= SIMILARITY_THRESHOLD
                             }
 
                             all_results.append(result_item)
 
                             # 如果使用阈值过滤，只保留相似度大于阈值的结果
-                            if use_threshold and similarity >= 0.6:
+                            if use_threshold and similarity >= SIMILARITY_THRESHOLD:
                                 filtered_results.append(result_item)
                     except Exception as e:
                         print(f"处理搜索结果项失败: {e}")
                         continue
 
             # 选择返回结果
+            print(f"📋 过滤前结果: {len(all_results)}, 过滤后结果: {len(filtered_results)}")
+            
             if filtered_results:
                 filtered_results.sort(key=lambda x: x['similarity'], reverse=True)
+                print(f"✅ 返回过滤后的结果: {len(filtered_results)}")
                 return filtered_results[:top_k]
             elif all_results:
                 all_results.sort(key=lambda x: x['similarity'], reverse=True)
+                print(f"⚠️ 返回所有结果: {len(all_results)}")
                 return all_results[:min(top_k, 3)]
             else:
+                print("❌ 没有找到任何结果")
                 return []
 
         except Exception as e:

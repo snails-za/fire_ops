@@ -14,6 +14,7 @@ from langchain_qdrant import Qdrant
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from qdrant_client.http.models import VectorParams
+from qdrant_client.models import Distance
 
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from apps.utils.common import get_local_model_path
@@ -71,45 +72,39 @@ class VectorDBSelector:
 
     def _init_qdrant(self):
         """初始化 Qdrant（修正版）"""
-        try:
-            host, port, collection_name = QDRANT_HOST, QDRANT_PORT, QDRANT_COLLECTION_NAME
+        host, port, collection_name = QDRANT_HOST, QDRANT_PORT, QDRANT_COLLECTION_NAME
 
-            # ✅ 必须用 url= 显式指定 HTTP 访问，否则默认走 gRPC！
-            client = QdrantClient(url=f"http://{host}:{port}", timeout=30)
-            print(f"🌐 正在连接 Qdrant: http://{host}:{port}")
+        # ✅ 必须用 url= 显式指定 HTTP 访问，否则默认走 gRPC！
+        client = QdrantClient(url=f"http://{host}:{port}", timeout=30)
+        print(f"🌐 正在连接 Qdrant: http://{host}:{port}")
 
-            # ✅ 初始化嵌入模型
-            local_model_path = get_local_model_path(EMBEDDING_MODEL, HF_HOME)
-            model_name = local_model_path or EMBEDDING_MODEL
-            embeddings = HuggingFaceEmbeddings(
-                model_name=model_name,
-                cache_folder=HF_HOME,
-                model_kwargs={'device': self.device},
-                encode_kwargs={'normalize_embeddings': True},
-            )
+        # ✅ 初始化嵌入模型
+        local_model_path = get_local_model_path(EMBEDDING_MODEL, HF_HOME)
+        model_name = local_model_path or EMBEDDING_MODEL
+        embeddings = HuggingFaceEmbeddings(
+            model_name=model_name,
+            cache_folder=HF_HOME,
+            model_kwargs={'device': self.device},
+            encode_kwargs={'normalize_embeddings': True},
+        )
 
-            # ✅ 如果 collection 不存在则自动创建
-            if not client.collection_exists(collection_name):
-                dim = embeddings.client.get_sentence_embedding_dimension()
-                client.create_collection(
-                    collection_name=collection_name,
-                    vectors_config=VectorParams(size=dim, distance="Cosine")
-                )
-                print(f"✅ 自动创建 Qdrant collection: {collection_name} (dim={dim})")
-
-            # ✅ 初始化 LangChain 向量存储
-            self.vectorstore = Qdrant(
-                client=client,
+        # ✅ 如果 collection 不存在则自动创建
+        if not client.collection_exists(collection_name):
+            dim = embeddings.client.get_sentence_embedding_dimension()
+            client.create_collection(
                 collection_name=collection_name,
-                embeddings=embeddings,
+                vectors_config=VectorParams(size=dim, distance=Distance.COSINE)
             )
-            print("✅ 使用Qdrant向量存储")
+            print(f"✅ 自动创建 Qdrant collection: {collection_name} (dim={dim})")
 
-        except Exception as e:
-            traceback.print_exc()
-            print(f"⚠️ Qdrant初始化失败: {type(e).__name__}: {e}，回退到ChromaDB")
-            self.db_type = "chroma"
-            self._init_chroma()
+        # ✅ 初始化 LangChain 向量存储
+        self.vectorstore = Qdrant(
+            client=client,
+            collection_name=collection_name,
+            embeddings=embeddings,
+        )
+        print("✅ 使用Qdrant向量存储")
+
 
     async def add_documents_from_chunks(self, document_id: int, chunks: List[str], chunk_objects: List,
                                         metadata: Dict[str, Any] = None) -> List[str]:
@@ -162,11 +157,10 @@ class VectorDBSelector:
             all_results = []
             filtered_results = []
 
-            for i, (doc, distance) in enumerate(results):
-                # 对于余弦距离，相似度 = 1 - 距离
-                similarity = 1.0 - distance
+            for i, (doc, score) in enumerate(results):
+                similarity = score
 
-                print(f"📈 结果 {i+1}: 距离={distance:.4f}, 相似度={similarity:.4f}")
+                print(f"📈 结果 {i + 1}: 距离={score:.4f}, 相似度={similarity:.4f}")
 
                 metadata = doc.metadata
                 document_id = metadata.get('document_id')
@@ -199,7 +193,7 @@ class VectorDBSelector:
 
             # 选择返回结果
             print(f"📋 过滤前结果: {len(all_results)}, 过滤后结果: {len(filtered_results)}")
-            
+
             if filtered_results:
                 filtered_results.sort(key=lambda x: x['similarity'], reverse=True)
                 print(f"✅ 返回过滤后的结果: {len(filtered_results)}")

@@ -158,7 +158,11 @@ class VectorDBSelector:
             filtered_results = []
 
             for i, (doc, score) in enumerate(results):
-                similarity = score
+                # 计算相似度
+                if self.db_type == "qdrant":
+                    similarity = score
+                else:
+                    similarity = max(0.0, 1.0 - score)
 
                 print(f"📈 结果 {i + 1}: 距离={score:.4f}, 相似度={similarity:.4f}")
 

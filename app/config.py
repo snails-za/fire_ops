@@ -105,7 +105,7 @@ CHUNK_SIZE = config("CHUNK_SIZE", cast=int, default=1000)
 CHUNK_OVERLAP = config("CHUNK_OVERLAP", cast=int, default=200)
 
 # 搜索配置
-SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.5)
+SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.7)
 DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
 
 # =============================================================================

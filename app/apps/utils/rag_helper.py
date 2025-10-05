@@ -24,20 +24,20 @@ import os
 import traceback
 from typing import List, Dict, Any
 
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_core.documents import Document
 
+from apps.models.document import Document as DocumentModel, DocumentChunk
+from apps.utils.common import get_local_model_path
 from config import (
     OPENAI_API_KEY, OPENAI_BASE_URL, CHROMA_PERSIST_DIRECTORY,
     CHROMA_COLLECTION, EMBEDDING_MODEL, HF_HOME, HF_OFFLINE,
-    SIMILARITY_THRESHOLD, CHUNK_SIZE, CHUNK_OVERLAP
+    SIMILARITY_THRESHOLD
 )
-from apps.utils.common import get_local_model_path
-from apps.models.document import Document as DocumentModel, DocumentChunk
 
 
 class VectorStore:
@@ -167,7 +167,7 @@ class VectorStore:
             # 转换为标准格式
             all_results = []
             filtered_results = []
-            
+
             for doc, distance in results:
                 # 计算相似度，确保不为负
                 similarity = max(0.0, 1.0 - distance)
@@ -191,9 +191,9 @@ class VectorStore:
                                 'metadata': metadata,
                                 'above_threshold': similarity >= SIMILARITY_THRESHOLD
                             }
-                            
+
                             all_results.append(result_item)
-                            
+
                             # 如果使用阈值过滤，只保留相似度大于阈值的结果
                             if use_threshold and similarity >= SIMILARITY_THRESHOLD:
                                 filtered_results.append(result_item)
@@ -234,7 +234,7 @@ class VectorStore:
             raise Exception(f"删除文档 {document_id} 向量数据失败: {e}")
 
     async def search_similar_chunks_with_mmr(self, query: str, top_k: int = 5,
-                                              use_threshold: bool = True) -> List[Dict[str, Any]]:
+                                             use_threshold: bool = True) -> List[Dict[str, Any]]:
         """
         使用MMR算法搜索语义相似的文档块（兼容性方法）
         
@@ -371,7 +371,7 @@ class RAGGenerator:
                     # 使用备用格式
                     doc_name = chunk.get('metadata', {}).get('source', '未知文档')
                     content = chunk.get('content', '无内容')
-                
+
                 similarity = chunk['similarity']
 
                 # 格式化文档片段
@@ -510,7 +510,6 @@ class RAGGenerator:
             best_chunk = context_chunks[0]
             document_name = best_chunk['document'].original_filename or best_chunk['document'].filename
             content = best_chunk['chunk'].content
-            similarity = best_chunk['similarity']
 
             # 构建简单回答（不包含参考来源）
             answer = f"""基于文档《{document_name}》中的相关内容：

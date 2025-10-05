@@ -49,7 +49,7 @@ async def go_upload():
 
 
 @app.get("/chat", include_in_schema=False)
-async def go_upload():
+async def go_chat():
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/static/chat.html")
 

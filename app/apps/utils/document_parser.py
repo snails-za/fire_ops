@@ -17,7 +17,6 @@
 import asyncio
 import os
 import shutil
-import uuid
 from datetime import datetime
 
 from PIL import Image
@@ -147,7 +146,7 @@ class DocumentParser:
             # PDF优先使用PyMuPDFLoader（更快更准确）
             try:
                 loaders.append(PyMuPDFLoader(file_path))
-            except:
+            except Exception as _:
                 loaders.append(PyPDFLoader(file_path))
         elif file_type in ["docx", "doc"]:
             loaders.append(Docx2txtLoader(file_path))

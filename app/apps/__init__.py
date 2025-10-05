@@ -6,7 +6,7 @@ from fastapi.openapi.utils import get_openapi
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
-from config import TORTOISE_ORM, DEBUG, STATIC_PATH
+from config import DEBUG, STATIC_PATH
 # ✅ 执行 Aerich 补丁以拦截 DROP 操作（防止误删表字段）
 from apps.utils import aerich_patch as aerich_patch
 

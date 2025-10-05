@@ -1,4 +1,5 @@
 import os
+import traceback
 import uuid
 from typing import Optional
 
@@ -10,7 +11,7 @@ from apps.models.document import Document, DocumentChunk
 from apps.utils import response
 from apps.utils.celery_utils import celery_task_manager
 from apps.utils.rag_helper import vector_search
-from celery_tasks.task import *
+from celery_tasks.task import process_document_task
 from config import DOCUMENT_STORE_PATH
 
 router = APIRouter(prefix="/documents", tags=["文档管理"])

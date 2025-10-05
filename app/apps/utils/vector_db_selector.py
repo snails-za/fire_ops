@@ -34,6 +34,7 @@ class VectorDBSelector:
         self.vectorstore = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self._init_database()
+        self.embeddings = self._get_embedding_model()
 
     def _init_database(self):
         """初始化数据库"""
@@ -42,9 +43,8 @@ class VectorDBSelector:
         else:
             self._init_chroma()
 
-    def _init_chroma(self):
-        """初始化ChromaDB"""
-
+    def _get_embedding_model(self):
+        """获取嵌入模型"""
         # 初始化嵌入模型
         local_model_path = get_local_model_path(EMBEDDING_MODEL, HF_HOME)
 
@@ -61,11 +61,13 @@ class VectorDBSelector:
                 model_kwargs={'device': self.device},
                 encode_kwargs={'normalize_embeddings': True}
             )
+        return embeddings
 
-        # 初始化ChromaDB
+    def _init_chroma(self):
+        """初始化ChromaDB"""
         self.vectorstore = Chroma(
             collection_name=CHROMA_COLLECTION,
-            embedding_function=embeddings,
+            embedding_function=self.embeddings,
             persist_directory=CHROMA_PERSIST_DIRECTORY,
         )
         print("✅ 使用ChromaDB向量存储")
@@ -78,19 +80,9 @@ class VectorDBSelector:
         client = QdrantClient(url=f"http://{host}:{port}", timeout=30)
         print(f"🌐 正在连接 Qdrant: http://{host}:{port}")
 
-        # ✅ 初始化嵌入模型
-        local_model_path = get_local_model_path(EMBEDDING_MODEL, HF_HOME)
-        model_name = local_model_path or EMBEDDING_MODEL
-        embeddings = HuggingFaceEmbeddings(
-            model_name=model_name,
-            cache_folder=HF_HOME,
-            model_kwargs={'device': self.device},
-            encode_kwargs={'normalize_embeddings': True},
-        )
-
         # ✅ 如果 collection 不存在则自动创建
         if not client.collection_exists(collection_name):
-            dim = embeddings.client.get_sentence_embedding_dimension()
+            dim = self.embeddings.client.get_sentence_embedding_dimension()
             client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=dim, distance=Distance.COSINE)
@@ -101,7 +93,7 @@ class VectorDBSelector:
         self.vectorstore = Qdrant(
             client=client,
             collection_name=collection_name,
-            embeddings=embeddings,
+            embeddings=self.embeddings,
         )
         print("✅ 使用Qdrant向量存储")
 

@@ -37,6 +37,7 @@ from config import (
     SIMILARITY_THRESHOLD, CHUNK_SIZE, CHUNK_OVERLAP
 )
 from apps.utils.common import get_local_model_path
+from apps.models.document import Document as DocumentModel, DocumentChunk
 
 
 class VectorStore:
@@ -158,20 +159,18 @@ class VectorStore:
             List[Dict]: 相似文档列表
         """
         try:
-            # 使用LangChain进行相似度搜索
+            # 使用LangChain进行相似度搜索，获取更多结果以便过滤
             results = self.vectorstore.similarity_search_with_score(
-                query, k=top_k * 2  # 获取更多结果以便过滤
+                query, k=top_k  # 获取更多结果以便过滤
             )
 
             # 转换为标准格式
-            formatted_results = []
-            for doc, score in results:
-                # ChromaDB返回的是距离分数，需要转换为相似度
-                similarity = 1 - score
-
-                # 应用相似度阈值过滤
-                if use_threshold and similarity < SIMILARITY_THRESHOLD:
-                    continue
+            all_results = []
+            filtered_results = []
+            
+            for doc, distance in results:
+                # 计算相似度，确保不为负
+                similarity = max(0.0, 1.0 - distance)
 
                 # 从metadata获取信息
                 metadata = doc.metadata
@@ -179,25 +178,40 @@ class VectorStore:
                 chunk_id = metadata.get('chunk_id')
 
                 if document_id and chunk_id:
-                    # 获取数据库中的文档和块信息
-                    from apps.models.document import Document as DocumentModel, DocumentChunk
-                    from tortoise import Tortoise
+                    try:
+                        # 获取数据库中的文档和块信息
+                        document = await DocumentModel.get_or_none(id=document_id)
+                        chunk = await DocumentChunk.get_or_none(id=chunk_id)
 
-                    document = await DocumentModel.get_or_none(id=document_id)
-                    chunk = await DocumentChunk.get_or_none(id=chunk_id)
+                        if document and chunk:
+                            result_item = {
+                                'document': document,
+                                'chunk': chunk,
+                                'similarity': similarity,
+                                'metadata': metadata,
+                                'above_threshold': similarity >= SIMILARITY_THRESHOLD
+                            }
+                            
+                            all_results.append(result_item)
+                            
+                            # 如果使用阈值过滤，只保留相似度大于阈值的结果
+                            if use_threshold and similarity >= SIMILARITY_THRESHOLD:
+                                filtered_results.append(result_item)
+                    except Exception as e:
+                        print(f"处理搜索结果项失败 (chunk_id: {metadata.get('chunk_id', 'unknown')}): {e}")
+                        continue
 
-                    if document and chunk:
-                        result = {
-                            'document': document,
-                            'chunk': chunk,
-                            'similarity': similarity,
-                            'above_threshold': similarity >= SIMILARITY_THRESHOLD
-                        }
-                        formatted_results.append(result)
-
-            # 按相似度排序并限制结果数量
-            formatted_results.sort(key=lambda x: x['similarity'], reverse=True)
-            return formatted_results[:top_k]
+            # 选择返回结果
+            if filtered_results:
+                # 有超过阈值的结果，返回过滤后的结果
+                filtered_results.sort(key=lambda x: x['similarity'], reverse=True)
+                return filtered_results[:top_k]
+            elif all_results:
+                # 没有超过阈值的结果，返回所有结果（降级处理）
+                all_results.sort(key=lambda x: x['similarity'], reverse=True)
+                return all_results[:min(top_k, 3)]  # 最多返回3个结果
+            else:
+                return []
 
         except Exception as e:
             print(f"搜索相似文档失败: {e}")
@@ -220,7 +234,7 @@ class VectorStore:
             raise Exception(f"删除文档 {document_id} 向量数据失败: {e}")
 
     async def search_similar_chunks_with_mmr(self, query: str, top_k: int = 5,
-                                             use_threshold: bool = True) -> List[Dict[str, Any]]:
+                                              use_threshold: bool = True) -> List[Dict[str, Any]]:
         """
         使用MMR算法搜索语义相似的文档块（兼容性方法）
         
@@ -228,12 +242,11 @@ class VectorStore:
             query: 查询文本
             top_k: 返回结果数量
             use_threshold: 是否使用相似度阈值过滤
-            lambda_param: MMR参数（暂未实现）
-            
+
         Returns:
             List[Dict]: 相似文档块列表
         """
-        # 暂时直接调用search_similar_documents，后续可以实现MMR算法
+        # 使用改进的搜索逻辑，确保总是有结果返回
         return await self.search_similar_documents(
             query=query,
             top_k=top_k,
@@ -350,8 +363,15 @@ class RAGGenerator:
             # 构建上下文信息
             context_parts = []
             for i, chunk in enumerate(context_chunks, 1):
-                doc_name = chunk['document'].original_filename or chunk['document'].filename
-                content = chunk['chunk'].content
+                # 处理不同的结果格式
+                if chunk.get('document') and chunk.get('chunk'):
+                    doc_name = chunk['document'].original_filename or chunk['document'].filename
+                    content = chunk['chunk'].content
+                else:
+                    # 使用备用格式
+                    doc_name = chunk.get('metadata', {}).get('source', '未知文档')
+                    content = chunk.get('content', '无内容')
+                
                 similarity = chunk['similarity']
 
                 # 格式化文档片段

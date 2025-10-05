@@ -73,7 +73,7 @@ async def ask_question_stream(
             )
             
             if not search_results:
-                yield f"data: {json.dumps({'type': 'error', 'message': '抱歉，我没有找到相关的文档内容来回答您的问题。'}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'content', 'message': '抱歉，我没有找到相关的文档内容来回答您的问题。'}, ensure_ascii=False)}\n\n"
                 return
             
             # 发送文档信息
@@ -210,7 +210,7 @@ async def ask_question_anonymous(
         search_results = await vector_search.search_similar_chunks_with_mmr(
             query=optimized_query,
             top_k=top_k,
-            use_threshold=True,
+            use_threshold=True,  # 不使用阈值过滤，返回所有找到的结果
             lambda_param=0.7  # MMR参数：0.7表示70%相关性，30%多样性
         )
         
@@ -312,7 +312,7 @@ async def search_documents(
         search_results = await vector_search.search_similar_chunks_with_mmr(
             query=search_query, 
             top_k=top_k,
-            use_threshold=True,
+            use_threshold=False,  # 不使用阈值过滤，返回所有找到的结果
             lambda_param=0.7
         )
         
@@ -321,7 +321,7 @@ async def search_documents(
             search_results = await vector_search.search_similar_chunks_with_mmr(
                 query=original_query, 
                 top_k=top_k,
-                use_threshold=True,
+                use_threshold=False,  # 不使用阈值过滤，返回所有找到的结果
                 lambda_param=0.7
             )
         

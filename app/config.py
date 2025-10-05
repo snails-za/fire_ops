@@ -1,26 +1,47 @@
-import os
+"""
+系统配置文件
+统一管理所有配置项，按功能模块分组
+"""
 
+import os
 from starlette.config import Config
 from pydantic import Secret
 
+# 配置对象
 config = Config()
 
+# =============================================================================
+# 基础配置
+# =============================================================================
+
+# 应用基础配置
 DEBUG = config("DEBUG", cast=bool, default=False)
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 STATIC_PATH = os.path.join(BASE_PATH, "static")
 
-# 刷新token时间【固定值，需要比MAX_AGE时间短】
-REFLESH_MAX_AGE = 60
-# 登录有效性 Token【可以数据库配置，需要大于 REFLESH_MAX_AGE】
-MAX_AGE = 60*60
+# 安全配置
+SECRET_KEY = config("SECRET_KEY", default="adjasdmasdjoqwijeqwbhfqwnqndaslmdlkas")
+AES_KEY = config("AES_KEY", default="awkfjwhkgowkslg3")
 
+# Token配置
+REFRESH_MAX_AGE = 60  # 刷新token时间（秒）
+MAX_AGE = 60 * 60     # 登录有效性Token（秒）
+
+# =============================================================================
 # 数据库配置
+# =============================================================================
+
+# PostgreSQL配置
 DB_HOST = config("POSTGRES_HOST", default="localhost")
 DB_PORT = config("POSTGRES_PORT", cast=int, default=15432)
 DB_USER = config("POSTGRES_USER", default="postgres")
 DB_PASSWORD = Secret(config("POSTGRES_PASSWORD", cast=str, default="OTcxMDEx"))
 DB_DATABASE = config("POSTGRES_DB", default="fire_ops")
+
+# 数据库连接URL
 DATABASE_URL = f"postgres://{DB_USER}:{DB_PASSWORD.get_secret_value()}@{DB_HOST}:{DB_PORT}/{DB_DATABASE}"
+
+# Tortoise ORM配置
 TORTOISE_ORM = {
     "connections": {
         "default": DATABASE_URL,
@@ -32,55 +53,49 @@ TORTOISE_ORM = {
         }
     },
 }
+
+# 动态添加模型
 for _ in os.listdir(os.path.join("apps", "models")):
     if _.endswith(".py") and _ != "__init__.py":
         TORTOISE_ORM["apps"]["models"]["models"].append(f"apps.models.{_.split('.')[0]}")
+
+# 数据库迁移配置
+AERICH_SAFE_MODE = config("AERICH_SAFE_MODE", cast=int, default=1)
+
+# =============================================================================
+# Redis配置
+# =============================================================================
 
 REDIS_HOST = config("REDIS_HOST", default="localhost")
 REDIS_PORT = config("REDIS_PORT", cast=int, default=16379)
 REDIS_PASSWORD = config("REDIS_PASSWORD", cast=str, default="")
 REDIS_DB = config("REDIS_DB", cast=int, default=0)
 
-# Session配置
-SECRET_KEY = "adjasdmasdjoqwijeqwbhfqwnqndaslmdlkas"
-
-# 密钥配置
-AES_KEY = config("AES_KEY", default="awkfjwhkgowkslg3")
-
-# 数据库迁移安全模式：1表示安全模式，0表示非安全模式
-AERICH_SAFE_MODE = config("AERICH_SAFE_MODE", cast=int, default=1)
+# =============================================================================
+# 文档处理配置
+# =============================================================================
 
 # 文档存储路径
 DOCUMENT_STORE_PATH = os.path.join(BASE_PATH, "data", "documents")
 
-# RAG相关配置
+# 文件处理限制
+MAX_FILE_SIZE = config("MAX_FILE_SIZE", cast=int, default=50 * 1024 * 1024)  # 50MB
+ALLOWED_FILE_TYPES = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt']
+
+# =============================================================================
+# RAG系统配置
+# =============================================================================
+
 # OpenAI API配置
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="sk-zk21f16b46c63a80f63e49c05308ebd59cb66be108a0fdca")
 OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.zhizengzeng.com/v1/")
 
-# 向量数据库配置（Chroma）
-VECTOR_DB_PATH = os.path.join(BASE_PATH, "data", "vector_db")
-CHROMA_PERSIST_DIRECTORY = os.path.join(VECTOR_DB_PATH, "chroma")
-CHROMA_COLLECTION = config("CHROMA_COLLECTION", default="documents")
-
-# 文档处理配置
-MAX_FILE_SIZE = config("MAX_FILE_SIZE", cast=int, default=50 * 1024 * 1024)  # 50MB
-ALLOWED_FILE_TYPES = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt']
-
-# 嵌入模型配置（本地模型优先）
-# 当前模型：多语言通用
-# EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-
-# 中文优化模型选项：
-# BGE模型（推荐）- 百度开源，中文效果优秀
+# 嵌入模型配置:
+# 1. BAAI/bge-small-zh-v1.5
+# 2. sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+# 3. sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+# 4. shibing624/text2vec-base-chinese
 EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="BAAI/bge-small-zh-v1.5")
-
-# Text2Vec模型 - 另一个中文优化选择
-# EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="shibing624/text2vec-base-chinese")
-
-# 高精度多语言模型
-# EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
-
 EMBEDDING_DIMENSION = config("EMBEDDING_DIMENSION", cast=int, default=384)
 HF_HOME = config("HF_HOME", default=os.path.join(BASE_PATH, "models"))
 HF_OFFLINE = config("HF_OFFLINE", cast=bool, default=True)
@@ -89,13 +104,21 @@ HF_OFFLINE = config("HF_OFFLINE", cast=bool, default=True)
 CHUNK_SIZE = config("CHUNK_SIZE", cast=int, default=1000)
 CHUNK_OVERLAP = config("CHUNK_OVERLAP", cast=int, default=200)
 
-# 相似度阈值配置
-SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.6)  # 相似度阈值，0-1之间
 # 搜索配置
+SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.6)
 DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
 
+# =============================================================================
 # 向量数据库配置
-VECTOR_DB_TYPE = config("VECTOR_DB_TYPE", default="qdrant")  # 向量数据库类型: chroma, qdrant
+# =============================================================================
+
+# 向量数据库类型选择
+VECTOR_DB_TYPE = config("VECTOR_DB_TYPE", default="qdrant")  # 可选: chroma, qdrant
+
+# ChromaDB配置
+VECTOR_DB_PATH = os.path.join(BASE_PATH, "data", "vector_db")
+CHROMA_PERSIST_DIRECTORY = os.path.join(VECTOR_DB_PATH, "chroma")
+CHROMA_COLLECTION = config("CHROMA_COLLECTION", default="documents")
 
 # Qdrant配置
 QDRANT_HOST = config("QDRANT_HOST", default="localhost")
@@ -103,31 +126,35 @@ QDRANT_PORT = config("QDRANT_PORT", cast=int, default=6333)
 QDRANT_COLLECTION_NAME = config("QDRANT_COLLECTION_NAME", default="documents")
 QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 
-# OCR配置 - 固定使用EasyOCR
-OCR_ENABLED = config("OCR_ENABLED", cast=bool, default=True)  # OCR功能开关
-# GPU加速配置
-OCR_USE_GPU = config("OCR_USE_GPU", cast=bool, default=True)  # 是否启用GPU加速
+# =============================================================================
+# OCR配置
+# =============================================================================
 
-# Celery配置
-# 设置配置
+OCR_ENABLED = config("OCR_ENABLED", cast=bool, default=True)
+OCR_USE_GPU = config("OCR_USE_GPU", cast=bool, default=True)
+
+# =============================================================================
+# Celery异步任务配置
+# =============================================================================
+
+# 消息代理和结果后端
 BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/1'
 CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/2'
-# 指定任务序列化方式
+
+# 序列化配置
 CELERY_TASK_SERIALIZER = 'json'
-# 指定结果序列化方式
 CELERY_RESULT_SERIALIZER = 'json'
-# 指定任务接受的序列化类型.
 CELERY_ACCEPT_CONTENT = ["json"]
-# 任务过期时间，celery任务执行结果的超时时间
-CELERY_TASK_RESULT_EXPIRES = 60 * 60 * 24
-# 设置默认的队列名称，如果一个消息不符合其他的队列就会放在默认队列里面，如果什么都不设置的话，数据都会发送到默认的队列中
+
+# 任务配置
+CELERY_TASK_RESULT_EXPIRES = 60 * 60 * 24  # 24小时过期
+
+# 队列配置
 CELERY_DEFAULT_QUEUE = "default"
-# 队列的详细设置
 CELERY_QUEUES = {
-    "default": {  # 这是上面指定的默认队列
+    "default": {
         "exchange": "default",
         "exchange_type": "direct",
         "routing_key": "default"
     }
 }
-

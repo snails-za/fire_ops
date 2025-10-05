@@ -99,6 +99,11 @@ uv sync
 配置 `conf.py` 文件
 
 ```bash
+# 基础配置
+DEBUG=false
+SECRET_KEY=your_secret_key
+AES_KEY=your_aes_key
+
 # 数据库配置
 POSTGRES_HOST=localhost
 POSTGRES_PORT=15432
@@ -112,31 +117,34 @@ REDIS_PORT=16379
 REDIS_PASSWORD=
 
 # 向量数据库配置
-VECTOR_DB_TYPE=chroma  # 可选: chroma, qdrant
-QDRANT_HOST=localhost  # Qdrant配置
+VECTOR_DB_TYPE=qdrant  # 可选: chroma, qdrant
+QDRANT_HOST=localhost
 QDRANT_PORT=6333
 QDRANT_COLLECTION_NAME=documents
+CHROMA_COLLECTION=documents
 
 # RAG配置
 OPENAI_API_KEY=your_openai_key  # 可选，用于智能问答
 OPENAI_BASE_URL=https://api.zhizengzeng.com/v1/
 EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5  # 中文优化模型
+EMBEDDING_DIMENSION=384
+HF_HOME=./models
+HF_OFFLINE=true
 CHUNK_SIZE=1000
 CHUNK_OVERLAP=200
 SIMILARITY_THRESHOLD=0.6
 DEFAULT_TOP_K=5
 
-# 文件处理配置
+# 文档处理配置
 MAX_FILE_SIZE=52428800  # 50MB
 ALLOWED_FILE_TYPES=pdf,docx,doc,xlsx,xls,txt
 
 # OCR配置
 OCR_ENABLED=true
-OCR_USE_GPU=true  # 是否启用GPU加速
+OCR_USE_GPU=true
 
-# 安全配置
-SECRET_KEY=your_secret_key
-AES_KEY=your_aes_key
+# 数据库迁移配置
+AERICH_SAFE_MODE=1
 ```
 
 
@@ -263,23 +271,48 @@ celery -A celery_tasks.app worker -l info --pool=solo
 
 ## ⚙️ 配置详解
 
+### 配置结构说明
+
+配置文件按功能模块分组，结构清晰：
+
+```python
+# 基础配置
+DEBUG, SECRET_KEY, AES_KEY, TOKEN配置
+
+# 数据库配置  
+PostgreSQL, Redis, Tortoise ORM
+
+# 文档处理配置
+文件存储路径, 文件大小限制, 支持的文件类型
+
+# RAG系统配置
+OpenAI API, 嵌入模型, 文本分割, 搜索配置
+
+# 向量数据库配置
+ChromaDB, Qdrant配置
+
+# OCR配置
+EasyOCR引擎配置
+
+# Celery异步任务配置
+消息代理, 队列, 序列化配置
+```
+
 ### 向量数据库配置
 
-#### ChromaDB (默认)
-```python
-# 配置参数
-VECTOR_DB_TYPE = "chroma"
-CHROMA_PERSIST_DIRECTORY = "./data/vector_db/chroma"
-CHROMA_COLLECTION = "documents"
+#### ChromaDB
+```bash
+VECTOR_DB_TYPE=chroma
+CHROMA_COLLECTION=documents
+CHROMA_PERSIST_DIRECTORY=./data/vector_db/chroma
 ```
 
 #### Qdrant
-```python
-# 配置参数
-VECTOR_DB_TYPE = "qdrant"
-QDRANT_HOST = "localhost"
-QDRANT_PORT = 6333
-QDRANT_COLLECTION_NAME = "documents"
+```bash
+VECTOR_DB_TYPE=qdrant
+QDRANT_HOST=localhost
+QDRANT_PORT=6333
+QDRANT_COLLECTION_NAME=documents
 ```
 
 #### 切换向量数据库
@@ -287,7 +320,7 @@ QDRANT_COLLECTION_NAME = "documents"
 # 切换到Qdrant
 export VECTOR_DB_TYPE=qdrant
 
-# 切换回ChromaDB
+# 切换回ChromaDB  
 export VECTOR_DB_TYPE=chroma
 ```
 

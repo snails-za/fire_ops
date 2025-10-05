@@ -90,7 +90,9 @@ ALLOWED_FILE_TYPES = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt']
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="sk-zk21f16b46c63a80f63e49c05308ebd59cb66be108a0fdca")
 OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.zhizengzeng.com/v1/")
 
-# 嵌入模型配置:
+# 嵌入模型配置
+# 全局禁用 tokenizers 的并行分词
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # 1. BAAI/bge-small-zh-v1.5
 # 2. sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 # 3. sentence-transformers/paraphrase-multilingual-mpnet-base-v2

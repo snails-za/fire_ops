@@ -33,8 +33,8 @@ class VectorDBSelector:
         self.db_type = VECTOR_DB_TYPE
         self.vectorstore = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self._init_database()
         self.embeddings = self._get_embedding_model()
+        self._init_database()
 
     def _init_database(self):
         """初始化数据库"""

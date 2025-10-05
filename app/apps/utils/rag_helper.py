@@ -565,13 +565,13 @@ class RAGGenerator:
             # 构建上下文
             context_parts = []
             for i, chunk in enumerate(context_chunks, 1):
-                doc_name = chunk.get('document_name', '未知文档')
-                # 尝试获取chunk_text字段，如果没有则使用content字段
-                content = chunk.get('chunk_text', chunk.get('content', ''))
+                # 直接使用数据结构
+                doc_name = chunk['document'].original_filename or chunk['document'].filename
+                content = chunk['chunk'].content
                 context_parts.append(f"文档{i}: {doc_name}\n内容: {content}")
             
             context = "\n\n" + "="*50 + "\n\n".join(context_parts)
-            
+
             # 选择回答模式
             if self.llm_available and self.chain:
                 try:

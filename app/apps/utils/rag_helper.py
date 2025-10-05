@@ -167,7 +167,7 @@ class VectorStore:
             formatted_results = []
             for doc, score in results:
                 # ChromaDB返回的是距离分数，需要转换为相似度
-                similarity = 1 / (1 + score)
+                similarity = 1 - score
 
                 # 应用相似度阈值过滤
                 if use_threshold and similarity < SIMILARITY_THRESHOLD:

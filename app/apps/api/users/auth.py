@@ -14,7 +14,7 @@ from apps.utils.common import get_hash
 from apps.utils.generate_captcha import generate_captcha
 from apps.utils.redis_ import get_redis_client
 from apps.utils.token_ import gen_token, decode_token
-from config import AES_KEY, MAX_AGE, REFLESH_MAX_AGE
+from config import AES_KEY, MAX_AGE, REFRESH_MAX_AGE
 
 router = APIRouter(prefix="/auth", tags=["用户认证"])
 User_Pydantic = pydantic_model_creator(User, name="User", exclude=("password",))
@@ -76,7 +76,7 @@ async def login(
     login_time = time.time()
     token = gen_token(user.id, login_time, seconds=MAX_AGE)
     await redis_client.set(f"token-{login_time}-{user.id}", token, MAX_AGE)
-    await redis_client.set(f"refresh_token-{login_time}-{user.id}", token, REFLESH_MAX_AGE)
+    await redis_client.set(f"refresh_token-{login_time}-{user.id}", token, REFRESH_MAX_AGE)
     resp = {
         "access_token": token,
         "token_type": "bearer"
@@ -119,7 +119,7 @@ async def refresh_token(
     login_time = time.time()
     new_token = gen_token(user_id, login_time, seconds=MAX_AGE)
     await redis_client.set(f"token-{login_time}-{user_id}", new_token, MAX_AGE)
-    await redis_client.set(f"refresh_token-{login_time}-{user_id}", new_token, REFLESH_MAX_AGE)
+    await redis_client.set(f"refresh_token-{login_time}-{user_id}", new_token, REFRESH_MAX_AGE)
     resp = {
         "access_token": new_token,
         "token_type": "bearer"

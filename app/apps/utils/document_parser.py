@@ -39,12 +39,31 @@ from apps.utils.ocr_engines import get_ocr_engine
 from apps.utils.rag_helper import vector_search
 from config import OCR_ENABLED, OCR_USE_GPU, HF_HOME, HF_OFFLINE, NLTK_DATA_PATH
 
-os.environ["NLTK_DATA"] = NLTK_DATA_PATH
-nltk.data.path.insert(0, NLTK_DATA_PATH)
-Path(NLTK_DATA_PATH).mkdir(parents=True, exist_ok=True)
+# 配置 NLTK 离线模式
+def _configure_nltk_offline():
+    """配置 NLTK 为离线模式，禁用网络下载"""
+    try:
+        # 设置 NLTK 数据路径
+        os.environ["NLTK_DATA"] = NLTK_DATA_PATH
+        nltk.data.path = [NLTK_DATA_PATH]
+        
+        # 禁用 NLTK 下载功能
+        def _disabled_download(*args, **kwargs):
+            raise Exception("NLTK 下载已被禁用，请使用本地数据包")
+        
+        nltk.download = _disabled_download
+        
+        # 确保目录存在
+        Path(NLTK_DATA_PATH).mkdir(parents=True, exist_ok=True)
+        
+        print(f"🔧 NLTK 配置完成，数据路径: {NLTK_DATA_PATH}")
+        print("📦 NLTK 使用离线数据包模式")
+        
+    except Exception as e:
+        print(f"⚠️ NLTK 配置失败: {str(e)}")
 
-print(f"🔧 NLTK 配置完成，数据路径: {NLTK_DATA_PATH}")
-print("📦 NLTK 使用离线数据包模式")
+# 执行 NLTK 离线配置
+_configure_nltk_offline()
 
 
 class DocumentParser:

@@ -19,6 +19,9 @@ RUN set -ex && \
 # 运行阶段
 FROM builder
 
+# 安装supervisor
+RUN pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple supervisor
+
 COPY ./app /app
 WORKDIR /app
 
@@ -28,6 +31,15 @@ RUN uv sync
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
+# 创建supervisor日志目录和应用日志目录
+RUN mkdir -p /var/log/supervisor /app/logs /var/run
+
+# 复制supervisor配置文件
+COPY ./conf/supervisord.conf /etc/supervisor/supervisord.conf
+COPY ./conf/supervisor-services.conf /etc/supervisor/conf.d/fire_ops.conf
+
 # 暴露端口
 EXPOSE 8000
-CMD ["gunicorn", "asgi:app", "-b", "0.0.0.0:8000", "-k", "uvicorn.workers.UvicornWorker"]
+
+# 使用supervisor启动服务
+CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]

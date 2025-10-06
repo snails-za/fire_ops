@@ -1,0 +1,48 @@
+# Gunicorn 配置文件
+# 用于生产环境的 WSGI 服务器配置
+
+import multiprocessing
+import os
+
+# 服务器套接字
+bind = "0.0.0.0:8000"
+backlog = 2048
+
+# Worker 进程
+workers = int(os.environ.get('GUNICORN_WORKERS', multiprocessing.cpu_count() * 2 + 1))
+worker_class = "uvicorn.workers.UvicornWorker"
+worker_connections = 1000
+timeout = 30
+keepalive = 2
+
+# 重启
+max_requests = 1000
+max_requests_jitter = 50
+preload_app = True
+
+# 日志
+accesslog = "/app/logs/gunicorn_access.log"
+errorlog = "/app/logs/gunicorn_error.log"
+loglevel = "info"
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
+
+# 确保print输出被正确捕获
+capture_output = True
+
+# 进程管理
+pidfile = "/app/logs/gunicorn.pid"
+user = None
+group = None
+tmp_upload_dir = None
+
+# SSL (如果需要)
+# keyfile = "/path/to/keyfile"
+# certfile = "/path/to/certfile"
+
+# 安全
+limit_request_line = 4094
+limit_request_fields = 100
+limit_request_field_size = 8190
+
+# 性能优化
+worker_tmp_dir = "/dev/shm"

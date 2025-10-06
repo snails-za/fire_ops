@@ -10,7 +10,8 @@ RUN set -ex && \
     apt-get update  && \
     apt-get install -y  ca-certificates curl \
       python3 python3-pip python3-venv python3-distutils \
-      gcc make libffi-dev libssl-dev make libpq-dev libpq5 vim ncurses-bin  && \
+      gcc make libffi-dev libssl-dev make libpq-dev libpq5 vim ncurses-bin  \
+      libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 libglib2.0-0 && \
     pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple uv && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

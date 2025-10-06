@@ -5,3 +5,4 @@ upload/*
 *.log
 */.env
 */data
+*/models

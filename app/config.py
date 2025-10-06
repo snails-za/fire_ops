@@ -115,7 +115,7 @@ DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
 # =============================================================================
 
 # NLTK 数据路径配置（避免网络下载）
-NLTK_DATA_PATH = config("NLTK_DATA_PATH", default=os.path.join(BASE_PATH, "data", "nltk_data"))
+NLTK_DATA_PATH = config("NLTK_DATA_PATH", default=os.path.join(BASE_PATH, "nltk_data"))
 
 # =============================================================================
 # 向量数据库配置

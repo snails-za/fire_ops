@@ -33,7 +33,18 @@ from pdf2image import convert_from_path
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from apps.utils.ocr_engines import get_ocr_engine
 from apps.utils.rag_helper import vector_search
-from config import OCR_ENABLED, OCR_USE_GPU, HF_HOME, HF_OFFLINE
+from config import OCR_ENABLED, OCR_USE_GPU, HF_HOME, HF_OFFLINE, NLTK_DATA_PATH
+
+# 配置 NLTK 数据路径，避免网络下载
+import nltk
+from pathlib import Path
+
+# 设置 NLTK 数据路径为本地目录
+os.environ["NLTK_DATA"] = NLTK_DATA_PATH
+nltk.data.path.append(NLTK_DATA_PATH)
+
+# 确保目录存在
+Path(NLTK_DATA_PATH).mkdir(parents=True, exist_ok=True)
 
 
 class DocumentParser:

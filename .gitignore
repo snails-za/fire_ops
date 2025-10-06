@@ -164,3 +164,4 @@ app/uploads/*
 app/static/*
 app/models/*
 app/data/*
+app/nltk_data/*

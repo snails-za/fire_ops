@@ -6,3 +6,4 @@ upload/*
 */.env
 */data
 */models
+*/nltk_data

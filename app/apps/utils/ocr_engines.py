@@ -8,6 +8,8 @@ import easyocr
 import numpy as np
 import torch
 from PIL import Image
+import os
+from config import OCR_MODEL_PATH
 
 
 class OCREngineAdapter:
@@ -19,6 +21,9 @@ class OCREngineAdapter:
 
     def _init_easyocr(self):
         """初始化EasyOCR"""
+        # 确保OCR模型目录存在
+        os.makedirs(OCR_MODEL_PATH, exist_ok=True)
+        
         # 检测GPU可用性
         gpu_available = self._check_gpu_availability()
         actual_use_gpu = self.use_gpu and gpu_available
@@ -27,16 +32,18 @@ class OCREngineAdapter:
         if actual_use_gpu:
             try:
                 print("🚀 尝试启用GPU加速模式")
-                self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=True)
+                print(f"📁 OCR模型路径: {OCR_MODEL_PATH}")
+                self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=True, model_storage_directory=OCR_MODEL_PATH)
                 print("✅ GPU模式初始化成功")
             except Exception as gpu_error:
                 print(f"⚠️ GPU模式初始化失败: {str(gpu_error)}")
                 print("🔄 自动降级到CPU模式")
-                self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False)
+                self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False, model_storage_directory=OCR_MODEL_PATH)
                 print("✅ CPU模式初始化成功")
         else:
             print("💻 使用CPU模式")
-            self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False)
+            print(f"📁 OCR模型路径: {OCR_MODEL_PATH}")
+            self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False, model_storage_directory=OCR_MODEL_PATH)
             print("✅ CPU模式初始化成功")
 
         print("✅ EasyOCR引擎初始化完成")

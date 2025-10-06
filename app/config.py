@@ -134,6 +134,8 @@ QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 
 OCR_ENABLED = config("OCR_ENABLED", cast=bool, default=True)
 OCR_USE_GPU = config("OCR_USE_GPU", cast=bool, default=True)
+# OCR模型缓存路径
+OCR_MODEL_PATH = config("OCR_MODEL_PATH", default=os.path.join(BASE_PATH, "models", "easyocr"))
 
 # =============================================================================
 # Celery异步任务配置

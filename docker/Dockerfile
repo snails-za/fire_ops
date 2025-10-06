@@ -11,7 +11,12 @@ RUN set -ex && \
     apt-get install -y  ca-certificates curl \
       python3 python3-pip python3-venv python3-distutils \
       gcc make libffi-dev libssl-dev make libpq-dev libpq5 vim ncurses-bin  \
-      libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 libglib2.0-0 && \
+      libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 libglib2.0-0 \
+      locales && \
+    # 配置中文locale
+    echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen && \
+    locale-gen && \
+    update-locale LANG=zh_CN.UTF-8 && \
     pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple uv && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -31,6 +36,12 @@ RUN uv sync
 # 设置 venv 到 PATH
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# 设置中文环境变量
+ENV LANG=C.UTF-8
+ENV LANGUAGE=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV PYTHONIOENCODING=utf-8
 
 # 创建supervisor日志目录和应用日志目录
 RUN mkdir -p /var/log/supervisor /app/logs /var/run

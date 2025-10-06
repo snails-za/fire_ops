@@ -76,10 +76,10 @@ class DocumentParser:
                 except Exception as e:
                     print(f"⚠️ OCR引擎初始化失败: {str(e)}")
                     self.ocr_engine = None
-            
+
         except Exception as e:
             raise Exception(f"DocumentParser初始化失败: {e}")
-    
+
     async def extract_content(self, file_path: str, file_type: str) -> str:
         """
         提取文档内容的主入口方法
@@ -100,12 +100,12 @@ class DocumentParser:
         try:
             if not os.path.exists(file_path):
                 raise Exception(f"文件不存在: {file_path}")
-            
+
             print(f"📄 开始解析 {file_type.upper()} 文档: {os.path.basename(file_path)}")
-            
+
             # 根据文件类型选择合适的加载器
             loaders = self._get_loaders(file_path, file_type)
-            
+
             # 加载文档并合并内容
             texts = []
             for loader in loaders:
@@ -115,19 +115,19 @@ class DocumentParser:
                 except Exception as e:
                     print(f"⚠️ 加载器失败: {str(e)}")
                     continue
-            
+
             if not texts:
                 raise Exception("无法加载任何文档内容")
-            
+
             # 合并所有文档内容
             content = "\n\n".join([doc.page_content for doc in texts if doc.page_content.strip()])
-            
+
             if not content.strip():
                 raise Exception("文档内容为空")
-            
+
             print(f"✅ 文档解析成功，提取内容长度: {len(content)} 字符")
             return content.strip()
-                
+
         except Exception as e:
             print(f"❌ 文档解析失败: {str(e)}")
             # 如果是PDF且失败，尝试OCR处理
@@ -139,7 +139,7 @@ class DocumentParser:
                     raise Exception(f"所有PDF处理方法都失败: LangChain({str(e)}), OCR({str(ocr_e)})")
             else:
                 raise Exception(f"文档内容提取失败: {str(e)}")
-    
+
     def _get_loaders(self, file_path: str, file_type: str) -> list:
         """
         根据文件类型获取合适的LangChain加载器
@@ -152,7 +152,7 @@ class DocumentParser:
             list: 加载器列表
         """
         loaders = []
-        
+
         if file_type == "pdf":
             # PDF优先使用PyMuPDFLoader（更快更准确）
             try:
@@ -169,9 +169,9 @@ class DocumentParser:
             loaders.append(UnstructuredMarkdownLoader(file_path))
         else:
             raise Exception(f"不支持的文件类型: {file_type}")
-        
+
         return loaders
-    
+
     async def _extract_pdf_with_ocr(self, file_path: str) -> str:
         """
         使用OCR技术提取PDF中的图片文字
@@ -190,84 +190,85 @@ class DocumentParser:
         try:
             # 检查OCR依赖
             self._check_ocr_dependencies()
-            
+
             # 将PDF转换为图片（异步处理，避免阻塞）
             print("🔄 正在将PDF转换为图片...")
             try:
                 # 异步处理PDF转图片，避免阻塞
                 images = await asyncio.get_event_loop().run_in_executor(
-                    None, 
+                    None,
                     lambda: convert_from_path(file_path, dpi=200)  # 降低DPI平衡质量和性能
                 )
             except Exception as e:
                 if "poppler" in str(e).lower():
-                    raise Exception("缺少poppler依赖。请运行: brew install poppler (macOS) 或 apt-get install poppler-utils (Ubuntu)")
+                    raise Exception(
+                        "缺少poppler依赖。请运行: brew install poppler (macOS) 或 apt-get install poppler-utils (Ubuntu)")
                 raise Exception(f"PDF转图片失败: {str(e)}")
-            
+
             if not images:
                 raise Exception("PDF转换后未获得任何图片页面")
-            
+
             content = ""
             total_pages = len(images)
             successful_pages = 0
-            
+
             print(f"📄 开始OCR处理 {total_pages} 页...")
-            
+
             # 使用异步处理，避免阻塞主进程
             # 限制并发数量，避免资源耗尽
             semaphore = asyncio.Semaphore(2)  # 最多同时处理2页
-            
+
             # 添加超时控制，避免单个页面处理时间过长
             TIMEOUT_PER_PAGE = 60  # 每页最多60秒
-            
+
             async def process_single_page(page_num, image):
                 async with semaphore:
                     try:
                         # 显示处理进度
                         progress = (page_num - 1) / total_pages * 100
                         print(f"🔍 处理第 {page_num}/{total_pages} 页... ({progress:.1f}%)")
-                        
+
                         # 图像预处理（快速操作，不需要异步）
                         processed_image = self._preprocess_image_for_ocr(image)
-                        
+
                         # OCR识别 - 使用已初始化的OCR引擎
                         if self.ocr_engine is None:
                             raise Exception("OCR引擎未初始化")
-                        
+
                         # 异步处理OCR，避免阻塞主进程
                         # 使用线程池执行器，让OCR在独立线程中运行
                         # 添加超时控制
                         page_text = await asyncio.wait_for(
                             asyncio.get_event_loop().run_in_executor(
-                                None, 
-                                self.ocr_engine.extract_text, 
+                                None,
+                                self.ocr_engine.extract_text,
                                 processed_image
                             ),
                             timeout=TIMEOUT_PER_PAGE
                         )
-                        
+
                         # 清理图像资源
                         del processed_image
-                        
+
                         return page_num, page_text, None
-                        
+
                     except asyncio.TimeoutError:
                         print(f"⚠️ 第 {page_num} 页OCR处理超时")
                         return page_num, None, "处理超时"
                     except Exception as page_error:
                         print(f"⚠️ 第 {page_num} 页OCR处理失败: {str(page_error)}")
                         return page_num, None, str(page_error)
-            
+
             # 创建所有页面的处理任务
             tasks = [process_single_page(page_num, image) for page_num, image in enumerate(images, 1)]
-            
+
             # 并发处理所有页面，但限制并发数量
             # 使用 as_completed 但保持顺序
             results = {}
             for task in asyncio.as_completed(tasks):
                 page_num, page_text, error = await task
                 results[page_num] = (page_text, error)
-            
+
             # 按页面顺序处理结果
             for page_num in range(1, total_pages + 1):
                 if page_num in results:
@@ -276,23 +277,23 @@ class DocumentParser:
                         content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
                         content += page_text.strip() + "\n"
                         successful_pages += 1
-            
+
             if successful_pages == 0:
                 raise Exception("所有页面的OCR处理均失败")
-            
+
             print(f"✅ OCR处理完成，成功处理 {successful_pages}/{total_pages} 页")
             return content.strip()
-            
+
         except Exception as e:
             error_msg = str(e)
             if "tesseract" in error_msg.lower():
                 error_msg = "缺少Tesseract OCR引擎。请运行: brew install tesseract (macOS) 或 apt-get install tesseract-ocr (Ubuntu)"
             elif "chi_sim" in error_msg.lower():
                 error_msg = "缺少中文语言包。请运行: brew install tesseract-lang (macOS) 或 apt-get install tesseract-ocr-chi-sim (Ubuntu)"
-            
+
             print(f"❌ PDF OCR处理失败: {error_msg}")
             raise Exception(f"OCR处理失败: {error_msg}")
-    
+
     def _check_ocr_dependencies(self):
         """
         检查OCR所需的依赖是否可用
@@ -304,11 +305,12 @@ class DocumentParser:
             # 检查poppler工具（PDF转图片需要）
             poppler_path = shutil.which('pdftoppm')
             if not poppler_path:
-                raise Exception("缺少poppler工具，请安装: brew install poppler (macOS) 或 sudo apt-get install poppler-utils (Ubuntu)")
+                raise Exception(
+                    "缺少poppler工具，请安装: brew install poppler (macOS) 或 sudo apt-get install poppler-utils (Ubuntu)")
             print("✅ OCR依赖检查通过")
         except Exception as e:
             raise e
-    
+
     def _preprocess_image_for_ocr(self, pil_image: Image.Image) -> Image.Image:
         """
         简单的图像预处理，提高OCR识别准确性
@@ -325,7 +327,7 @@ class DocumentParser:
                 gray_image = pil_image.convert('L')
             else:
                 gray_image = pil_image
-            
+
             # 如果图像太小，稍微放大
             width, height = gray_image.size
             if width < 800 or height < 800:
@@ -333,14 +335,14 @@ class DocumentParser:
                 new_width = int(width * scale_factor)
                 new_height = int(height * scale_factor)
                 gray_image = gray_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            
+
             return gray_image
-            
+
         except Exception as e:
             print(f"⚠️ 图像预处理出错: {str(e)}")
             # 如果预处理失败，返回原图
             return pil_image
-    
+
 
 class DocumentProcessor:
     """
@@ -358,7 +360,7 @@ class DocumentProcessor:
     3. 生成向量嵌入
     4. 存储到LangChain向量数据库
     """
-    
+
     def __init__(self):
         """
         初始化文档处理器
@@ -371,23 +373,23 @@ class DocumentProcessor:
         try:
             # 配置文本分割器 - 平衡块大小和语义完整性
             self.text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,      # 每个文本块的最大字符数
-                chunk_overlap=200,    # 块之间的重叠字符数，保持上下文连续性
+                chunk_size=1000,  # 每个文本块的最大字符数
+                chunk_overlap=200,  # 块之间的重叠字符数，保持上下文连续性
                 length_function=len,  # 使用字符长度计算
             )
-            
+
             # 配置HuggingFace环境变量
             os.environ["HF_HOME"] = HF_HOME
             os.environ["TRANSFORMERS_CACHE"] = HF_HOME
             os.environ["HF_HUB_CACHE"] = HF_HOME
-            
+
             if HF_OFFLINE:
                 # 离线模式配置
                 os.environ["TRANSFORMERS_OFFLINE"] = "1"
                 os.environ["HF_HUB_OFFLINE"] = "1"
         except Exception as e:
             raise Exception(f"DocumentProcessor初始化失败: {e}")
-        
+
     async def process_document(self, document_id: int, file_path: str, file_type: str) -> bool:
         """
         处理文档并生成向量嵌入
@@ -412,21 +414,21 @@ class DocumentProcessor:
             document = await DocumentModel.get(id=document_id)
             document.status = "processing"
             await document.save()
-            
+
             # 2. 提取文档内容
             content = await document_parser.extract_content(file_path, file_type)
             if not content or not content.strip():
                 raise Exception("文档内容为空或无法提取")
-            
+
             # 更新文档内容到数据库
             document.content = content
             await document.save()
-            
+
             # 3. 智能分块处理
             chunks = self.text_splitter.split_text(content)
             if not chunks:
                 raise Exception("文档分块失败")
-            
+
             # 4. 创建分块记录
             chunk_objects = []
             for i, chunk_text in enumerate(chunks):
@@ -438,7 +440,7 @@ class DocumentProcessor:
                     metadata={"chunk_index": i}
                 )
                 chunk_objects.append(chunk)
-            
+
             # 5. 存储到向量库
             if len(chunk_objects) > 0:
                 # 使用LangChain向量存储添加文档（直接使用已分块的文档）
@@ -447,7 +449,7 @@ class DocumentProcessor:
                     "file_type": file_type,
                     "upload_time": document.upload_time.isoformat() if document.upload_time else None
                 }
-                
+
                 await vector_search.add_documents_from_chunks(
                     document_id=document_id,
                     chunks=chunks,
@@ -458,9 +460,9 @@ class DocumentProcessor:
             document.status = "completed"
             document.process_time = datetime.now()
             await document.save()
-            
+
             return True
-            
+
         except Exception as e:
             # 更新文档状态为失败
             if document is None:

@@ -231,6 +231,21 @@ class VectorDBSelector:
             traceback.print_exc()
             raise Exception(f"删除文档 {document_id} 向量数据失败: {e}")
 
+    async def count_vectors(self) -> int:
+        """统计向量数量"""
+        try:
+            if self.db_type == "qdrant":
+                # Qdrant统计
+                collection_info = self.vectorstore.client.get_collection(QDRANT_COLLECTION_NAME)
+                return collection_info.points_count
+            else:
+                # ChromaDB统计
+                collection = self.vectorstore._collection
+                return collection.count()
+        except Exception as e:
+            print(f"统计向量数量失败: {e}")
+            return 0
+
 
 vector_search = VectorDBSelector()
 print("✅ 使用LangChain向量存储")

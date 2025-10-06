@@ -4,3 +4,4 @@
 upload/*
 *.log
 */.env
+*/data

@@ -18,14 +18,20 @@ keepalive = 2
 # 重启
 max_requests = 1000
 max_requests_jitter = 50
-preload_app = True
+preload_app = False  # 禁用预加载，避免异步问题
 
-# 日志
+# 日志 - 统一输出到stdout/stderr，由supervisor汇总
+accesslog = "-"  # 输出到stdout
+errorlog = "-"   # 输出到stderr
 loglevel = "info"
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
 # 确保print输出被正确捕获
 capture_output = True
+
+# FastAPI/ASGI特定配置
+forwarded_allow_ips = "*"
+secure_scheme_headers = {"X-FORWARDED-PROTOCOL": "ssl", "X-FORWARDED-PROTO": "https", "X-FORWARDED-SSL": "on"}
 
 # 进程管理
 pidfile = "/app/logs/gunicorn.pid"

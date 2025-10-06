@@ -18,7 +18,10 @@ import asyncio
 import os
 import shutil
 from datetime import datetime
+from pathlib import Path
 
+# 设置 NLTK 数据路径
+import nltk
 from PIL import Image
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (
@@ -30,21 +33,18 @@ from langchain_community.document_loaders import (
     UnstructuredMarkdownLoader
 )
 from pdf2image import convert_from_path
+
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from apps.utils.ocr_engines import get_ocr_engine
 from apps.utils.rag_helper import vector_search
 from config import OCR_ENABLED, OCR_USE_GPU, HF_HOME, HF_OFFLINE, NLTK_DATA_PATH
 
-# 配置 NLTK 数据路径，避免网络下载
-import nltk
-from pathlib import Path
-
-# 设置 NLTK 数据路径为本地目录
 os.environ["NLTK_DATA"] = NLTK_DATA_PATH
-nltk.data.path.append(NLTK_DATA_PATH)
-
-# 确保目录存在
+nltk.data.path.insert(0, NLTK_DATA_PATH)
 Path(NLTK_DATA_PATH).mkdir(parents=True, exist_ok=True)
+
+print(f"🔧 NLTK 配置完成，数据路径: {NLTK_DATA_PATH}")
+print("📦 NLTK 使用离线数据包模式")
 
 
 class DocumentParser:
@@ -57,7 +57,7 @@ class DocumentParser:
     3. 图像预处理和优化
     4. 统一的文档解析接口
     """
-    
+
     def __init__(self):
         """
         初始化文档解析器

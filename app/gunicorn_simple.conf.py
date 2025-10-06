@@ -1,8 +1,6 @@
 # 简化的Gunicorn配置文件 - 用于调试
 # 专门针对FastAPI应用优化
 
-import multiprocessing
-import os
 
 # 服务器套接字
 bind = "0.0.0.0:8000"

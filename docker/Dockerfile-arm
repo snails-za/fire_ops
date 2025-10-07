@@ -53,4 +53,4 @@ COPY ./conf/supervisor-services.conf /etc/supervisor/conf.d/fire_ops.conf
 EXPOSE 8000
 
 # 使用supervisor启动服务
-CMD ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]
+ENTRYPOINT ["supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]

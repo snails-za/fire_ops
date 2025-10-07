@@ -4,12 +4,13 @@
 该模块提供统一的文档解析接口，支持多种文件格式：
 - PDF: PyMuPDFLoader（优先）→ PyPDFLoader → OCR（扫描版PDF）
 - DOCX/DOC: Docx2txtLoader
-- XLSX/XLS: UnstructuredExcelLoader
+- XLSX/XLS: SimpleExcelLoader（自定义，使用 openpyxl）
 - TXT: TextLoader
 - MD: UnstructuredMarkdownLoader
 
 技术栈：
 - LangChain文档加载器
+- openpyxl Excel处理（离线，无网络依赖）
 - OCR引擎（EasyOCR）
 - 图像预处理和优化
 """
@@ -18,10 +19,8 @@ import asyncio
 import os
 import shutil
 from datetime import datetime
-from pathlib import Path
 
-# 设置 NLTK 数据路径
-import nltk
+import openpyxl
 from PIL import Image
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (
@@ -29,41 +28,56 @@ from langchain_community.document_loaders import (
     PyMuPDFLoader,
     Docx2txtLoader,
     TextLoader,
-    UnstructuredExcelLoader,
     UnstructuredMarkdownLoader
 )
+from langchain_core.documents import Document
 from pdf2image import convert_from_path
 
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from apps.utils.ocr_engines import get_ocr_engine
 from apps.utils.rag_helper import vector_search
-from config import OCR_ENABLED, OCR_USE_GPU, HF_HOME, HF_OFFLINE, NLTK_DATA_PATH
+from config import OCR_ENABLED, OCR_USE_GPU, HF_HOME, HF_OFFLINE
 
-# 配置 NLTK 离线模式
-def _configure_nltk_offline():
-    """配置 NLTK 为离线模式，禁用网络下载"""
-    try:
-        # 设置 NLTK 数据路径
-        os.environ["NLTK_DATA"] = NLTK_DATA_PATH
-        nltk.data.path = [NLTK_DATA_PATH]
-        
-        # 禁用 NLTK 下载功能
-        def _disabled_download(*args, **kwargs):
-            raise Exception("NLTK 下载已被禁用，请使用本地数据包")
-        
-        nltk.download = _disabled_download
-        
-        # 确保目录存在
-        Path(NLTK_DATA_PATH).mkdir(parents=True, exist_ok=True)
-        
-        print(f"🔧 NLTK 配置完成，数据路径: {NLTK_DATA_PATH}")
-        print("📦 NLTK 使用离线数据包模式")
-        
-    except Exception as e:
-        print(f"⚠️ NLTK 配置失败: {str(e)}")
 
-# 执行 NLTK 离线配置
-_configure_nltk_offline()
+class SimpleExcelLoader:
+    """
+    简单的 Excel 加载器 - 避免 UnstructuredExcelLoader 的 NLTK 依赖
+    
+    使用 openpyxl 直接读取 Excel，兼容 LangChain 接口
+    """
+
+    def __init__(self, file_path: str):
+        self.file_path = file_path
+
+    def load(self):
+        """加载 Excel 并返回 LangChain Document 列表"""
+
+        try:
+            wb = openpyxl.load_workbook(self.file_path, data_only=True, read_only=True)
+            documents = []
+
+            for sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                rows = []
+
+                for row in sheet.iter_rows(values_only=True):
+                    row_values = [str(cell) if cell is not None else "" for cell in row]
+                    if any(val.strip() for val in row_values):
+                        rows.append("\t".join(row_values))
+
+                if rows:
+                    content = f"工作表: {sheet_name}\n\n" + "\n".join(rows)
+                    doc = Document(
+                        page_content=content,
+                        metadata={"source": self.file_path, "sheet_name": sheet_name}
+                    )
+                    documents.append(doc)
+
+            wb.close()
+            return documents
+
+        except Exception as e:
+            raise Exception(f"Excel 读取失败: {str(e)}")
 
 
 class DocumentParser:
@@ -181,7 +195,8 @@ class DocumentParser:
         elif file_type in ["docx", "doc"]:
             loaders.append(Docx2txtLoader(file_path))
         elif file_type in ["xlsx", "xls"]:
-            loaders.append(UnstructuredExcelLoader(file_path))
+            # 使用自定义加载器，完全避开 UnstructuredExcelLoader 的 NLTK 依赖
+            loaders.append(SimpleExcelLoader(file_path))
         elif file_type == "txt":
             loaders.append(TextLoader(file_path, encoding='utf-8'))
         elif file_type == "md":

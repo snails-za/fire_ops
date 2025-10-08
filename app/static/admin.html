@@ -1596,6 +1596,10 @@
         const TOKEN_EXPIRY_THRESHOLD = 5 * 60 * 1000; // 提前5分钟刷新
         const MAX_AGE = 60 * 60 * 1000; // 1小时
         let tokenRefreshTimer = null;
+        
+        // 防重复刷新机制
+        let isRefreshing = false;
+        let pendingRequests = [];
 
         // Token 管理工具
         const TokenManager = {
@@ -1641,9 +1645,11 @@
             
             // 刷新 token
             async refreshToken() {
+                console.log('🔄 TokenManager.refreshToken() 被调用');
                 const token = this.getToken();
+                console.log('🔑 要刷新的token:', token ? '存在' : '不存在');
                 if (!token) {
-                    console.log('没有 token，跳过刷新');
+                    console.log('❌ 没有 token，跳过刷新');
                     return false;
                 }
                 
@@ -1736,13 +1742,11 @@
 
         // 带 token 管理的 fetch 封装
         async function fetchWithAuth(url, options = {}) {
-            // 检查并刷新 token（如果需要）
-            if (TokenManager.isTokenExpiringSoon()) {
-                await TokenManager.refreshToken();
-            }
-            
+            console.log('🚀 fetchWithAuth 被调用，URL:', url);
             const token = TokenManager.getToken();
+            console.log('🔑 当前token:', token ? '存在' : '不存在');
             if (!token) {
+                console.log('❌ 没有token，跳转登录页面');
                 window.location.href = 'login.html';
                 throw new Error('未登录');
             }
@@ -1751,43 +1755,74 @@
             options.headers = options.headers || {};
             options.headers['Authorization'] = `Bearer ${token}`;
             
-            try {
-                const response = await fetch(url, options);
-                
-                // 处理认证错误
-                if (response.status === 403) {
-                    // 403: 刷新token
-                    console.log('🔴 收到 403，尝试刷新 token');
-                    console.log('请求URL:', url);
-                    const refreshed = await TokenManager.refreshToken();
-                    console.log('Token刷新结果:', refreshed);
+            const makeRequest = () => {
+                return fetch(url, options).then(async (response) => {
+                    console.log(`📡 请求 ${url} 响应状态: ${response.status}`);
                     
-                    if (refreshed) {
-                        // 重试请求
-                        console.log('🔄 使用新token重试请求');
-                        const newToken = TokenManager.getToken();
-                        options.headers['Authorization'] = `Bearer ${newToken}`;
-                        return await fetch(url, options);
-                    } else {
-                        // 刷新失败，跳转登录
-                        console.log('❌ Token刷新失败，跳转登录页面');
+                    if (response.status === 200) {
+                        return response;
+                    } else if (response.status === 401) {
+                        console.log('🔴 收到 401，需要重新登录');
                         TokenManager.clearToken();
                         window.location.href = 'login.html';
-                        throw new Error('Token刷新失败');
+                        throw new Error('登录已失效，请重新登录');
+                    } else if (response.status === 403) {
+                        console.log('🔴 收到 403，尝试刷新 token');
+                        
+                        if (!isRefreshing) {
+                            isRefreshing = true;
+                            try {
+                                const refreshed = await TokenManager.refreshToken();
+                                console.log('Token刷新结果:', refreshed);
+                                
+                                if (refreshed) {
+                                    const newToken = TokenManager.getToken();
+                                    console.log('🔄 使用新token重试请求');
+                                    
+                                    // 处理队列中的请求
+                                    pendingRequests.forEach(cb => cb(newToken));
+                                    pendingRequests = [];
+                                    isRefreshing = false;
+                                    
+                                    // 递归重试当前请求
+                                    return await fetchWithAuth(url, options);
+                                } else {
+                                    // 刷新失败，跳转登录
+                                    console.log('❌ Token刷新失败，跳转登录页面');
+                                    TokenManager.clearToken();
+                                    window.location.href = 'login.html';
+                                    throw new Error('Token刷新失败');
+                                }
+                            } catch (err) {
+                                pendingRequests = [];
+                                isRefreshing = false;
+                                console.log('❌ Token刷新异常，跳转登录页面');
+                                TokenManager.clearToken();
+                                window.location.href = 'login.html';
+                                throw err;
+                            }
+                        } else {
+                            // 正在刷新中，将请求加入队列
+                            console.log('🔄 token刷新中，请求挂起');
+                            return new Promise((resolve, reject) => {
+                                pendingRequests.push(async (newToken) => {
+                                    try {
+                                        const retryResponse = await fetchWithAuth(url, options);
+                                        resolve(retryResponse);
+                                    } catch (err) {
+                                        reject(err);
+                                    }
+                                });
+                            });
+                        }
+                    } else {
+                        console.error(`请求失败: ${response.status}`);
+                        throw new Error(`请求失败: ${response.status}`);
                     }
-                } else if (response.status === 401) {
-                    // 401: 直接重新登录
-                    console.log('🔴 收到 401，需要重新登录');
-                    TokenManager.clearToken();
-                    window.location.href = 'login.html';
-                    throw new Error('登录已失效，请重新登录');
-                }
-                
-                return response;
-            } catch (error) {
-                console.error('请求失败:', error);
-                throw error;
-            }
+                });
+            };
+            
+            return makeRequest();
         }
 
         // 页面加载时初始化
@@ -1850,13 +1885,7 @@
 
             try {
                 console.log('📡 获取用户信息...');
-                const currentToken = TokenManager.getToken();
-                const response = await fetch('/api/v1/auth/info', {
-                    headers: {
-                        'Authorization': `Bearer ${currentToken}`
-                    }
-                });
-                
+                const response = await fetchWithAuth('/api/v1/auth/info');
                 const result = await response.json();
                 console.log('📥 用户信息响应:', result);
 

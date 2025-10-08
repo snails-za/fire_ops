@@ -142,7 +142,7 @@ class VectorDBSelector:
         try:
             # 执行搜索
             print(f"🔍 执行向量搜索: 查询='{query}', top_k={top_k}, 数据库类型={self.db_type}")
-            results = self.vectorstore.similarity_search_with_score(query, k=top_k)
+            results = self.vectorstore.similarity_search_with_score(query, k=20)
             print(f"📊 搜索结果数量: {len(results)}")
 
             # 转换为标准格式
@@ -158,6 +158,7 @@ class VectorDBSelector:
                 print(f"📈 结果 {i + 1}: score={score:.4f}, similarity={similarity:.4f}")
                 # 获取元数据
                 metadata = doc.metadata
+                print(f"📄 文档元数据: {metadata}")
                 document_id = metadata.get('document_id')
                 chunk_id = metadata.get('chunk_id')
 
@@ -165,7 +166,13 @@ class VectorDBSelector:
                     try:
                         # 获取数据库中的文档和块信息
                         document = await DocumentModel.get_or_none(id=document_id)
+                        if not document:
+                            await vector_search.delete_document(document_id)
+                            continue
                         chunk = await DocumentChunk.get_or_none(id=chunk_id)
+                        if not chunk:
+                            await vector_search.delete_document(document_id)
+                            continue
 
                         if document and chunk:
                             result_item = {

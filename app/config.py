@@ -144,6 +144,17 @@ OCR_USE_GPU = config("OCR_USE_GPU", cast=bool, default=True)
 # OCR模型缓存路径
 OCR_MODEL_PATH = config("OCR_MODEL_PATH", default=os.path.join(BASE_PATH, "models", "easyocr"))
 
+# OCR并发处理配置
+OCR_MAX_CONCURRENT_PAGES = config("OCR_MAX_CONCURRENT_PAGES", cast=int, default=1)
+# 说明：
+# 1 = 串行处理（最省内存，推荐内存 < 2GB）
+# 2 = 并发2页（需要更多内存，推荐内存 2-4GB）
+# 3+ = 更高并发（需要 4GB+ 内存）
+
+# OCR分批处理配置（节省内存）
+OCR_BATCH_SIZE = config("OCR_BATCH_SIZE", cast=int, default=5)  # 每批处理页数
+OCR_DPI = config("OCR_DPI", cast=int, default=150)  # 降低DPI节省内存
+
 # =============================================================================
 # Celery异步任务配置
 # =============================================================================

@@ -240,45 +240,11 @@ class DocumentParser:
             
             print(f"📄 PDF共 {total_pages} 页，将分批处理以节省内存")
             
-            # 分批转换
-            all_images = []
-            for batch_start in range(1, total_pages + 1, OCR_BATCH_SIZE):
-                batch_end = min(batch_start + OCR_BATCH_SIZE - 1, total_pages)
-                print(f"🔄 转换第 {batch_start}-{batch_end} 页...")
-                
-                try:
-                    batch_images = await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        lambda: convert_from_path(
-                            file_path, 
-                            dpi=OCR_DPI,  # 使用配置的DPI
-                            first_page=batch_start,
-                            last_page=batch_end,
-                            fmt='jpeg'  # 使用JPEG压缩
-                        )
-                    )
-                    all_images.extend(batch_images)
-                    print(f"✅ 第 {batch_start}-{batch_end} 页转换完成")
-                    
-                    # 每批转换完后立即清理
-                    gc.collect()
-                    
-                except Exception as e:
-                    if "poppler" in str(e).lower():
-                        raise Exception(
-                            "缺少poppler依赖。请运行: brew install poppler (macOS) 或 apt-get install poppler-utils (Ubuntu)")
-                    print(f"⚠️ 第 {batch_start}-{batch_end} 页转换失败: {e}")
-            
-            images = all_images
-            
-            if not images:
-                raise Exception("PDF转换后未获得任何图片页面")
-
             content = ""
-            total_pages = len(images)
             successful_pages = 0
+            current_page_num = 0
 
-            print(f"📄 开始OCR处理 {total_pages} 页...")
+            print(f"📄 开始分批处理 {total_pages} 页...")
             print(f"⚙️ OCR并发数: {OCR_MAX_CONCURRENT_PAGES} 页")
 
             # 添加超时控制，避免单个页面处理时间过长
@@ -316,23 +282,57 @@ class DocumentParser:
                     except Exception as e:
                         return page_num, None, str(e)
             
-            # 创建任务
-            tasks = [process_single_page(page_num, image) for page_num, image in enumerate(images, 1)]
-            
-            # 并发执行，但保持结果顺序
-            results = await asyncio.gather(*tasks, return_exceptions=False)
-            
-            # 按页面顺序处理结果
-            for page_num, page_text, error in results:
-                if not error and page_text and page_text.strip():
-                    content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
-                    content += page_text.strip() + "\n"
-                    successful_pages += 1
-
-            # 清理图像列表，释放内存
-            del images
-            gc.collect()
-            print("🧹 已清理图像内存")
+            # 真正的分批处理：转换一批，处理一批，立即释放
+            for batch_start in range(1, total_pages + 1, OCR_BATCH_SIZE):
+                batch_end = min(batch_start + OCR_BATCH_SIZE - 1, total_pages)
+                print(f"🔄 转换第 {batch_start}-{batch_end} 页...")
+                
+                try:
+                    # 转换当前批次
+                    batch_images = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: convert_from_path(
+                            file_path, 
+                            dpi=OCR_DPI,
+                            first_page=batch_start,
+                            last_page=batch_end,
+                            fmt='jpeg'
+                        )
+                    )
+                    print(f"✅ 第 {batch_start}-{batch_end} 页转换完成")
+                    
+                    if not batch_images:
+                        print(f"⚠️ 第 {batch_start}-{batch_end} 页转换后无图片")
+                        continue
+                    
+                    # 立即处理当前批次
+                    batch_tasks = []
+                    for idx, image in enumerate(batch_images):
+                        page_num = batch_start + idx
+                        batch_tasks.append(process_single_page(page_num, image))
+                    
+                    # 并发处理当前批次
+                    batch_results = await asyncio.gather(*batch_tasks, return_exceptions=False)
+                    
+                    # 保存当前批次结果
+                    for page_num, page_text, error in batch_results:
+                        if not error and page_text and page_text.strip():
+                            content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
+                            content += page_text.strip() + "\n"
+                            successful_pages += 1
+                    
+                    # 立即清理当前批次
+                    del batch_images
+                    del batch_tasks
+                    del batch_results
+                    gc.collect()
+                    print(f"🧹 第 {batch_start}-{batch_end} 页处理完成，已清理内存")
+                    
+                except Exception as e:
+                    if "poppler" in str(e).lower():
+                        raise Exception(
+                            "缺少poppler依赖。请运行: brew install poppler (macOS) 或 apt-get install poppler-utils (Ubuntu)")
+                    print(f"⚠️ 第 {batch_start}-{batch_end} 页处理失败: {e}")
 
             if successful_pages == 0:
                 raise Exception("所有页面的OCR处理均失败")

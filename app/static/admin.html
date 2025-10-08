@@ -1589,6 +1589,7 @@
         let devicesPage = 1;
         let documentsPage = 1;
         let selectedFiles = [];
+        let selectedDocuments = new Set(); // 用于存储选中的文档ID
         const pageSize = 10;
         
         // Token 配置
@@ -1648,6 +1649,7 @@
                 
                 try {
                     console.log('🔄 正在刷新 token...');
+                    console.log('当前token:', token);
                     const response = await fetch('/api/v1/auth/refresh_token', {
                         method: 'GET',
                         headers: {
@@ -1655,7 +1657,9 @@
                         }
                     });
                     
+                    console.log('刷新token响应状态:', response.status);
                     const result = await response.json();
+                    console.log('刷新token响应结果:', result);
                     
                     if (response.ok && result.code === 200) {
                         console.log('✅ Token 刷新成功');
@@ -1753,23 +1757,27 @@
                 // 处理认证错误
                 if (response.status === 403) {
                     // 403: 刷新token
-                    console.log('收到 403，尝试刷新 token');
+                    console.log('🔴 收到 403，尝试刷新 token');
+                    console.log('请求URL:', url);
                     const refreshed = await TokenManager.refreshToken();
+                    console.log('Token刷新结果:', refreshed);
                     
                     if (refreshed) {
                         // 重试请求
+                        console.log('🔄 使用新token重试请求');
                         const newToken = TokenManager.getToken();
                         options.headers['Authorization'] = `Bearer ${newToken}`;
                         return await fetch(url, options);
                     } else {
                         // 刷新失败，跳转登录
+                        console.log('❌ Token刷新失败，跳转登录页面');
                         TokenManager.clearToken();
                         window.location.href = 'login.html';
                         throw new Error('Token刷新失败');
                     }
                 } else if (response.status === 401) {
                     // 401: 直接重新登录
-                    console.log('收到 401，需要重新登录');
+                    console.log('🔴 收到 401，需要重新登录');
                     TokenManager.clearToken();
                     window.location.href = 'login.html';
                     throw new Error('登录已失效，请重新登录');
@@ -2955,23 +2963,28 @@
                 batchControls.classList.remove('hidden');
             }
             
+            console.log('📊 更新批量控制按钮状态:', selectedDocuments.size);
             if (selectedDocuments.size > 0) {
                 if (batchDeleteBtn) {
                     batchDeleteBtn.disabled = false;
                     batchDeleteBtn.style.opacity = '1';
+                    console.log('✅ 启用批量删除按钮');
                 }
                 if (batchReprocessBtn) {
                     batchReprocessBtn.disabled = false;
                     batchReprocessBtn.style.opacity = '1';
+                    console.log('✅ 启用批量重新解析按钮');
                 }
             } else {
                 if (batchDeleteBtn) {
                     batchDeleteBtn.disabled = true;
                     batchDeleteBtn.style.opacity = '0.5';
+                    console.log('❌ 禁用批量删除按钮');
                 }
                 if (batchReprocessBtn) {
                     batchReprocessBtn.disabled = true;
                     batchReprocessBtn.style.opacity = '0.5';
+                    console.log('❌ 禁用批量重新解析按钮');
                 }
             }
             
@@ -3002,6 +3015,8 @@
 
         // 批量删除文档
         async function batchDeleteDocuments() {
+            console.log('🔴 批量删除按钮被点击');
+            console.log('选中的文档数量:', selectedDocuments.size);
             if (selectedDocuments.size === 0) {
                 showStatus('请先选择要删除的文档', 'error');
                 return;
@@ -3058,6 +3073,8 @@
 
         // 批量重新解析文档
         async function batchReprocessDocuments() {
+            console.log('🟡 批量重新解析按钮被点击');
+            console.log('选中的文档数量:', selectedDocuments.size);
             if (selectedDocuments.size === 0) {
                 showStatus('请先选择要重新解析的文档', 'error');
                 return;

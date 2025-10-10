@@ -10,6 +10,7 @@ class User(BaseModel):
     password = fields.CharField(max_length=128, null=True, description="密码")
     head = fields.CharField(max_length=255, null=True, description="头像")
     pinyin = fields.CharField(max_length=255, null=True, description="用户名首字母")
+    role = fields.CharField(max_length=20, default='user', description="用户角色: user, admin")
 
 
 class FriendRequest(BaseModel):

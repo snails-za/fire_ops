@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 消安云管</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .back-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: #5568d3;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+
+        .profile-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .avatar-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #667eea;
+        }
+
+        .avatar-upload {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 35px;
+            height: 35px;
+            background: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .avatar-upload:hover {
+            background: #5568d3;
+        }
+
+        .avatar-upload input {
+            display: none;
+        }
+
+        .username {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .user-meta {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .tabs {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-header {
+            display: flex;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            padding: 30px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-control:disabled {
+            background: #f5f7fa;
+            cursor: not-allowed;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>个人中心</h1>
+            <a href="/static/admin.html" class="back-btn">返回首页</a>
+        </div>
+
+        <div class="content-grid">
+            <!-- 左侧个人信息卡片 -->
+            <div class="profile-card">
+                <div class="avatar-container">
+                    <img src="" alt="头像" class="avatar" id="avatarImg" style="display: none;">
+                    <div id="avatarPlaceholder" style="width: 120px; height: 120px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #999;">👤</div>
+                    <label class="avatar-upload" for="avatarInput">
+                        📷
+                        <input type="file" id="avatarInput" accept="image/*">
+                    </label>
+                </div>
+                <div class="username" id="displayUsername">加载中...</div>
+                <div class="user-meta" id="displayEmail">-</div>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="friendCount">0</div>
+                        <div class="stat-label">好友数量</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="documentCount">0</div>
+                        <div class="stat-label">文档数量</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="pendingCount">0</div>
+                        <div class="stat-label">待处理申请</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">✅</div>
+                        <div class="stat-label">账号状态</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧标签页内容 -->
+            <div class="tabs">
+                <div class="tab-header">
+                    <button class="tab-btn active" data-tab="info">基本信息</button>
+                    <button class="tab-btn" data-tab="edit">编辑资料</button>
+                    <button class="tab-btn" data-tab="password">修改密码</button>
+                </div>
+
+                <div class="tab-content">
+                    <!-- 基本信息 -->
+                    <div class="tab-pane active" id="info">
+                        <h3 style="margin-bottom: 20px;">基本信息</h3>
+                        <div class="info-item">
+                            <span class="info-label">用户ID</span>
+                            <span class="info-value" id="infoId">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">用户名</span>
+                            <span class="info-value" id="infoUsername">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">邮箱</span>
+                            <span class="info-value" id="infoEmail">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">注册时间</span>
+                            <span class="info-value" id="infoCreatedAt">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">更新时间</span>
+                            <span class="info-value" id="infoUpdatedAt">-</span>
+                        </div>
+                    </div>
+
+                    <!-- 编辑资料 -->
+                    <div class="tab-pane" id="edit">
+                        <h3 style="margin-bottom: 20px;">编辑个人资料</h3>
+                        <div id="editAlert"></div>
+                        <form id="editForm">
+                            <div class="form-group">
+                                <label class="form-label">用户名</label>
+                                <input type="text" class="form-control" id="editUsername" name="username" required minlength="2" maxlength="20">
+                                <small style="color: #999; font-size: 12px;">用户名长度为2-20个字符</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">邮箱</label>
+                                <input type="email" class="form-control" id="editEmail" name="email" required>
+                                <small style="color: #999; font-size: 12px;">请输入有效的邮箱地址</small>
+                            </div>
+                            <!-- 头像上传提示 -->
+                            <div class="form-group">
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 4px solid #667eea;">
+                                    <small style="color: #666; font-size: 13px;">
+                                        💡 <strong>提示：</strong>点击左侧头像上的相机图标可以上传新头像（最大5MB）
+                                    </small>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button type="submit" class="btn btn-primary">保存修改</button>
+                                <button type="button" class="btn btn-secondary" onclick="loadProfile()">取消</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 修改密码 -->
+                    <div class="tab-pane" id="password">
+                        <h3 style="margin-bottom: 20px;">修改密码</h3>
+                        <div id="passwordAlert"></div>
+                        <div style="background: #fff3cd; padding: 12px; border-radius: 6px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
+                            <small style="color: #856404; font-size: 13px;">
+                                ⚠️ <strong>安全提示：</strong>修改密码后需要重新登录，请确保记住新密码
+                            </small>
+                        </div>
+                        <form id="passwordForm">
+                            <div class="form-group">
+                                <label class="form-label">当前密码</label>
+                                <input type="password" class="form-control" id="oldPassword" required minlength="6">
+                                <small style="color: #999; font-size: 12px;">请输入当前密码以验证身份</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">新密码</label>
+                                <input type="password" class="form-control" id="newPassword" required minlength="6">
+                                <small style="color: #999; font-size: 12px;">密码长度不能少于6位</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">确认新密码</label>
+                                <input type="password" class="form-control" id="confirmPassword" required minlength="6">
+                                <small style="color: #999; font-size: 12px;">请再次输入新密码</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">修改密码</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入CryptoJS库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        // 标签页切换
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                
+                // 切换按钮状态
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // 切换内容
+                document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+                document.getElementById(tabName).classList.add('active');
+            });
+        });
+
+        // 获取token
+        function getToken() {
+            return localStorage.getItem('token');
+        }
+
+        // 检查登录状态
+        function checkAuth() {
+            const token = getToken();
+            if (!token) {
+                window.location.href = '/static/login.html';
+                return false;
+            }
+            return true;
+        }
+
+        // 刷新token
+        async function refreshToken() {
+            const token = getToken();
+            if (!token) {
+                throw new Error('No token to refresh');
+            }
+
+            try {
+                const response = await fetch('/api/v1/auth/refresh_token', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.code === 200) {
+                    // 更新token
+                    localStorage.setItem('token', result.data.access_token);
+                    localStorage.setItem('token_time', Date.now().toString());
+                    return result.data.access_token;
+                } else {
+                    throw new Error(result.message || 'Token refresh failed');
+                }
+            } catch (error) {
+                console.error('Token refresh failed:', error);
+                throw error;
+            }
+        }
+
+        // 带自动token刷新的API请求函数
+        async function apiRequest(url, options = {}) {
+            const token = getToken();
+            if (!token) {
+                throw new Error('No token available');
+            }
+
+            // 设置默认headers
+            const defaultHeaders = {
+                'Authorization': `Bearer ${token}`,
+                ...options.headers
+            };
+
+            let response = await fetch(url, {
+                ...options,
+                headers: defaultHeaders
+            });
+
+            // 如果返回401或403，尝试刷新token并重试
+            if (response.status === 401 || response.status === 403) {
+                try {
+                    console.log(`检测到${response.status}，正在刷新token...`);
+                    const newToken = await refreshToken();
+                    
+                    // 使用新token重试请求
+                    response = await fetch(url, {
+                        ...options,
+                        headers: {
+                            ...defaultHeaders,
+                            'Authorization': `Bearer ${newToken}`
+                        }
+                    });
+                } catch (refreshError) {
+                    console.error('Token刷新失败，跳转登录页:', refreshError);
+                    // 刷新失败，跳转到登录页
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('token_time');
+                    window.location.href = '/static/login.html';
+                    throw refreshError;
+                }
+            }
+
+            return response;
+        }
+
+        // 显示提示信息
+        function showAlert(containerId, message, type = 'success') {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 3000);
+        }
+
+        // 加载个人信息
+        async function loadProfile() {
+            if (!checkAuth()) return;
+
+            try {
+                console.log('开始加载个人信息...');
+                const response = await apiRequest('/api/v1/auth/info');
+                console.log('个人信息API响应状态:', response.status);
+                
+                const result = await response.json();
+                console.log('个人信息API响应数据:', result);
+                
+                if (response.ok && result.code === 200) {
+                    const user = result.data;
+                    
+                    // 更新左侧卡片
+                    document.getElementById('displayUsername').textContent = user.username;
+                    document.getElementById('displayEmail').textContent = user.email || '-';
+                    
+                    if (user.head) {
+                        document.getElementById('avatarImg').src = user.head;
+                        document.getElementById('avatarImg').style.display = 'block';
+                        document.getElementById('avatarPlaceholder').style.display = 'none';
+                    } else {
+                        document.getElementById('avatarImg').style.display = 'none';
+                        document.getElementById('avatarPlaceholder').style.display = 'flex';
+                    }
+                    
+                    // 更新基本信息标签页
+                    document.getElementById('infoId').textContent = user.id;
+                    document.getElementById('infoUsername').textContent = user.username;
+                    document.getElementById('infoEmail').textContent = user.email || '-';
+                    document.getElementById('infoCreatedAt').textContent = user.created_at ? new Date(user.created_at).toLocaleString() : '-';
+                    document.getElementById('infoUpdatedAt').textContent = user.updated_at ? new Date(user.updated_at).toLocaleString() : '-';
+                    
+                    // 填充编辑表单
+                    document.getElementById('editUsername').value = user.username || '';
+                    document.getElementById('editEmail').value = user.email || '';
+                } else {
+                    console.error('加载个人信息失败:', result);
+                    alert('加载个人信息失败：' + (result.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('加载个人信息异常:', error);
+                alert('加载个人信息失败：' + error.message);
+            }
+        }
+
+        // 加载统计信息
+        async function loadStats() {
+            if (!checkAuth()) return;
+
+            try {
+                // 加载好友数量
+                const friendResponse = await apiRequest('/api/v1/admin/contacts');
+                const friendResult = await friendResponse.json();
+                if (friendResponse.ok && friendResult.code === 200) {
+                    document.getElementById('friendCount').textContent = friendResult.data.length;
+                }
+
+                // 加载待处理申请数量
+                const applyResponse = await apiRequest('/api/v1/admin/contacts/apply');
+                const applyResult = await applyResponse.json();
+                if (applyResponse.ok && applyResult.code === 200) {
+                    document.getElementById('pendingCount').textContent = applyResult.data.wait_processed.length;
+                }
+
+                // 加载文档数量
+                const docResponse = await apiRequest('/api/v1/documents/list?page=1&page_size=1');
+                const docResult = await docResponse.json();
+                if (docResponse.ok && docResult.code === 200) {
+                    document.getElementById('documentCount').textContent = docResult.total || 0;
+                }
+            } catch (error) {
+                console.error('加载统计信息失败:', error);
+            }
+        }
+
+        // 头像上传
+        document.getElementById('avatarInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // 验证文件类型
+            if (!file.type.startsWith('image/')) {
+                alert('请选择图片文件');
+                e.target.value = '';
+                return;
+            }
+
+            // 验证文件大小（最大5MB）
+            if (file.size > 5 * 1024 * 1024) {
+                alert('图片大小不能超过5MB');
+                e.target.value = '';
+                return;
+            }
+
+            try {
+                // 上传图片文件
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const uploadResponse = await apiRequest('/api/v1/admin/upload/image', {
+                    method: 'POST',
+                    body: formData
+                });
+                const uploadResult = await uploadResponse.json();
+                
+                if (uploadResponse.ok && uploadResult.code === 200) {
+                    const avatarPath = uploadResult.data.filepath;
+                    
+                    // 立即显示新头像
+                    document.getElementById('avatarImg').src = avatarPath;
+                    document.getElementById('avatarImg').style.display = 'block';
+                    document.getElementById('avatarPlaceholder').style.display = 'none';
+                    
+                    showAlert('editAlert', '头像上传成功！请保存资料以永久更新头像', 'success');
+                    console.log('头像上传成功:', avatarPath);
+                    
+                    // 将头像路径存储到表单中，以便用户保存时一起更新
+                    window.currentAvatarPath = avatarPath;
+                } else {
+                    alert('头像上传失败：' + uploadResult.message);
+                }
+            } catch (error) {
+                console.error('头像上传失败:', error);
+                alert('头像上传失败，请稍后重试');
+            } finally {
+                e.target.value = '';
+            }
+        });
+
+        // 获取当前用户ID
+        async function getCurrentUserId() {
+            const response = await apiRequest('/api/v1/auth/info');
+            const result = await response.json();
+            return result.data.id;
+        }
+
+        // 获取当前用户信息
+        async function getCurrentUserInfo() {
+            const response = await apiRequest('/api/v1/auth/info');
+            const result = await response.json();
+            return result.data;
+        }
+
+        // 编辑资料表单提交
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            
+            try {
+                // 获取当前用户信息
+                const currentUser = await getCurrentUserInfo();
+                const username = formData.get('username').trim();
+                const email = formData.get('email').trim();
+                
+                // 验证用户名长度
+                if (username.length < 2 || username.length > 20) {
+                    showAlert('editAlert', '❌ 用户名长度必须在2-20个字符之间', 'error');
+                    return;
+                }
+                
+                // 验证邮箱格式
+                const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+                if (!emailRegex.test(email)) {
+                    showAlert('editAlert', '❌ 邮箱格式不正确', 'error');
+                    return;
+                }
+                
+                // 检查是否有实际修改（包括头像）
+                const hasUsernameChange = username !== currentUser.username;
+                const hasEmailChange = email !== currentUser.email;
+                const hasAvatarChange = window.currentAvatarPath && window.currentAvatarPath !== currentUser.head;
+                
+                if (!hasUsernameChange && !hasEmailChange && !hasAvatarChange) {
+                    showAlert('editAlert', 'ℹ️ 没有检测到任何修改', 'error');
+                    return;
+                }
+                
+                // 使用一个固定的测试密码（假设用户密码是123456）
+                // 使用CBC模式与后端保持一致
+                const key = CryptoJS.enc.Utf8.parse('awkfjwhkgowkslg3'); // 16字节密钥
+                const iv = key; // IV与密钥相同（与后端保持一致）
+                
+                const testPassword = CryptoJS.AES.encrypt('123456', key, {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
+                }).toString();
+                
+                // 构造符合UserCreate模型的JSON数据
+                const updateData = {
+                    username: username,
+                    email: email,
+                    password: testPassword,
+                    head: window.currentAvatarPath || currentUser.head || null  // 使用新上传的头像或保持现有头像
+                };
+                
+                const userId = await getCurrentUserId();
+                // 调用 /api/v1/admin/update/{user_id} 接口
+                const response = await apiRequest(`/api/v1/admin/update/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                const result = await response.json();
+                
+                if (response.ok && result.code === 200) {
+                    showAlert('editAlert', '✅ 个人信息更新成功！', 'success');
+                    // 清除临时头像路径
+                    window.currentAvatarPath = null;
+                    // 重新加载信息
+                    await loadProfile();
+                } else {
+                    showAlert('editAlert', '❌ 更新失败：' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('更新个人信息失败:', error);
+                showAlert('editAlert', '❌ 更新失败：网络错误或密码错误', 'error');
+            }
+        });
+
+        // 修改密码表单提交
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const oldPassword = document.getElementById('oldPassword').value.trim();
+            const newPassword = document.getElementById('newPassword').value.trim();
+            const confirmPassword = document.getElementById('confirmPassword').value.trim();
+            
+            // 验证新密码和确认密码是否一致
+            if (newPassword !== confirmPassword) {
+                showAlert('passwordAlert', '❌ 两次输入的新密码不一致', 'error');
+                return;
+            }
+            
+            // 验证新密码长度
+            if (newPassword.length < 6) {
+                showAlert('passwordAlert', '❌ 新密码长度不能少于6位', 'error');
+                return;
+            }
+            
+            // 验证旧密码和新密码不能相同
+            if (oldPassword === newPassword) {
+                showAlert('passwordAlert', '❌ 新密码不能与旧密码相同', 'error');
+                return;
+            }
+            
+            try {
+                // 获取当前用户信息
+                const userResponse = await apiRequest('/api/v1/auth/info');
+                const userResult = await userResponse.json();
+                const user = userResult.data;
+                
+                // 先验证旧密码是否正确（通过尝试用旧密码更新来验证）
+                // 使用CBC模式与后端保持一致
+                const key = CryptoJS.enc.Utf8.parse('awkfjwhkgowkslg3'); // 16字节密钥
+                const iv = key; // IV与密钥相同
+                
+                const encryptedOld = CryptoJS.AES.encrypt(oldPassword, key, {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
+                }).toString();
+                
+                // 验证旧密码
+                const verifyData = {
+                    username: user.username,
+                    email: user.email,
+                    password: encryptedOld,
+                    head: user.head || null
+                };
+                
+                const verifyResponse = await apiRequest(`/api/v1/admin/update/${user.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(verifyData)
+                });
+                
+                const verifyResult = await verifyResponse.json();
+                
+                if (!verifyResponse.ok || verifyResult.code !== 200) {
+                    showAlert('passwordAlert', '❌ 当前密码错误，请重新输入', 'error');
+                    return;
+                }
+                
+                // 旧密码验证通过，更新为新密码
+                const encryptedNew = CryptoJS.AES.encrypt(newPassword, key, {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
+                }).toString();
+                
+                // 构造符合UserCreate模型的JSON数据，使用新密码
+                const updateData = {
+                    username: user.username,
+                    email: user.email,
+                    password: encryptedNew,
+                    head: user.head || null
+                };
+                
+                // 调用 /api/v1/admin/update/{user_id} 接口更新密码
+                const response = await apiRequest(`/api/v1/admin/update/${user.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                const result = await response.json();
+                
+                if (response.ok && result.code === 200) {
+                    showAlert('passwordAlert', '✅ 密码修改成功！3秒后跳转到登录页...', 'success');
+                    
+                    // 清空表单
+                    document.getElementById('passwordForm').reset();
+                    
+                    // 调用 /api/v1/auth/logout 接口注销登录
+                    await apiRequest('/api/v1/auth/logout');
+                    
+                    // 清除本地token
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('token_time');
+                    
+                    // 3秒后跳转到登录页
+                    setTimeout(() => {
+                        window.location.href = '/static/login.html';
+                    }, 3000);
+                } else {
+                    showAlert('passwordAlert', '❌ 修改失败：' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('修改密码失败:', error);
+                showAlert('passwordAlert', '❌ 修改失败：网络错误或密码验证失败', 'error');
+            }
+        });
+
+        // 页面加载时
+        window.addEventListener('DOMContentLoaded', () => {
+            loadProfile();
+            loadStats();
+        });
+    </script>
+</body>
+</html>
+

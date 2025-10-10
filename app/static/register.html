@@ -396,7 +396,8 @@
                 // 构建请求数据
                 const requestData = {
                     username: username,
-                    password: encryptedPassword
+                    password: encryptedPassword,
+                    role: "admin"  // 前端直接设置为管理员角色
                 };
 
                 // 如果填写了邮箱，添加到请求中

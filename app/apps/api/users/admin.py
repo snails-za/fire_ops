@@ -8,6 +8,7 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
 from apps.dependencies.auth import get_current_user
+from apps.dependencies.permissions import check_admin_permission
 from apps.form.users.form import UserCreate, ProcessApplyRequest
 from apps.models.user import User, FriendRequest
 from apps.utils import response
@@ -32,7 +33,7 @@ async def upload_image(file: UploadFile = File(...)):
     return response(data={"filepath": os.path.join("/", "static", "images", "user", filename)}, message="上传成功")
 
 
-@router.get("/list", summary="用户列表", description="获取用户列表", dependencies=[Depends(get_current_user)])
+@router.get("/list", summary="用户列表", description="获取用户列表", dependencies=[Depends(check_admin_permission)])
 async def user_list(username: Optional[str] = None, page: int = 1, page_size: int = 10):
     conditions = []
     if username:
@@ -58,7 +59,7 @@ async def create_user(user: UserCreate):
         return response(code=0, message="密码参数错误！")
     heads = os.listdir(os.path.join(STATIC_PATH, "images", "user", "demo"))
     user_obj = await User.create(username=user.username, email=user.email, pinyin=get_pinyin(user.username),
-                                 password=get_hash(decrypt_pwd), head=os.path.join("/", "static", "images", "user", "demo", random.choice(heads)))
+                                 password=get_hash(decrypt_pwd), head=os.path.join("/", "static", "images", "user", "demo", random.choice(heads)), role=user.role)
     data = await User_Pydantic.from_tortoise_orm(user_obj)
     return response(data=data.model_dump(), message="注册成功！")
 
@@ -96,7 +97,7 @@ async def read_user(user_id: int):
 
 
 @router.delete("/delete/{user_id}", response_model=dict, summary="删除用户", description="删除用户",
-               dependencies=[Depends(get_current_user)])
+               dependencies=[Depends(check_admin_permission)])
 async def delete_user(user_id: int, user: User = Depends(get_current_user)):
     if user.id == user_id:
         return response(code=0, message="不允许删除自身账号！")

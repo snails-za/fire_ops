@@ -77,9 +77,15 @@ async def login(
     token = gen_token(user.id, login_time, seconds=MAX_AGE)
     await redis_client.set(f"token-{login_time}-{user.id}", token, MAX_AGE)
     await redis_client.set(f"refresh_token-{login_time}-{user.id}", token, REFRESH_MAX_AGE)
+    
+    # 检查用户角色，只有管理员可以登录后台
+    if user.role != "admin":
+        return response(code=403, message="普通用户无法登录后台管理系统")
+    
     resp = {
         "access_token": token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user_role": user.role
     }
     return response(data=resp, message="登录成功！")
 

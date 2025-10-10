@@ -16,6 +16,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100, title="密码", description="密码长度在8到20之间")
+    role: Optional[str] = Field(default="user", title="用户角色", description="用户角色: user, admin")
 
 
 class ProcessApplyRequest(BaseModel):

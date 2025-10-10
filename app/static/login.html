@@ -150,6 +150,117 @@
         .loading.show {
             display: block;
         }
+        /* 自定义弹框样式 */
+        .custom-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease-out;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-header .close {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .modal-header .close:hover {
+            opacity: 1;
+        }
+
+        .modal-body {
+            padding: 25px;
+            text-align: center;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .modal-footer {
+            padding: 0 25px 25px;
+            text-align: center;
+        }
+
+        .modal-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            min-width: 100px;
+        }
+
+        .modal-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .modal-btn:active {
+            transform: translateY(0);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .error-modal .modal-header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        .error-modal .modal-btn {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
     </style>
 </head>
 <body>
@@ -189,8 +300,24 @@
             </div>
             
             <div id="message"></div>
-        </form>
+    </form>
+</div>
+
+<!-- 自定义弹框 -->
+<div id="customModal" class="custom-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">提示</h3>
+            <span class="close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p id="modalMessage">这是一条消息</p>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn" onclick="closeModal()">确定</button>
+        </div>
     </div>
+</div>
 
     <script>
         let captchaId = '';
@@ -321,6 +448,7 @@
                         window.location.href = 'admin.html';
                     }, 1000);
                 } else {
+                    // 显示简单的文字提示
                     showMessage('登录失败: ' + (result.message || '未知错误'), 'error');
                     refreshCaptcha(); // 刷新验证码
                 }
@@ -332,6 +460,34 @@
                 showLoading(false);
             }
         });
+
+        // 显示自定义弹框
+        function showCustomModal(title, message, type = 'info') {
+            const modal = document.getElementById('customModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            
+            // 根据类型设置样式
+            modal.className = `custom-modal ${type}-modal`;
+            
+            modal.style.display = 'block';
+            
+            // 点击背景关闭
+            modal.onclick = function(event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            };
+        }
+
+        // 关闭弹框
+        function closeModal() {
+            const modal = document.getElementById('customModal');
+            modal.style.display = 'none';
+        }
     </script>
 </body>
 </html>

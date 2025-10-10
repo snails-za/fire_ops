@@ -163,7 +163,6 @@ cython_debug/
 app/uploads/*
 app/static/*
 app/models/.locks
-app/models/easyocr
 app/models/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2
 app/models/xet
 app/data/*

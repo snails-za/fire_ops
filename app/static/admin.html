@@ -120,10 +120,86 @@
             padding: 8px 15px;
             border-radius: 50px;
             transition: all 0.3s;
+            position: relative;
         }
 
         .user-info:hover {
             background: #f5f7fa;
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 180px;
+            display: none;
+            z-index: 1001;
+            overflow: hidden;
+        }
+
+        .user-dropdown.show {
+            display: block;
+            animation: dropdownFadeIn 0.2s ease-out;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dropdown-header {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .dropdown-header .user-name-large {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 3px;
+        }
+
+        .dropdown-header .user-email {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .dropdown-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #333;
+            text-decoration: none;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: #f8f9fa;
+            padding-left: 20px;
+        }
+
+        .dropdown-item .icon {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
         }
 
         .user-avatar {
@@ -1378,11 +1454,26 @@
                     <h2 id="pageTitle">仪表盘</h2>
                 </div>
                 <div class="topbar-right">
-                    <div class="user-info" id="userInfo">
+                    <div class="user-info" id="userInfo" onclick="toggleUserDropdown()">
                         <img class="user-avatar" id="userAvatar" src="/static/images/user/demo/demo1.jpg" alt="用户头像">
                         <span class="user-name" id="userName">加载中...</span>
+                        <span style="font-size: 12px; color: #999;">▼</span>
+                        <!-- 用户下拉菜单 -->
+                        <div class="user-dropdown" id="userDropdown" onclick="event.stopPropagation()">
+                            <div class="dropdown-header">
+                                <div class="user-name-large" id="dropdownUserName">加载中...</div>
+                                <div class="user-email" id="dropdownUserEmail">-</div>
+                            </div>
+                            <a href="/static/profile.html" class="dropdown-item">
+                                <span class="icon">👤</span>
+                                <span>个人中心</span>
+                            </a>
+                            <div class="dropdown-item" onclick="logout()">
+                                <span class="icon">🚪</span>
+                                <span>退出登录</span>
+                            </div>
+                        </div>
                     </div>
-                    <button class="logout-btn" onclick="logout()">退出登录</button>
                 </div>
             </div>
 
@@ -1906,12 +1997,37 @@
             }
         }
 
+        // 切换用户下拉菜单
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // 点击页面其他地方关闭下拉菜单
+        document.addEventListener('click', function(event) {
+            const userInfo = document.getElementById('userInfo');
+            const dropdown = document.getElementById('userDropdown');
+            if (dropdown && !userInfo.contains(event.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
         // 更新用户信息显示
         function updateUserInfo() {
             if (currentUser) {
+                // 更新顶部栏用户信息
                 document.getElementById('userName').textContent = currentUser.username;
                 if (currentUser.head) {
                     document.getElementById('userAvatar').src = currentUser.head;
+                }
+                // 更新下拉菜单中的用户信息
+                const dropdownUserName = document.getElementById('dropdownUserName');
+                const dropdownUserEmail = document.getElementById('dropdownUserEmail');
+                if (dropdownUserName) {
+                    dropdownUserName.textContent = currentUser.username;
+                }
+                if (dropdownUserEmail) {
+                    dropdownUserEmail.textContent = currentUser.email || '-';
                 }
             }
         }

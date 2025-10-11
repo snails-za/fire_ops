@@ -15,6 +15,17 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f5f7fa;
             overflow-x: hidden;
+            overflow-y: hidden; /* 隐藏垂直滚动条 */
+        }
+
+        /* 全局隐藏滚动条 */
+        * {
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+
+        *::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
         }
 
         .admin-container {
@@ -87,6 +98,7 @@
             margin-left: 250px;
             flex: 1;
             transition: all 0.3s;
+            overflow: hidden; /* 防止主内容区域产生滚动条 */
         }
 
         .topbar {
@@ -233,7 +245,7 @@
 
         /* 内容区域 */
         .content {
-            padding: 30px;
+            padding: 20px;
         }
 
         .page {
@@ -303,6 +315,63 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+        }
+
+        .controls-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
             flex-wrap: wrap;
             gap: 10px;
         }
@@ -531,25 +600,43 @@
         /* 聊天界面 */
         .chat-box {
             background: white;
-            border-radius: 12px;
-            height: 70vh;
+            border-radius: 0;
+            height: calc(100vh - 120px);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: none;
+            border: none;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+
+        .chat-box::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
         }
 
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
-            background: #f8f9fa;
+            padding: 0;
+            background: white;
+            max-width: 768px;
+            margin: 0 auto;
+            width: 100%;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
         }
 
         .message {
-            margin-bottom: 20px;
+            margin-bottom: 0;
             display: flex;
             align-items: flex-start;
+            padding: 16px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
 
         .message.user {
@@ -561,28 +648,30 @@
         }
 
         .message-content {
-            max-width: 70%;
-            padding: 15px 20px;
-            border-radius: 20px;
+            max-width: none;
+            padding: 0;
+            border-radius: 0;
             line-height: 1.6;
+            font-size: 16px;
+            flex: 1;
         }
 
         .message.user .message-content {
-            background: #667eea;
-            color: white;
-            border-bottom-right-radius: 5px;
+            background: none;
+            color: #333;
+            text-align: right;
         }
 
         .message.assistant .message-content {
-            background: white;
+            background: none;
             color: #333;
-            border: 1px solid #e9ecef;
-            border-bottom-left-radius: 5px;
+            border: none;
         }
         
         .streaming-content {
             white-space: pre-wrap;
             word-wrap: break-word;
+            font-size: 14px;
         }
 
         /* Markdown样式 */
@@ -687,25 +776,36 @@
         }
 
         .chat-input-area {
-            padding: 20px;
+            padding: 20px 0 40px 0;
             background: white;
-            border-top: 1px solid #e9ecef;
+            border-top: none;
+            margin-top: auto;
+            max-width: 768px;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
         }
 
         .chat-input-container {
             display: flex;
-            gap: 10px;
+            gap: 15px;
+            align-items: flex-end;
         }
 
         .chat-input {
             flex: 1;
-            padding: 12px 20px;
-            border: 1px solid #ddd;
-            border-radius: 25px;
-            font-size: 14px;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            font-size: 16px;
             outline: none;
             resize: none;
+            min-height: 48px;
+            max-height: 120px;
             font-family: inherit;
+            line-height: 1.5;
+            background: white;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
 
         .chat-input:focus {
@@ -713,18 +813,22 @@
         }
 
         .send-btn {
-            padding: 12px 30px;
-            background: #667eea;
+            padding: 12px 16px;
+            background: #10a37f;
             color: white;
             border: none;
-            border-radius: 25px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
-            transition: background 0.3s;
+            transition: all 0.2s;
+            white-space: nowrap;
+            min-width: 60px;
+            height: 48px;
+            margin-left: 8px;
         }
 
         .send-btn:hover {
-            background: #5568d3;
+            background: #0d8f6c;
         }
 
         .send-btn:disabled {
@@ -1595,7 +1699,6 @@
                     </div>
 
                     <div class="card">
-                        <div class="card-title">系统概览</div>
                         <p style="color: #6c757d; line-height: 1.8;">
                             欢迎使用消安云管智能管理系统。这是一个集成用户管理、设备监控、文档处理和智能问答的综合管理平台。
                             <br><br>
@@ -1607,7 +1710,6 @@
                 <!-- 用户管理 -->
                 <div id="users" class="page">
                     <div class="card">
-                        <div class="card-title">用户列表</div>
                         <div class="table-controls">
                             <div class="search-box">
                                 <input type="text" id="userSearchInput" placeholder="搜索用户名...">
@@ -1638,7 +1740,6 @@
                 <!-- 设备管理 -->
                 <div id="devices" class="page">
                     <div class="card">
-                        <div class="card-title">设备列表</div>
                         <div class="table-controls">
                             <div class="search-box">
                                 <input type="text" id="deviceSearchInput" placeholder="搜索设备名称...">
@@ -1671,56 +1772,23 @@
                 <div id="documents" class="page">
                     <!-- 统计信息 -->
                     <div class="card">
-                        <div class="card-title">文档统计</div>
                         <div class="stats-section" id="statsSection">
                             <!-- 统计卡片将在这里动态生成 -->
                         </div>
                     </div>
 
-                    <!-- 文档上传 -->
-                    <div class="card">
-                        <div class="card-title">上传文档</div>
-                        <div class="upload-section" id="uploadSection">
-                            <div class="upload-icon">📄</div>
-                            <h3>上传文档</h3>
-                            <p>支持 PDF、DOCX、DOC、XLSX、XLS、TXT 格式，单文件最大 50MB</p>
-                            
-                            <div class="file-input-wrapper">
-                                <input type="file" id="fileInput" class="file-input" accept=".pdf,.docx,.doc,.xlsx,.xls,.txt" multiple>
-                                <label for="fileInput" class="file-input-btn">选择文件</label>
-                                <button id="uploadBtn" class="upload-btn" onclick="uploadDocuments()" disabled>批量上传</button>
-                            </div>
-
-                            <div id="fileInfo" class="file-info"></div>
-                            
-                            <!-- 选中的文件列表 -->
-                            <div id="filesList" class="files-list" style="display: none;"></div>
-                            
-                            <!-- 批量操作按钮 -->
-                            <div id="uploadBatchControls" class="batch-controls" style="display: none;">
-                                <button class="clear-all-btn" onclick="clearAllFiles()">清空所有</button>
-                            </div>
-                            
-                            <!-- 上传进度 -->
-                            <div id="uploadProgress" class="upload-progress"></div>
-                            
-                            <div id="uploadStatus" class="status"></div>
-                            
-                            <div class="hint">
-                                提示：您可以选择多个文件批量上传，也可以直接将文件拖拽到此区域
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- 文档列表 -->
                     <div class="card">
-                        <div class="card-title">文档列表</div>
                         <div class="table-controls">
                             <div class="batch-controls" id="documentBatchControls" style="display: flex;">
                                 <button class="batch-delete-btn" onclick="batchDeleteDocuments()" disabled>批量删除</button>
                                 <button class="batch-reprocess-btn" onclick="batchReprocessDocuments()" disabled>批量重新解析</button>
                             </div>
-                            <button class="btn btn-success" onclick="loadDocuments()">刷新</button>
+                            <div class="controls-right">
+                                <button class="btn btn-primary" onclick="showUploadDialog()">📄 上传文档</button>
+                                <button class="btn btn-success" onclick="loadDocuments()">刷新</button>
+                            </div>
                         </div>
                         <div class="table-container">
                             <div id="documentsList">
@@ -1733,7 +1801,6 @@
                 <!-- 智能问答 -->
                 <div id="chat" class="page">
                     <div class="card">
-                        <div class="card-title">智能问答系统</div>
                         <div class="chat-box">
                             <div class="chat-messages" id="chatMessages">
                                 <div class="empty-state">
@@ -1767,6 +1834,47 @@
         </div>
     </div>
 
+    <!-- 上传文档对话框 -->
+    <div id="uploadDialog" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>上传文档</h3>
+                <span class="close" onclick="closeUploadDialog()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="upload-section">
+                    <div class="upload-icon">📄</div>
+                    <p>支持 PDF、DOCX、DOC、XLSX、XLS、TXT 格式，单文件最大 50MB</p>
+                    
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" class="file-input" accept=".pdf,.docx,.doc,.xlsx,.xls,.txt" multiple>
+                        <label for="fileInput" class="file-input-btn">选择文件</label>
+                        <button id="uploadBtn" class="upload-btn" onclick="uploadDocuments()" disabled>批量上传</button>
+                    </div>
+
+                    <div id="fileInfo" class="file-info"></div>
+                    
+                    <!-- 选中的文件列表 -->
+                    <div id="filesList" class="files-list" style="display: none;"></div>
+                    
+                    <!-- 批量操作按钮 -->
+                    <div id="uploadBatchControls" class="batch-controls" style="display: none;">
+                        <button class="clear-all-btn" onclick="clearAllFiles()">清空所有</button>
+                    </div>
+                    
+                    <!-- 上传进度 -->
+                    <div id="uploadProgress" class="upload-progress"></div>
+                    
+                    <div id="uploadStatus" class="status"></div>
+                    
+                    <div class="hint">
+                        提示：您可以选择多个文件批量上传，也可以直接将文件拖拽到此区域
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 引入Marked.js库用于Markdown渲染 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
@@ -1776,6 +1884,64 @@
         let currentPage = 'dashboard';
         let usersPage = 1;
         let devicesPage = 1;
+
+        // 上传对话框功能
+        function showUploadDialog() {
+            document.getElementById('uploadDialog').style.display = 'block';
+            // 重新设置拖拽功能
+            setupDragAndDropForDialog();
+        }
+
+        function closeUploadDialog() {
+            document.getElementById('uploadDialog').style.display = 'none';
+            // 清空选中的文件
+            selectedFiles = [];
+            updateUploadUI();
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('uploadDialog');
+            if (event.target === modal) {
+                closeUploadDialog();
+            }
+        }
+
+        // 为弹窗设置拖拽功能
+        function setupDragAndDropForDialog() {
+            const uploadSection = document.getElementById('uploadSection');
+            if (!uploadSection) return;
+
+            // 移除之前的事件监听器
+            uploadSection.removeEventListener('dragover', handleDragOver);
+            uploadSection.removeEventListener('dragleave', handleDragLeave);
+            uploadSection.removeEventListener('drop', handleDrop);
+
+            // 添加新的事件监听器
+            uploadSection.addEventListener('dragover', handleDragOver);
+            uploadSection.addEventListener('dragleave', handleDragLeave);
+            uploadSection.addEventListener('drop', handleDrop);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length > 0) {
+                addFiles(files);
+                updateUploadUI();
+            }
+        }
         let documentsPage = 1;
         let selectedFiles = [];
         let selectedDocuments = new Set(); // 用于存储选中的文档ID
@@ -2318,24 +2484,32 @@
         }
 
         function setupDragAndDrop() {
-            const uploadSection = document.getElementById('uploadSection');
-            uploadSection.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                uploadSection.classList.add('dragover');
-            });
-            uploadSection.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                uploadSection.classList.remove('dragover');
-            });
-            uploadSection.addEventListener('drop', function(e) {
-                e.preventDefault();
-                uploadSection.classList.remove('dragover');
-                const files = Array.from(e.dataTransfer.files);
-                if (files.length > 0) {
-                    addFiles(files);
-                    updateUploadUI();
+            // 延迟初始化，等待弹窗元素创建
+            setTimeout(() => {
+                const uploadSection = document.getElementById('uploadSection');
+                if (!uploadSection) {
+                    console.log('uploadSection not found, skipping drag and drop setup');
+                    return;
                 }
-            });
+
+                uploadSection.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    uploadSection.classList.add('dragover');
+                });
+                uploadSection.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    uploadSection.classList.remove('dragover');
+                });
+                uploadSection.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    uploadSection.classList.remove('dragover');
+                    const files = Array.from(e.dataTransfer.files);
+                    if (files.length > 0) {
+                        addFiles(files);
+                        updateUploadUI();
+                    }
+                });
+            }, 100);
         }
 
         function addFiles(files) {
@@ -2961,15 +3135,22 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // 支持回车发送
+        // 支持回车发送和自动调整高度
         document.addEventListener('DOMContentLoaded', function() {
             const chatInput = document.getElementById('chatInput');
             if (chatInput) {
+                // 回车发送
                 chatInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         sendMessage();
                     }
+                });
+
+                // 自动调整高度
+                chatInput.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
                 });
             }
         });
@@ -3486,31 +3667,6 @@
             fileInfo.style.display = 'block';
         }
 
-        // 设置拖拽上传
-        function setupDragAndDrop() {
-            const uploadSection = document.getElementById('uploadSection');
-
-            uploadSection.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                uploadSection.classList.add('dragover');
-            });
-
-            uploadSection.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                uploadSection.classList.remove('dragover');
-            });
-
-            uploadSection.addEventListener('drop', function(e) {
-                e.preventDefault();
-                uploadSection.classList.remove('dragover');
-                
-                const files = Array.from(e.dataTransfer.files);
-                if (files.length > 0) {
-                    addFiles(files);
-                    updateUploadUI();
-                }
-            });
-        }
 
         // 批量上传文档
         async function uploadDocuments() {

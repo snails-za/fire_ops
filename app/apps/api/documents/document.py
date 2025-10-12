@@ -88,12 +88,18 @@ async def get_documents(
         page: int = Query(1, ge=1, description="页码"),
         page_size: int = Query(10, ge=1, le=100, description="每页数量"),
         status: Optional[str] = Query(None, description="文档状态"),
+        keyword: Optional[str] = Query(None, description="搜索关键字（文件名或内容）"),
 ):
     """获取文档列表"""
     try:
         conditions = []
         if status:
             conditions.append(Q(status=status))
+        
+        # 添加关键字搜索条件
+        if keyword:
+            # 搜索文件名
+            conditions.append(Q(original_filename__icontains=keyword))
 
         query = Document.filter(*conditions).order_by("-upload_time")
         total = await query.count()

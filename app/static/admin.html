@@ -1064,6 +1064,48 @@
             font-size: 14px;
         }
 
+        .data-card {
+            display: flex;
+            flex-direction: column;
+            min-height: 520px;
+        }
+
+        .data-card .table-container {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: auto;
+        }
+
+        .data-card .pagination {
+            margin-top: auto;
+            padding-top: 20px;
+        }
+
+        .data-table {
+            table-layout: fixed;
+        }
+
+        .data-table thead th {
+            height: 56px;
+            vertical-align: middle;
+        }
+
+        .data-table tbody tr {
+            height: 56px;
+        }
+
+        .data-table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+        }
+
+        .document-table td:last-child {
+            max-width: none;
+            white-space: nowrap;
+        }
+
         /* 加载状态 */
         .loading {
             text-align: center;
@@ -1147,34 +1189,6 @@
         }
 
         /* 文档管理增强样式 */
-        .stats-section {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            text-align: center;
-            border-left: 4px solid #007bff;
-        }
-
-        .stat-number {
-            font-size: 32px;
-            font-weight: bold;
-            color: #007bff;
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            color: #666;
-            font-size: 14px;
-        }
-
         .upload-section {
             background: #f8f9fa;
             border-radius: 15px;
@@ -1987,7 +2001,7 @@
 
                 <!-- 用户管理 -->
                 <div id="users" class="page">
-                    <div class="card">
+                    <div class="card data-card">
                         <div class="table-controls">
                             <div class="search-box">
                                 <input type="text" id="userSearchInput" placeholder="搜索用户名...">
@@ -1996,7 +2010,7 @@
                             <button class="btn btn-success" onclick="refreshUsers()">刷新</button>
                         </div>
                         <div class="table-container">
-                            <table id="usersTable">
+                            <table id="usersTable" class="data-table">
                                 <thead>
                                     <tr>
                                         <th>ID</th>
@@ -2017,7 +2031,7 @@
 
                 <!-- 设备管理 -->
                 <div id="devices" class="page">
-                    <div class="card">
+                    <div class="card data-card">
                         <div class="table-controls">
                             <div class="search-box">
                                 <input type="text" id="deviceSearchInput" placeholder="搜索设备名称...">
@@ -2026,7 +2040,7 @@
                             <button class="btn btn-success" onclick="refreshDevices()">刷新</button>
                         </div>
                         <div class="table-container">
-                            <table id="devicesTable">
+                            <table id="devicesTable" class="data-table">
                                 <thead>
                                     <tr>
                                         <th>ID</th>
@@ -2048,16 +2062,8 @@
 
                 <!-- 文档管理 -->
                 <div id="documents" class="page">
-                    <!-- 统计信息 -->
-                    <div class="card">
-                        <div class="stats-section" id="statsSection">
-                            <!-- 统计卡片将在这里动态生成 -->
-                        </div>
-                    </div>
-
-
                     <!-- 文档列表 -->
-                    <div class="card">
+                    <div class="card data-card">
                         <div class="table-controls">
                             <div class="batch-controls" id="documentBatchControls" style="display: flex;">
                                 <button class="batch-delete-btn" onclick="batchDeleteDocuments()" disabled>批量删除</button>
@@ -2073,6 +2079,7 @@
                                 <div class="loading">加载中...</div>
                             </div>
                         </div>
+                        <div class="pagination" id="documentsPagination"></div>
                     </div>
                 </div>
 
@@ -2652,17 +2659,17 @@
                 loadDevices();
             } else if (pageName === 'documents') {
                 loadDocuments();
-                loadStats();
             }
         }
 
         // ==================== 用户管理 ====================
-        async function loadUsers(page = 1, username = '') {
+        async function loadUsers(page = usersPage, username = '') {
+            usersPage = page;
             const tbody = document.getElementById('usersTableBody');
             tbody.innerHTML = '<tr><td colspan="5" class="loading"></td></tr>';
 
             try {
-                let url = `/api/v1/admin/list?page=${page}&page_size=${pageSize}`;
+                let url = `/api/v1/admin/list?page=${usersPage}&page_size=${pageSize}`;
                 if (username) {
                     url += `&username=${encodeURIComponent(username)}`;
                 }
@@ -2672,6 +2679,16 @@
 
                 if (result.code === 200) {
                     const users = result.data;
+                    const totalPages = Math.max(result.total_page || 0, 1);
+
+                    if (usersPage > totalPages) {
+                        usersPage = totalPages;
+                        if (totalPages !== page) {
+                            loadUsers(usersPage, username);
+                            return;
+                        }
+                    }
+
                     if (users && users.length > 0) {
                         tbody.innerHTML = users.map(user => `
                             <tr>
@@ -2683,16 +2700,19 @@
                             </tr>
                         `).join('');
 
-                        updatePagination('users', page, result.total_page || 1);
+                        updatePagination('users', usersPage, totalPages);
                     } else {
                         tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="icon">📭</div><p>暂无用户数据</p></td></tr>';
+                        updatePagination('users', usersPage, totalPages);
                     }
                 } else {
                     tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>加载失败</p></td></tr>';
+                    updatePagination('users', 1, 1);
                 }
             } catch (error) {
                 console.error('加载用户列表失败:', error);
                 tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>加载失败</p></td></tr>';
+                updatePagination('users', 1, 1);
             }
         }
 
@@ -2859,37 +2879,53 @@
             selectedFiles = [];
             document.getElementById('fileInput').value = '';
             updateUploadUI();
-            loadDocuments();
+            loadDocuments(documentsPage);
             loadDashboardData();
         }
 
-        async function loadDocuments() {
+        async function loadDocuments(page = documentsPage) {
+            documentsPage = page;
             const documentsList = document.getElementById('documentsList');
             documentsList.innerHTML = '<div class="loading">加载中...</div>';
 
             try {
-                const response = await fetchWithAuth('/api/v1/documents/list?page=1&page_size=50');
+                const response = await fetchWithAuth(`/api/v1/documents/list?page=${documentsPage}&page_size=${pageSize}`);
                 const result = await response.json();
-                
+
                 if (response.ok && result.code === 200) {
-                    displayDocuments(result.data.documents);
+                    const documents = result.data?.documents || [];
+                    const totalPages = Math.max(result.data?.total_pages || 0, 1);
+
+                    if (documentsPage > totalPages) {
+                        documentsPage = totalPages;
+                        if (totalPages !== page) {
+                            loadDocuments(documentsPage);
+                            return;
+                        }
+                    }
+
+                    displayDocuments(documents);
+                    updatePagination('documents', documentsPage, totalPages);
                 } else {
-                    documentsList.innerHTML = '<div class="empty-state">加载失败: ' + result.message + '</div>';
+                    documentsList.innerHTML = '<div class="empty-state">加载失败: ' + (result.message || '未知错误') + '</div>';
+                    updatePagination('documents', 1, 1);
                 }
             } catch (error) {
                 console.error('加载文档列表失败:', error);
                 documentsList.innerHTML = '<div class="empty-state">加载失败: 网络错误</div>';
+                updatePagination('documents', 1, 1);
             }
         }
 
         function refreshDocuments() {
-            loadDocuments();
+            loadDocuments(documentsPage);
         }
 
         // 显示文档列表
-        function displayDocuments(documents) {
+        function displayDocuments(documents = []) {
             const documentsList = document.getElementById('documentsList');
-            
+            selectedDocuments.clear();
+
             if (documents.length === 0) {
                 documentsList.innerHTML = `
                     <div class="empty-state">
@@ -2897,11 +2933,12 @@
                         <p>请上传您的第一个文档</p>
                     </div>
                 `;
+                updateBatchControls();
                 return;
             }
 
             const tableHTML = `
-                <table class="document-table">
+                <table class="document-table data-table">
                     <thead>
                         <tr>
                             <th><input type="checkbox" id="headerSelectAll" onchange="toggleSelectAll()"></th>
@@ -2938,8 +2975,14 @@
                     </tbody>
                 </table>
             `;
-            
+
             documentsList.innerHTML = tableHTML;
+            const headerCheckbox = document.getElementById('headerSelectAll');
+            if (headerCheckbox) {
+                headerCheckbox.checked = false;
+                headerCheckbox.indeterminate = false;
+            }
+            updateBatchControls();
         }
 
         // 获取状态文本
@@ -2995,8 +3038,8 @@
                 if (response.ok && result.code === 200) {
                     showStatus('文档重新处理已开始', 'success');
                     setTimeout(() => {
-                        loadDocuments();
-                        loadStats();
+                        loadDocuments(documentsPage);
+                        loadDashboardData();
                     }, 1000);
                 } else {
                     alert('重新处理失败: ' + result.message);
@@ -3128,7 +3171,7 @@
 
                 const result = await response.json();
                 if (result.code === 200) {
-                    loadDocuments();
+                    loadDocuments(documentsPage);
                     loadDashboardData();
                 }
             } catch (error) {
@@ -3442,12 +3485,17 @@
         // ==================== 工具函数 ====================
         function updatePagination(type, currentPage, totalPages) {
             const paginationEl = document.getElementById(`${type}Pagination`);
+            if (!paginationEl) return;
+
+            const safeTotalPages = Math.max(totalPages, 1);
+            const safeCurrentPage = Math.min(Math.max(currentPage, 1), safeTotalPages);
+
             paginationEl.innerHTML = `
-                <button onclick="changePage('${type}', ${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>
+                <button onclick="changePage('${type}', ${safeCurrentPage - 1})" ${safeCurrentPage <= 1 ? 'disabled' : ''}>
                     ← 上一页
                 </button>
-                <span class="page-info">第 ${currentPage} / ${totalPages} 页</span>
-                <button onclick="changePage('${type}', ${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>
+                <span class="page-info">第 ${safeCurrentPage} / ${safeTotalPages} 页</span>
+                <button onclick="changePage('${type}', ${safeCurrentPage + 1})" ${safeCurrentPage >= safeTotalPages ? 'disabled' : ''}>
                     下一页 →
                 </button>
             `;
@@ -3787,8 +3835,7 @@
                 
                 if (successCount > 0) {
                     showStatus(`批量删除完成！成功 ${successCount} 个，失败 ${failCount} 个`, successCount === selectedDocuments.size ? 'success' : 'error');
-                    loadDocuments();
-                    loadStats();
+                    loadDocuments(documentsPage);
                     loadDashboardData();
                 } else {
                     showStatus('批量删除失败！', 'error');
@@ -3846,8 +3893,8 @@
                 if (successCount > 0) {
                     showStatus(`批量重新解析完成！成功 ${successCount} 个，失败 ${failCount} 个`, successCount === selectedDocuments.size ? 'success' : 'error');
                     setTimeout(() => {
-                        loadDocuments();
-                        loadStats();
+                        loadDocuments(documentsPage);
+                        loadDashboardData();
                     }, 1000);
                 } else {
                     showStatus('批量重新解析失败！', 'error');
@@ -4023,8 +4070,7 @@
             if (successCount > 0) {
                 setTimeout(() => {
                     clearAllFiles();
-                    loadDocuments();
-                    loadStats();
+                    loadDocuments(documentsPage);
                     loadDashboardData();
                     uploadProgress.style.display = 'none';
                 }, 3000);
@@ -4067,48 +4113,6 @@
                 progressFill.style.width = '100%';
                 progressFill.style.background = '#dc3545';
             }
-        }
-
-        // 加载统计信息
-        async function loadStats() {
-            try {
-                const response = await fetchWithAuth('/api/v1/documents/stats/overview');
-                const result = await response.json();
-                
-                if (response.ok && result.code === 200) {
-                    displayStats(result.data);
-                }
-            } catch (error) {
-                console.error('加载统计信息失败:', error);
-            }
-        }
-
-        // 显示统计信息
-        function displayStats(data) {
-            const statsSection = document.getElementById('statsSection');
-            
-            statsSection.innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-number">${data.documents.total}</div>
-                    <div class="stat-label">总文档数</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${data.documents.queued || 0}</div>
-                    <div class="stat-label">排队中</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${data.documents.processing}</div>
-                    <div class="stat-label">处理中</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${data.documents.completed}</div>
-                    <div class="stat-label">已完成</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">${data.chunks.total}</div>
-                    <div class="stat-label">文档块数</div>
-                </div>
-            `;
         }
 
         // 加载文档统计数据

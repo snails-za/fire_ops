@@ -1,4 +1,7 @@
+import os
 import time
+import psutil
+import shutil
 
 from fastapi import APIRouter, Depends
 from tortoise import connections
@@ -115,4 +118,76 @@ async def health_check():
     health_data["response_time_ms"] = round(api_time, 2)
     
     return response(data=health_data)
+
+
+@router.get("/system-resources", summary="系统资源监控", description="获取系统资源使用情况（无需登录）")
+async def get_system_resources():
+    """
+    获取系统资源使用情况
+    :return:
+    """
+    try:
+        # CPU使用率
+        cpu_percent = psutil.cpu_percent(interval=1)
+        
+        # 内存使用情况
+        memory = psutil.virtual_memory()
+        memory_percent = memory.percent
+        memory_used = memory.used
+        memory_total = memory.total
+        
+        # 磁盘使用情况
+        disk = shutil.disk_usage('/')
+        disk_percent = (disk.used / disk.total) * 100
+        disk_used = disk.used
+        disk_total = disk.total
+        
+        # 系统负载（仅Linux）
+        load_avg = None
+        if hasattr(os, 'getloadavg'):
+            try:
+                load_avg = os.getloadavg()
+            except:
+                load_avg = None
+        
+        # 进程数量
+        process_count = len(psutil.pids())
+        
+        # 网络IO统计
+        network_io = psutil.net_io_counters()
+        
+        system_data = {
+            "timestamp": int(time.time() * 1000),
+            "cpu": {
+                "usage_percent": round(cpu_percent, 1),
+                "status": "normal" if cpu_percent < 80 else "high" if cpu_percent < 95 else "critical"
+            },
+            "memory": {
+                "usage_percent": round(memory_percent, 1),
+                "used_bytes": memory_used,
+                "total_bytes": memory_total,
+                "used_gb": round(memory_used / (1024**3), 2),
+                "total_gb": round(memory_total / (1024**3), 2),
+                "status": "normal" if memory_percent < 80 else "high" if memory_percent < 95 else "critical"
+            },
+            "disk": {
+                "usage_percent": round(disk_percent, 1),
+                "used_bytes": disk_used,
+                "total_bytes": disk_total,
+                "used_gb": round(disk_used / (1024**3), 2),
+                "total_gb": round(disk_total / (1024**3), 2),
+                "status": "normal" if disk_percent < 80 else "high" if disk_percent < 95 else "critical"
+            },
+            "system": {
+                "load_average": load_avg,
+                "process_count": process_count,
+                "network_bytes_sent": network_io.bytes_sent,
+                "network_bytes_recv": network_io.bytes_recv
+            }
+        }
+        
+        return response(data=system_data)
+        
+    except Exception as e:
+        return response(code=500, message=f"获取系统资源信息失败: {str(e)}")
 

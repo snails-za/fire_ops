@@ -747,44 +747,6 @@
             margin: 0;
         }
 
-        /* 最近活动样式 */
-        .recent-activities {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .activity-item {
-            display: flex;
-            align-items: flex-start;
-            padding: 12px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-
-        .activity-icon {
-            font-size: 16px;
-            margin-right: 12px;
-            margin-top: 2px;
-            opacity: 0.7;
-        }
-
-        .activity-content {
-            flex: 1;
-        }
-
-        .activity-text {
-            font-size: 14px;
-            color: #333;
-            margin-bottom: 4px;
-        }
-
-        .activity-time {
-            font-size: 12px;
-            color: #999;
-        }
 
         /* 系统资源样式 */
         .resource-grid {
@@ -2077,19 +2039,6 @@
                                 </div>
                             </div>
 
-                    <!-- 最近活动 -->
-                    <div class="card">
-                        <div class="card-title">🕒 最近活动</div>
-                        <div class="recent-activities" id="recentActivities">
-                            <div class="activity-item">
-                                <div class="activity-icon">👤</div>
-                                <div class="activity-content">
-                                    <div class="activity-text">系统正在加载活动记录...</div>
-                                    <div class="activity-time">--</div>
-                                </div>
-                                </div>
-                            </div>
-                                </div>
 
                     <!-- 系统资源使用情况 -->
                     <div class="card">
@@ -2771,8 +2720,6 @@
             // 加载文档解析统计
             await loadDocumentParseStats();
             
-            // 加载最近活动
-            await loadRecentActivities();
             
             // 加载系统资源信息
             await loadSystemResources();
@@ -4399,68 +4346,38 @@
             document.getElementById('failedDocs').textContent = Math.floor(Math.random() * 2);
         }
 
-        // 加载最近活动
-        async function loadRecentActivities() {
-            try {
-                const activitiesContainer = document.getElementById('recentActivities');
-                
-                // 模拟活动数据
-                const activities = [
-                    { icon: '👤', text: '用户 admin 登录系统', time: '2分钟前' },
-                    { icon: '📄', text: '上传了新文档 "用户手册.pdf"', time: '5分钟前' },
-                    { icon: '💬', text: '智能问答被调用', time: '8分钟前' },
-                    { icon: '🔧', text: '系统状态检查完成', time: '10分钟前' },
-                    { icon: '👤', text: '用户 test 注册成功', time: '15分钟前' },
-                    { icon: '📊', text: '生成系统报告', time: '20分钟前' }
-                ];
-
-                activitiesContainer.innerHTML = activities.map(activity => `
-                    <div class="activity-item">
-                        <div class="activity-icon">${activity.icon}</div>
-                        <div class="activity-content">
-                            <div class="activity-text">${activity.text}</div>
-                            <div class="activity-time">${activity.time}</div>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (error) {
-                console.error('加载最近活动失败:', error);
-                document.getElementById('recentActivities').innerHTML = `
-                    <div class="activity-item">
-                        <div class="activity-icon">⚠️</div>
-                        <div class="activity-content">
-                            <div class="activity-text">加载活动记录失败</div>
-                            <div class="activity-time">--</div>
-                        </div>
-                    </div>
-                `;
-            }
-        }
 
         // 加载系统资源信息
         async function loadSystemResources() {
             try {
-                // 模拟系统资源数据
-                const storageUsage = Math.floor(Math.random() * 80) + 10; // 10-90%
-                const memoryUsage = Math.floor(Math.random() * 70) + 20; // 20-90%
-                const cpuUsage = Math.floor(Math.random() * 60) + 15; // 15-75%
+                const response = await fetch('/api/v1/common/system-resources');
+                const result = await response.json();
+                
+                if (result.code === 200 && result.data) {
+                    const data = result.data;
+                    
+                    // 更新存储使用率
+                    const diskUsage = data.disk.usage_percent;
+                    document.getElementById('storageUsage').style.width = diskUsage + '%';
+                    document.getElementById('storageText').textContent = diskUsage + '%';
+                    updateResourceColor('storageUsage', 'storageText', diskUsage);
 
-                // 更新存储使用率
-                document.getElementById('storageUsage').style.width = storageUsage + '%';
-                document.getElementById('storageText').textContent = storageUsage + '%';
+                    // 更新内存使用率
+                    const memoryUsage = data.memory.usage_percent;
+                    document.getElementById('memoryUsage').style.width = memoryUsage + '%';
+                    document.getElementById('memoryText').textContent = memoryUsage + '%';
+                    updateResourceColor('memoryUsage', 'memoryText', memoryUsage);
 
-                // 更新内存使用率
-                document.getElementById('memoryUsage').style.width = memoryUsage + '%';
-                document.getElementById('memoryText').textContent = memoryUsage + '%';
-
-                // 更新CPU使用率
-                document.getElementById('cpuUsage').style.width = cpuUsage + '%';
-                document.getElementById('cpuText').textContent = cpuUsage + '%';
-
-                // 根据使用率调整颜色
-                updateResourceColor('storageUsage', 'storageText', storageUsage);
-                updateResourceColor('memoryUsage', 'memoryText', memoryUsage);
-                updateResourceColor('cpuUsage', 'cpuText', cpuUsage);
+                    // 更新CPU使用率
+                    const cpuUsage = data.cpu.usage_percent;
+                    document.getElementById('cpuUsage').style.width = cpuUsage + '%';
+                    document.getElementById('cpuText').textContent = cpuUsage + '%';
+                    updateResourceColor('cpuUsage', 'cpuText', cpuUsage);
+                    
+                    console.log('系统资源加载成功:', data);
+                } else {
+                    throw new Error(result.message || '获取系统资源失败');
+                }
 
             } catch (error) {
                 console.error('加载系统资源失败:', error);

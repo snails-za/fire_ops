@@ -39,20 +39,7 @@ app = create_app(lifespan=lifespan)
 @app.get("/", include_in_schema=False)
 async def root():
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/login.html")
-
-
-@app.get("/upload", include_in_schema=False)
-async def go_upload():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/upload.html")
-
-
-@app.get("/chat", include_in_schema=False)
-async def go_chat():
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/chat.html")
-
+    return RedirectResponse(url="/static/admin.html")
 
 
 @app.get("/docs", include_in_schema=False)

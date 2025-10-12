@@ -6,6 +6,19 @@
     <title>登录 - 消安云管</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
+        :root {
+            /* 默认主题变量 - 蓝色主题 */
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --sidebar-bg: #0056b3;
+            --sidebar-active: #007bff;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #e9ecef;
+            --bg-color: #f8f9fa;
+            --login-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,7 +27,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--login-bg, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
             height: 100vh;
             display: flex;
             justify-content: center;
@@ -22,7 +35,7 @@
         }
 
         .login-container {
-            background: white;
+            background: var(--card-bg, white);
             padding: 40px;
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
@@ -36,7 +49,7 @@
         }
 
         .login-header h1 {
-            color: #333;
+            color: var(--text-color, #333);
             font-size: 28px;
             margin-bottom: 10px;
         }
@@ -92,7 +105,7 @@
         .login-btn {
             width: 100%;
             padding: 12px;
-            background: #007bff;
+            background: var(--primary-color, #007bff);
             color: white;
             border: none;
             border-radius: 8px;
@@ -102,7 +115,7 @@
         }
 
         .login-btn:hover {
-            background: #0056b3;
+            background: var(--primary-hover, #0056b3);
         }
 
         .login-btn:disabled {
@@ -113,9 +126,9 @@
         .register-btn {
             width: 100%;
             padding: 12px;
-            background: white;
-            color: #007bff;
-            border: 1px solid #007bff;
+            background: var(--card-bg, white);
+            color: var(--primary-color, #007bff);
+            border: 1px solid var(--primary-color, #007bff);
             border-radius: 8px;
             font-size: 16px;
             cursor: pointer;
@@ -261,6 +274,86 @@
         .error-modal .modal-btn {
             background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
         }
+
+        /* 主题样式 */
+        
+        /* 默认蓝色主题 */
+        [data-theme="default"] body {
+            background: var(--login-bg, linear-gradient(135deg, #007bff 0%, #0056b3 100%));
+        }
+
+        /* 深色主题 */
+        [data-theme="dark"] {
+            --primary-color: #4fc3f7;
+            --primary-hover: #29b6f6;
+            --card-bg: #37474f;
+            --text-color: #eceff1;
+            --border-color: #546e7a;
+            --bg-color: #263238;
+            --login-bg: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        }
+
+        [data-theme="dark"] body {
+            background: var(--login-bg);
+        }
+
+        [data-theme="dark"] .login-container {
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+
+        [data-theme="dark"] .login-header h1 {
+            color: var(--text-color);
+        }
+
+        [data-theme="dark"] .form-group label {
+            color: var(--text-color);
+        }
+
+        /* 绿色主题 */
+        [data-theme="green"] {
+            --primary-color: #4caf50;
+            --primary-hover: #388e3c;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #e8f5e8;
+            --bg-color: #f1f8e9;
+            --login-bg: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        }
+
+        [data-theme="green"] body {
+            background: var(--login-bg);
+        }
+
+        /* 紫色主题 */
+        [data-theme="purple"] {
+            --primary-color: #9c27b0;
+            --primary-hover: #7b1fa2;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #f3e5f5;
+            --bg-color: #fce4ec;
+            --login-bg: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        }
+
+        [data-theme="purple"] body {
+            background: var(--login-bg);
+        }
+
+        /* 黄色主题 */
+        [data-theme="yellow"] {
+            --primary-color: #ff9800;
+            --primary-hover: #f57c00;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #fff3e0;
+            --bg-color: #fff8e1;
+            --login-bg: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        }
+
+        [data-theme="yellow"] body {
+            background: var(--login-bg);
+        }
     </style>
 </head>
 <body>
@@ -320,6 +413,19 @@
 </div>
 
     <script>
+        // 主题初始化
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'default';
+            console.log('🎨 登录页面初始化主题:', savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            console.log('✅ 登录页面主题初始化完成, data-theme:', document.documentElement.getAttribute('data-theme'));
+        }
+
+        // 页面加载时初始化主题
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+        });
+
         let captchaId = '';
         
         // AES 密钥（需要与后端配置一致）

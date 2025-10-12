@@ -59,9 +59,10 @@ fire_ops/app/
 │   ├── form/                  # 表单验证
 │   └── dependencies/          # 依赖注入
 ├── static/                    # 静态资源
-│   ├── chat.html             # 智能问答页面
+│   ├── admin.html            # 管理后台（包含所有功能）
 │   ├── login.html            # 登录页面
-│   ├── upload.html           # 文档上传页面
+│   ├── profile.html          # 个人中心页面
+│   ├── register.html         # 注册页面
 │   └── css/, js/, images/    # 样式、脚本、图片
 ├── data/                      # 数据目录
 │   ├── documents/            # 文档存储
@@ -197,8 +198,9 @@ celery -A celery_tasks.app worker -l info --pool=solo
 
 ### 7. 访问系统
 - **主页**: http://localhost:8000
-- **智能问答**: http://localhost:8000/static/chat.html
-- **文档上传**: http://localhost:8000/static/upload.html
+- **管理后台**: http://localhost:8000/static/admin.html
+- **智能问答**: http://localhost:8000/chat (自动跳转到管理后台智能问答页面)
+- **文档管理**: http://localhost:8000/upload (自动跳转到管理后台文档管理页面)
 - **API文档**: http://localhost:8000/docs
 - **登录账号**: admin / 123456
 

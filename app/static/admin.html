@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>后台管理 - 消安云管</title>
     <style>
+        :root {
+            /* 默认主题变量 - 蓝色主题 */
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --sidebar-bg: #0056b3;
+            --sidebar-active: #007bff;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #e9ecef;
+            --bg-color: #f8f9fa;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -53,7 +65,7 @@
         /* 侧边栏 */
         .sidebar {
             width: 250px;
-            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            background: var(--sidebar-bg, linear-gradient(180deg, #667eea 0%, #764ba2 100%));
             color: white;
             position: fixed;
             left: 0;
@@ -102,7 +114,7 @@
 
         .menu-item.active {
             background: rgba(255, 255, 255, 0.2);
-            border-left: 4px solid white;
+            border-left: 4px solid var(--sidebar-active, white);
             padding-left: 26px;
         }
 
@@ -472,12 +484,12 @@
         }
 
         .btn-primary {
-            background: #667eea;
+            background: var(--primary-color, #667eea);
             color: white;
         }
 
         .btn-primary:hover {
-            background: #5568d3;
+            background: var(--primary-hover, #5568d3);
         }
 
         .btn-success {
@@ -921,6 +933,325 @@
 
         .chat-box::-webkit-scrollbar {
             display: none; /* Chrome, Safari, Opera */
+        }
+
+        /* 主题选择器样式 */
+        .theme-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .theme-option {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .theme-option:hover {
+            border-color: #007bff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+        }
+
+        .theme-option.active {
+            border-color: #007bff;
+            background: #f8f9fa;
+        }
+
+        .theme-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            margin-right: 15px;
+            border: 2px solid #e9ecef;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .default-theme {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        }
+
+        .dark-theme {
+            background: linear-gradient(135deg, #263238 0%, #37474f 100%);
+        }
+
+        .green-theme {
+            background: linear-gradient(135deg, #1b5e20 0%, #4caf50 100%);
+        }
+
+        .purple-theme {
+            background: linear-gradient(135deg, #4a148c 0%, #9c27b0 100%);
+        }
+
+        .yellow-theme {
+            background: linear-gradient(135deg, #e65100 0%, #ff9800 100%);
+        }
+
+        .theme-preview::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .theme-info h4 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .theme-info p {
+            margin: 0;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        /* 主题样式 */
+        
+        /* 默认蓝色主题 */
+        [data-theme="default"] .sidebar {
+            background: var(--sidebar-bg, #0056b3) !important;
+            color: white !important;
+        }
+
+        [data-theme="default"] .sidebar-header {
+            color: white !important;
+        }
+
+        [data-theme="default"] .menu-item {
+            color: white !important;
+        }
+
+        [data-theme="default"] .menu-item:hover {
+            background: rgba(0, 123, 255, 0.2) !important;
+        }
+
+        [data-theme="default"] .menu-item.active {
+            background: rgba(0, 123, 255, 0.3) !important;
+            border-left-color: var(--sidebar-active) !important;
+        }
+
+        [data-theme="default"] .btn-primary {
+            background: var(--primary-color);
+        }
+
+        [data-theme="default"] .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        /* 深色主题 - 重新设计 */
+        [data-theme="dark"] {
+            --primary-color: #4fc3f7;
+            --primary-hover: #29b6f6;
+            --sidebar-bg: #263238;
+            --sidebar-active: #4fc3f7;
+            --card-bg: #37474f;
+            --text-color: #eceff1;
+            --border-color: #546e7a;
+            --bg-color: #263238;
+        }
+
+        [data-theme="dark"] body {
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        [data-theme="dark"] .sidebar {
+            background: var(--sidebar-bg) !important;
+            color: #eceff1 !important;
+        }
+
+        [data-theme="dark"] .sidebar-header {
+            color: #eceff1 !important;
+        }
+
+        [data-theme="dark"] .menu-item {
+            color: #eceff1 !important;
+        }
+
+        [data-theme="dark"] .menu-item:hover {
+            background: rgba(79, 195, 247, 0.1) !important;
+        }
+
+        [data-theme="dark"] .menu-item.active {
+            background: rgba(79, 195, 247, 0.2) !important;
+            border-left-color: var(--sidebar-active) !important;
+        }
+
+        [data-theme="dark"] .card {
+            background: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        [data-theme="dark"] .card-title {
+            color: var(--text-color);
+        }
+
+        [data-theme="dark"] .btn-primary {
+            background: var(--primary-color);
+            color: #263238;
+            font-weight: 600;
+        }
+
+        [data-theme="dark"] .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        [data-theme="dark"] .header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* 绿色主题 - 重新设计 */
+        [data-theme="green"] {
+            --primary-color: #4caf50;
+            --primary-hover: #45a049;
+            --sidebar-bg: #1b5e20;
+            --sidebar-active: #81c784;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #e8f5e8;
+            --bg-color: #f1f8e9;
+        }
+
+        [data-theme="green"] body {
+            background: var(--bg-color);
+        }
+
+        [data-theme="green"] .sidebar {
+            background: var(--sidebar-bg) !important;
+            color: white !important;
+        }
+
+        [data-theme="green"] .sidebar-header {
+            color: white !important;
+        }
+
+        [data-theme="green"] .menu-item {
+            color: white !important;
+        }
+
+        [data-theme="green"] .menu-item:hover {
+            background: rgba(129, 199, 132, 0.2) !important;
+        }
+
+        [data-theme="green"] .menu-item.active {
+            background: rgba(129, 199, 132, 0.3) !important;
+            border-left-color: var(--sidebar-active) !important;
+        }
+
+        [data-theme="green"] .btn-primary {
+            background: var(--primary-color);
+        }
+
+        [data-theme="green"] .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        /* 紫色主题 - 保持现有设计 */
+        [data-theme="purple"] {
+            --primary-color: #9c27b0;
+            --primary-hover: #8e24aa;
+            --sidebar-bg: #4a148c;
+            --sidebar-active: #ba68c8;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #f3e5f5;
+            --bg-color: #fce4ec;
+        }
+
+        [data-theme="purple"] body {
+            background: var(--bg-color);
+        }
+
+        [data-theme="purple"] .sidebar {
+            background: var(--sidebar-bg) !important;
+            color: white !important;
+        }
+
+        [data-theme="purple"] .sidebar-header {
+            color: white !important;
+        }
+
+        [data-theme="purple"] .menu-item {
+            color: white !important;
+        }
+
+        [data-theme="purple"] .menu-item:hover {
+            background: rgba(186, 104, 200, 0.2) !important;
+        }
+
+        [data-theme="purple"] .menu-item.active {
+            background: rgba(186, 104, 200, 0.3) !important;
+            border-left-color: var(--sidebar-active) !important;
+        }
+
+        [data-theme="purple"] .btn-primary {
+            background: var(--primary-color);
+        }
+
+        [data-theme="purple"] .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        /* 黄色主题 - 新增 */
+        [data-theme="yellow"] {
+            --primary-color: #ff9800;
+            --primary-hover: #f57c00;
+            --sidebar-bg: #e65100;
+            --sidebar-active: #ffb74d;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #fff3e0;
+            --bg-color: #fff8e1;
+        }
+
+        [data-theme="yellow"] body {
+            background: var(--bg-color);
+        }
+
+        [data-theme="yellow"] .sidebar {
+            background: var(--sidebar-bg) !important;
+            color: white !important;
+        }
+
+        [data-theme="yellow"] .sidebar-header {
+            color: white !important;
+        }
+
+        [data-theme="yellow"] .menu-item {
+            color: white !important;
+        }
+
+        [data-theme="yellow"] .menu-item:hover {
+            background: rgba(255, 183, 77, 0.2) !important;
+        }
+
+        [data-theme="yellow"] .menu-item.active {
+            background: rgba(255, 183, 77, 0.3) !important;
+            border-left-color: var(--sidebar-active) !important;
+        }
+
+        [data-theme="yellow"] .btn-primary {
+            background: var(--primary-color);
+        }
+
+        [data-theme="yellow"] .btn-primary:hover {
+            background: var(--primary-hover);
         }
 
         .chat-messages {
@@ -1946,6 +2277,10 @@
                                 <span class="icon">👤</span>
                                 <span>个人中心</span>
                             </a>
+                            <div class="dropdown-item" onclick="showThemeSelector()">
+                                <span class="icon">🎨</span>
+                                <span>主题设置</span>
+                            </div>
                             <div class="dropdown-item" onclick="logout()">
                                 <span class="icon">🚪</span>
                                 <span>退出登录</span>
@@ -2561,6 +2896,7 @@
 
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
+            initTheme(); // 初始化主题
             checkAuth();
             setupFileInput();
             setupDragAndDrop();
@@ -4408,7 +4744,117 @@
             }
         }
 
+        // ==================== 主题设置 ====================
+        
+        // 显示主题选择器
+        function showThemeSelector() {
+            document.getElementById('themeModal').style.display = 'flex';
+            // 设置当前主题为激活状态
+            const currentTheme = localStorage.getItem('theme') || 'default';
+            updateThemeSelection(currentTheme);
+        }
+
+        // 关闭主题选择器
+        function closeThemeSelector() {
+            document.getElementById('themeModal').style.display = 'none';
+        }
+
+        // 选择主题
+        function selectTheme(theme) {
+            console.log('🎨 切换主题到:', theme);
+            
+            // 应用主题
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            // 保存到本地存储
+            localStorage.setItem('theme', theme);
+            
+            // 更新选择状态
+            updateThemeSelection(theme);
+            
+            // 强制刷新样式
+            document.body.style.display = 'none';
+            document.body.offsetHeight; // 触发重排
+            document.body.style.display = '';
+            
+            console.log('✅ 主题已切换到:', theme);
+            
+            // 关闭模态框
+            setTimeout(() => {
+                closeThemeSelector();
+            }, 500);
+        }
+
+        // 更新主题选择状态
+        function updateThemeSelection(theme) {
+            document.querySelectorAll('.theme-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            document.querySelector(`[data-theme="${theme}"]`).classList.add('active');
+        }
+
+        // 初始化主题
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'default';
+            console.log('🎨 初始化主题:', savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            console.log('✅ 主题初始化完成, data-theme:', document.documentElement.getAttribute('data-theme'));
+        }
+
     </script>
+
+    <!-- 主题设置模态框 -->
+    <div class="modal" id="themeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🎨 主题设置</h3>
+                <button class="close-btn" onclick="closeThemeSelector()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="theme-options">
+                    <div class="theme-option active" data-theme="default" onclick="selectTheme('default')">
+                        <div class="theme-preview default-theme"></div>
+                        <div class="theme-info">
+                            <h4>默认主题</h4>
+                            <p>经典蓝白配色</p>
+                        </div>
+                    </div>
+                    
+                    <div class="theme-option" data-theme="dark" onclick="selectTheme('dark')">
+                        <div class="theme-preview dark-theme"></div>
+                        <div class="theme-info">
+                            <h4>深色主题</h4>
+                            <p>护眼深色模式</p>
+                        </div>
+                    </div>
+                    
+                    <div class="theme-option" data-theme="green" onclick="selectTheme('green')">
+                        <div class="theme-preview green-theme"></div>
+                        <div class="theme-info">
+                            <h4>绿色主题</h4>
+                            <p>清新自然风格</p>
+                        </div>
+                    </div>
+                    
+                    <div class="theme-option" data-theme="purple" onclick="selectTheme('purple')">
+                        <div class="theme-preview purple-theme"></div>
+                        <div class="theme-info">
+                            <h4>紫色主题</h4>
+                            <p>优雅紫色系</p>
+                        </div>
+                    </div>
+                    
+                    <div class="theme-option" data-theme="yellow" onclick="selectTheme('yellow')">
+                        <div class="theme-preview yellow-theme"></div>
+                        <div class="theme-info">
+                            <h4>黄色主题</h4>
+                            <p>温暖活力风格</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 

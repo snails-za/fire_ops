@@ -5,6 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>个人中心 - 消安云管</title>
     <style>
+        :root {
+            /* 默认主题变量 - 蓝色主题 */
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --sidebar-bg: #0056b3;
+            --sidebar-active: #007bff;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #e9ecef;
+            --bg-color: #f8f9fa;
+            --header-bg: #667eea;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,7 +26,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary-color, #667eea) 0%, var(--primary-hover, #764ba2) 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -24,7 +37,7 @@
         }
 
         .header {
-            background: white;
+            background: var(--card-bg, white);
             border-radius: 12px;
             padding: 20px 30px;
             margin-bottom: 20px;
@@ -35,13 +48,13 @@
         }
 
         .header h1 {
-            color: #333;
+            color: var(--text-color, #333);
             font-size: 24px;
         }
 
         .back-btn {
             padding: 10px 20px;
-            background: #667eea;
+            background: var(--primary-color, #667eea);
             color: white;
             border: none;
             border-radius: 8px;
@@ -51,7 +64,7 @@
         }
 
         .back-btn:hover {
-            background: #5568d3;
+            background: var(--primary-hover, #5568d3);
         }
 
         .content-grid {
@@ -61,7 +74,7 @@
         }
 
         .profile-card {
-            background: white;
+            background: var(--card-bg, white);
             border-radius: 12px;
             padding: 30px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -144,7 +157,7 @@
         }
 
         .tabs {
-            background: white;
+            background: var(--card-bg, white);
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
@@ -295,6 +308,96 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* 主题样式 */
+        
+        /* 默认蓝色主题 */
+        [data-theme="default"] body {
+            background: linear-gradient(135deg, var(--primary-color, #007bff) 0%, var(--primary-hover, #0056b3) 100%);
+        }
+
+        /* 深色主题 */
+        [data-theme="dark"] {
+            --primary-color: #4fc3f7;
+            --primary-hover: #29b6f6;
+            --sidebar-bg: #263238;
+            --sidebar-active: #4fc3f7;
+            --card-bg: #37474f;
+            --text-color: #eceff1;
+            --border-color: #546e7a;
+            --bg-color: #263238;
+            --header-bg: #263238;
+        }
+
+        [data-theme="dark"] body {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        }
+
+        [data-theme="dark"] .header,
+        [data-theme="dark"] .profile-card,
+        [data-theme="dark"] .tabs {
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+
+        [data-theme="dark"] .header h1,
+        [data-theme="dark"] .profile-name,
+        [data-theme="dark"] .profile-role,
+        [data-theme="dark"] .form-group label,
+        [data-theme="dark"] .tab-content h3 {
+            color: var(--text-color);
+        }
+
+        /* 绿色主题 */
+        [data-theme="green"] {
+            --primary-color: #4caf50;
+            --primary-hover: #388e3c;
+            --sidebar-bg: #1b5e20;
+            --sidebar-active: #4caf50;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #e8f5e8;
+            --bg-color: #f1f8e9;
+            --header-bg: #1b5e20;
+        }
+
+        [data-theme="green"] body {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        }
+
+        /* 紫色主题 */
+        [data-theme="purple"] {
+            --primary-color: #9c27b0;
+            --primary-hover: #7b1fa2;
+            --sidebar-bg: #4a148c;
+            --sidebar-active: #9c27b0;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #f3e5f5;
+            --bg-color: #fce4ec;
+            --header-bg: #4a148c;
+        }
+
+        [data-theme="purple"] body {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        }
+
+        /* 黄色主题 */
+        [data-theme="yellow"] {
+            --primary-color: #ff9800;
+            --primary-hover: #f57c00;
+            --sidebar-bg: #e65100;
+            --sidebar-active: #ffb74d;
+            --card-bg: white;
+            --text-color: #333;
+            --border-color: #fff3e0;
+            --bg-color: #fff8e1;
+            --header-bg: #e65100;
+        }
+
+        [data-theme="yellow"] body {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        }
     </style>
 </head>
 <body>
@@ -438,6 +541,19 @@
     <!-- 引入CryptoJS库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script>
+        // 主题初始化
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'default';
+            console.log('🎨 个人中心初始化主题:', savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            console.log('✅ 个人中心主题初始化完成, data-theme:', document.documentElement.getAttribute('data-theme'));
+        }
+
+        // 页面加载时初始化主题
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+        });
+
         // 标签页切换
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {

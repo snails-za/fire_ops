@@ -9,7 +9,7 @@ from tortoise.expressions import Q
 
 from apps.dependencies.auth import get_current_user
 from apps.dependencies.permissions import check_admin_permission
-from apps.form.users.form import UserCreate, ProcessApplyRequest
+from apps.form.users.form import UserCreate, UserUpdate, ProcessApplyRequest
 from apps.models.user import User, FriendRequest
 from apps.utils import response
 from apps.utils.aes_helper import decrypt
@@ -66,21 +66,32 @@ async def create_user(user: UserCreate):
 
 @router.put("/update/{user_id}", response_model=User_Pydantic, summary="更新用户", description="更新用户信息",
             dependencies=[Depends(get_current_user)])
-async def update_user(user_id: int, user: UserCreate):
+async def update_user(user_id: int, user: UserUpdate):
     if await User.filter(Q(username=user.username)).exclude(id=user_id).exists():
         return response(code=0, message="用户名已经被注册！")
-    try:
-        decrypt_pwd = decrypt(AES_KEY, user.password)
-    except Exception as _:
-        return response(code=0, message="密码参数错误！")
-    await User.filter(id=user_id).update(
-        username=user.username,
-        pinyin=get_pinyin(user.username),
-        email=user.email,
-        password=get_hash(decrypt_pwd)
-    )
+    
+    # 构建更新数据
+    update_data = {
+        "username": user.username,
+        "pinyin": get_pinyin(user.username),
+        "email": user.email,
+    }
+
+    # 更新头像（如果提供）
     if user.head:
-        await User.filter(id=user_id).update(head=user.head)
+        update_data["head"] = user.head
+
+    # 只有传入密码时才更新密码
+    if user.password:
+        try:
+            decrypt_pwd = decrypt(AES_KEY, user.password)
+            update_data["password"] = get_hash(decrypt_pwd)
+        except Exception as _:
+            return response(code=0, message="密码参数错误！")
+    
+    # 更新基本信息
+    await User.filter(id=user_id).update(**update_data)
+    
     user_obj = await User.get(id=user_id)
     data = await User_Pydantic.from_tortoise_orm(user_obj)
     return response(data=data.model_dump(), message="更新成功！")

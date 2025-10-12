@@ -389,9 +389,9 @@
                             </div>
                             <!-- 头像上传提示 -->
                             <div class="form-group">
-                                <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 4px solid #667eea;">
-                                    <small style="color: #666; font-size: 13px;">
-                                        💡 <strong>提示：</strong>点击左侧头像上的相机图标可以上传新头像（最大5MB）
+                                <div style="background: #d4edda; padding: 12px; border-radius: 6px; border-left: 4px solid #28a745;">
+                                    <small style="color: #155724; font-size: 13px;">
+                                        ✨ <strong>提示：</strong>点击左侧头像上的相机图标可以上传新头像，上传后会立即保存（最大5MB）
                                     </small>
                                 </div>
                             </div>
@@ -631,7 +631,7 @@
             }
         }
 
-        // 头像上传
+        // 头像上传 - 立即保存
         document.getElementById('avatarInput').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -669,11 +669,33 @@
                     document.getElementById('avatarImg').style.display = 'block';
                     document.getElementById('avatarPlaceholder').style.display = 'none';
                     
-                    showAlert('editAlert', '头像上传成功！请保存资料以永久更新头像', 'success');
-                    console.log('头像上传成功:', avatarPath);
+                    // 获取当前用户信息
+                    const currentUser = await getCurrentUserInfo();
+                    const userId = await getCurrentUserId();
                     
-                    // 将头像路径存储到表单中，以便用户保存时一起更新
-                    window.currentAvatarPath = avatarPath;
+                    // 立即保存头像（不修改其他信息）
+                    const updateData = {
+                        username: currentUser.username,
+                        email: currentUser.email,
+                        head: avatarPath
+                        // 注意：不传password字段，不会修改密码
+                    };
+                    
+                    const response = await apiRequest(`/api/v1/admin/update/${userId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(updateData)
+                    });
+                    const result = await response.json();
+                    
+                    if (response.ok && result.code === 200) {
+                        showAlert('editAlert', '✅ 头像更新成功！', 'success');
+                        console.log('头像保存成功:', avatarPath);
+                    } else {
+                        alert('头像保存失败：' + result.message);
+                    }
                 } else {
                     alert('头像上传失败：' + uploadResult.message);
                 }
@@ -724,33 +746,21 @@
                     return;
                 }
                 
-                // 检查是否有实际修改（包括头像）
+                // 检查是否有实际修改
                 const hasUsernameChange = username !== currentUser.username;
                 const hasEmailChange = email !== currentUser.email;
-                const hasAvatarChange = window.currentAvatarPath && window.currentAvatarPath !== currentUser.head;
                 
-                if (!hasUsernameChange && !hasEmailChange && !hasAvatarChange) {
+                if (!hasUsernameChange && !hasEmailChange) {
                     showAlert('editAlert', 'ℹ️ 没有检测到任何修改', 'error');
                     return;
                 }
                 
-                // 使用一个固定的测试密码（假设用户密码是123456）
-                // 使用CBC模式与后端保持一致
-                const key = CryptoJS.enc.Utf8.parse('awkfjwhkgowkslg3'); // 16字节密钥
-                const iv = key; // IV与密钥相同（与后端保持一致）
-                
-                const testPassword = CryptoJS.AES.encrypt('123456', key, {
-                    iv: iv,
-                    mode: CryptoJS.mode.CBC,
-                    padding: CryptoJS.pad.Pkcs7
-                }).toString();
-                
-                // 构造符合UserCreate模型的JSON数据
+                // 构造更新数据（不包含密码字段，后端API已优化为密码可选）
                 const updateData = {
                     username: username,
                     email: email,
-                    password: testPassword,
-                    head: window.currentAvatarPath || currentUser.head || null  // 使用新上传的头像或保持现有头像
+                    head: currentUser.head || null  // 保持现有头像
+                    // 注意：不传password字段，后端不会修改密码
                 };
                 
                 const userId = await getCurrentUserId();
@@ -766,8 +776,6 @@
                 
                 if (response.ok && result.code === 200) {
                     showAlert('editAlert', '✅ 个人信息更新成功！', 'success');
-                    // 清除临时头像路径
-                    window.currentAvatarPath = null;
                     // 重新加载信息
                     await loadProfile();
                 } else {
@@ -775,7 +783,7 @@
                 }
             } catch (error) {
                 console.error('更新个人信息失败:', error);
-                showAlert('editAlert', '❌ 更新失败：网络错误或密码错误', 'error');
+                showAlert('editAlert', '❌ 更新失败：网络错误', 'error');
             }
         });
 
@@ -811,7 +819,6 @@
                 const userResult = await userResponse.json();
                 const user = userResult.data;
                 
-                // 先验证旧密码是否正确（通过尝试用旧密码更新来验证）
                 // 使用CBC模式与后端保持一致
                 const key = CryptoJS.enc.Utf8.parse('awkfjwhkgowkslg3'); // 16字节密钥
                 const iv = key; // IV与密钥相同
@@ -822,11 +829,11 @@
                     padding: CryptoJS.pad.Pkcs7
                 }).toString();
                 
-                // 验证旧密码
+                // 先验证旧密码是否正确（通过尝试用旧密码更新来验证）
                 const verifyData = {
                     username: user.username,
                     email: user.email,
-                    password: encryptedOld,
+                    password: encryptedOld,  // 传入旧密码
                     head: user.head || null
                 };
                 
@@ -852,11 +859,11 @@
                     padding: CryptoJS.pad.Pkcs7
                 }).toString();
                 
-                // 构造符合UserCreate模型的JSON数据，使用新密码
+                // 构造更新数据，使用新密码
                 const updateData = {
                     username: user.username,
                     email: user.email,
-                    password: encryptedNew,
+                    password: encryptedNew,  // 传入新密码
                     head: user.head || null
                 };
                 

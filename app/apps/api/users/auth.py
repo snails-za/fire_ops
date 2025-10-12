@@ -50,6 +50,7 @@ async def get_captcha(redis_client: Redis = Depends(get_redis_client)):
     base64_image = base64.b64encode(captcha_image).decode('utf-8')
     # 构造一个可以直接嵌入到 HTML 中的图片数据
     base64_string = f"data:image/png;base64,{base64_image}"
+    print(captcha_id, captcha_text)
     return response(data={"captcha_id": captcha_id, "captcha": base64_string})
 
 

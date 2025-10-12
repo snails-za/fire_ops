@@ -983,9 +983,6 @@
             background: linear-gradient(135deg, #263238 0%, #37474f 100%);
         }
 
-        .green-theme {
-            background: linear-gradient(135deg, #1b5e20 0%, #4caf50 100%);
-        }
 
         .purple-theme {
             background: linear-gradient(135deg, #4a148c 0%, #9c27b0 100%);
@@ -1116,51 +1113,6 @@
             border-bottom: 1px solid var(--border-color);
         }
 
-        /* 绿色主题 - 重新设计 */
-        [data-theme="green"] {
-            --primary-color: #4caf50;
-            --primary-hover: #45a049;
-            --sidebar-bg: #1b5e20;
-            --sidebar-active: #81c784;
-            --card-bg: white;
-            --text-color: #333;
-            --border-color: #e8f5e8;
-            --bg-color: #f1f8e9;
-        }
-
-        [data-theme="green"] body {
-            background: var(--bg-color);
-        }
-
-        [data-theme="green"] .sidebar {
-            background: var(--sidebar-bg) !important;
-            color: white !important;
-        }
-
-        [data-theme="green"] .sidebar-header {
-            color: white !important;
-        }
-
-        [data-theme="green"] .menu-item {
-            color: white !important;
-        }
-
-        [data-theme="green"] .menu-item:hover {
-            background: rgba(129, 199, 132, 0.2) !important;
-        }
-
-        [data-theme="green"] .menu-item.active {
-            background: rgba(129, 199, 132, 0.3) !important;
-            border-left-color: var(--sidebar-active) !important;
-        }
-
-        [data-theme="green"] .btn-primary {
-            background: var(--primary-color);
-        }
-
-        [data-theme="green"] .btn-primary:hover {
-            background: var(--primary-hover);
-        }
 
         /* 紫色主题 - 保持现有设计 */
         [data-theme="purple"] {
@@ -4828,13 +4780,6 @@
                         </div>
                     </div>
                     
-                    <div class="theme-option" data-theme="green" onclick="selectTheme('green')">
-                        <div class="theme-preview green-theme"></div>
-                        <div class="theme-info">
-                            <h4>绿色主题</h4>
-                            <p>清新自然风格</p>
-                        </div>
-                    </div>
                     
                     <div class="theme-option" data-theme="purple" onclick="selectTheme('purple')">
                         <div class="theme-preview purple-theme"></div>

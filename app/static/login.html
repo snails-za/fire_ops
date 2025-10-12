@@ -553,7 +553,7 @@
         }
 
         [data-theme="dark"] body {
-            background: var(--login-bg);
+            background: var(--login-bg) !important;
         }
 
         [data-theme="dark"] .login-container {
@@ -572,24 +572,6 @@
             color: var(--text-color);
         }
 
-        /* 绿色主题 */
-        [data-theme="green"] {
-            --primary-color: #4caf50;
-            --primary-hover: #388e3c;
-            --card-bg: white;
-            --text-color: #333;
-            --border-color: #e8f5e8;
-            --bg-color: #f1f8e9;
-            --login-bg: 
-                linear-gradient(135deg, #1b5e20 0%, #2e7d32 50%, #4caf50 100%),
-                radial-gradient(circle at 20% 80%, rgba(76, 175, 80, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(56, 142, 60, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-        }
-
-        [data-theme="green"] body {
-            background: var(--login-bg);
-        }
 
         /* 紫色主题 */
         [data-theme="purple"] {
@@ -607,7 +589,7 @@
         }
 
         [data-theme="purple"] body {
-            background: var(--login-bg);
+            background: var(--login-bg) !important;
         }
 
         /* 黄色主题 */
@@ -626,7 +608,7 @@
         }
 
         [data-theme="yellow"] body {
-            background: var(--login-bg);
+            background: var(--login-bg) !important;
         }
     </style>
 </head>
@@ -693,6 +675,20 @@
             console.log('🎨 登录页面初始化主题:', savedTheme);
             document.documentElement.setAttribute('data-theme', savedTheme);
             console.log('✅ 登录页面主题初始化完成, data-theme:', document.documentElement.getAttribute('data-theme'));
+        }
+
+        // 主题切换功能
+        function selectTheme(theme) {
+            console.log('🎨 登录页面切换主题:', theme);
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            
+            // 强制重新渲染
+            document.body.style.display = 'none';
+            document.body.offsetHeight; // 触发重排
+            document.body.style.display = '';
+            
+            console.log('✅ 登录页面主题切换完成, data-theme:', document.documentElement.getAttribute('data-theme'));
         }
 
         // 页面加载时初始化主题

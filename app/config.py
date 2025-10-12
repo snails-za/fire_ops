@@ -131,7 +131,7 @@ CHROMA_COLLECTION = config("CHROMA_COLLECTION", default="documents")
 
 # Qdrant配置
 QDRANT_HOST = config("QDRANT_HOST", default="localhost")
-QDRANT_PORT = config("QDRANT_PORT", cast=int, default=6333)
+QDRANT_PORT = config("QDRANT_PORT", cast=int, default=16333)
 QDRANT_COLLECTION_NAME = config("QDRANT_COLLECTION_NAME", default="documents")
 QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 

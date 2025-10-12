@@ -1933,65 +1933,6 @@
                         </div>
                     </div>
 
-                    <!-- 文档管理统计 -->
-                    <div class="card">
-                        <div class="card-title">
-                            📊 文档管理统计
-                            <button class="btn btn-sm" onclick="refreshDocStats()" style="float: right; padding: 5px 10px; font-size: 12px;">🔄 刷新</button>
-                        </div>
-                        <div class="stats-grid-compact">
-                            <div class="stat-card-compact clickable" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);" onclick="showPage('documents')">
-                                <div class="stat-header">
-                                    <h4>已完成</h4>
-                                    <div class="value" id="completedDocs">-</div>
-                                </div>
-                                <div class="progress-bar-compact">
-                                    <div class="progress-fill" id="completedProgress" style="width: 0%"></div>
-                                </div>
-                            </div>
-                            <div class="stat-card-compact clickable" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);" onclick="showPage('documents')">
-                                <div class="stat-header">
-                                    <h4>处理中</h4>
-                                    <div class="value" id="processingDocs">-</div>
-                                </div>
-                                <div class="progress-bar-compact">
-                                    <div class="progress-fill" id="processingProgress" style="width: 0%"></div>
-                                </div>
-                            </div>
-                            <div class="stat-card-compact clickable" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);" onclick="showPage('documents')">
-                                <div class="stat-header">
-                                    <h4>排队中</h4>
-                                    <div class="value" id="queuedDocs">-</div>
-                                </div>
-                                <div class="progress-bar-compact">
-                                    <div class="progress-fill" id="queuedProgress" style="width: 0%"></div>
-                                </div>
-                            </div>
-                            <div class="stat-card-compact clickable" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);" onclick="showPage('documents')">
-                                <div class="stat-header">
-                                    <h4>失败</h4>
-                                    <div class="value" id="failedDocs">-</div>
-                                </div>
-                                <div class="progress-bar-compact">
-                                    <div class="progress-fill" id="failedProgress" style="width: 0%"></div>
-                                </div>
-                            </div>
-                            <div class="stat-card-compact" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
-                                <div class="stat-header">
-                                    <h4>文档块</h4>
-                                    <div class="value" id="totalChunks">-</div>
-                                </div>
-                            </div>
-                            <div class="stat-card-compact" style="background: linear-gradient(135deg, #ff6e7f 0%, #bfe9ff 100%);">
-                                <div class="stat-header">
-                                    <h4>向量数</h4>
-                                    <div class="value" id="totalVectors">-</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-
                     <div class="card" style="padding: 15px;">
                         <p style="color: #6c757d; line-height: 1.5; margin: 0; font-size: 14px;">
                             欢迎使用消安云管智能管理系统 - 集成用户管理、设备监控、文档处理和智能问答的综合管理平台。

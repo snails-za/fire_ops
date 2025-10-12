@@ -372,9 +372,6 @@
         .modal-body {
             padding: 20px;
         }
-            flex-wrap: wrap;
-            gap: 10px;
-        }
 
         .search-box {
             display: flex;
@@ -485,6 +482,203 @@
         .badge-danger {
             background: #f8d7da;
             color: #721c24;
+        }
+
+        /* 新增样式 */
+        .clickable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+            transition: all 0.3s ease;
+        }
+
+        .status-item:hover {
+            background: #e9ecef;
+            transform: translateX(2px);
+        }
+
+        .status-icon {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+
+        .status-info {
+            flex: 1;
+        }
+
+        .status-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 2px;
+        }
+
+        .status-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .quick-action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .quick-action-btn:hover {
+            background: #f8f9fa;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .action-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .action-label {
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        /* 紧凑版状态监控 */
+        .status-compact {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: space-between;
+        }
+
+        .status-item-compact {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #28a745;
+            flex: 1;
+            min-width: 120px;
+            font-size: 13px;
+        }
+
+        .status-item-compact .status-icon {
+            font-size: 16px;
+            margin-right: 6px;
+        }
+
+        .status-item-compact .status-label {
+            margin-right: 4px;
+            color: #6c757d;
+            font-size: 12px;
+        }
+
+        .status-item-compact .status-value {
+            font-weight: 600;
+            color: #28a745;
+            font-size: 12px;
+        }
+
+        /* 紧凑版统计卡片 */
+        .stats-grid-compact {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-card-compact {
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card-compact:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .stat-header h4 {
+            font-size: 12px;
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .stat-header .value {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .progress-bar-compact {
+            width: 100%;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
         }
 
         /* 文档上传区域 */
@@ -1698,11 +1892,95 @@
                         </div>
                     </div>
 
+                    <!-- 系统状态监控 - 紧凑版 -->
                     <div class="card">
-                        <p style="color: #6c757d; line-height: 1.8;">
-                            欢迎使用消安云管智能管理系统。这是一个集成用户管理、设备监控、文档处理和智能问答的综合管理平台。
-                            <br><br>
-                            您可以通过左侧菜单访问各个功能模块。
+                        <div class="card-title">⚡ 系统状态监控</div>
+                        <div class="status-compact">
+                            <div class="status-item-compact" id="systemHealth">
+                                <div class="status-icon">💚</div>
+                                <span class="status-label">系统:</span>
+                                <span class="status-value" id="systemStatus">正常</span>
+                            </div>
+                            <div class="status-item-compact" id="apiHealth">
+                                <div class="status-icon">🔗</div>
+                                <span class="status-label">API:</span>
+                                <span class="status-value" id="apiStatus">正常</span>
+                            </div>
+                            <div class="status-item-compact" id="dbHealth">
+                                <div class="status-icon">🗄️</div>
+                                <span class="status-label">数据库:</span>
+                                <span class="status-value" id="dbStatus">正常</span>
+                            </div>
+                            <div class="status-item-compact" id="celeryHealth">
+                                <div class="status-icon">⚙️</div>
+                                <span class="status-label">队列:</span>
+                                <span class="status-value" id="celeryStatus">正常</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 文档管理统计 -->
+                    <div class="card">
+                        <div class="card-title">
+                            📊 文档管理统计
+                            <button class="btn btn-sm" onclick="refreshDocStats()" style="float: right; padding: 5px 10px; font-size: 12px;">🔄 刷新</button>
+                        </div>
+                        <div class="stats-grid-compact">
+                            <div class="stat-card-compact clickable" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);" onclick="showPage('documents')">
+                                <div class="stat-header">
+                                    <h4>已完成</h4>
+                                    <div class="value" id="completedDocs">-</div>
+                                </div>
+                                <div class="progress-bar-compact">
+                                    <div class="progress-fill" id="completedProgress" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="stat-card-compact clickable" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);" onclick="showPage('documents')">
+                                <div class="stat-header">
+                                    <h4>处理中</h4>
+                                    <div class="value" id="processingDocs">-</div>
+                                </div>
+                                <div class="progress-bar-compact">
+                                    <div class="progress-fill" id="processingProgress" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="stat-card-compact clickable" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);" onclick="showPage('documents')">
+                                <div class="stat-header">
+                                    <h4>排队中</h4>
+                                    <div class="value" id="queuedDocs">-</div>
+                                </div>
+                                <div class="progress-bar-compact">
+                                    <div class="progress-fill" id="queuedProgress" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="stat-card-compact clickable" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);" onclick="showPage('documents')">
+                                <div class="stat-header">
+                                    <h4>失败</h4>
+                                    <div class="value" id="failedDocs">-</div>
+                                </div>
+                                <div class="progress-bar-compact">
+                                    <div class="progress-fill" id="failedProgress" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="stat-card-compact" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                                <div class="stat-header">
+                                    <h4>文档块</h4>
+                                    <div class="value" id="totalChunks">-</div>
+                                </div>
+                            </div>
+                            <div class="stat-card-compact" style="background: linear-gradient(135deg, #ff6e7f 0%, #bfe9ff 100%);">
+                                <div class="stat-header">
+                                    <h4>向量数</h4>
+                                    <div class="value" id="totalVectors">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div class="card" style="padding: 15px;">
+                        <p style="color: #6c757d; line-height: 1.5; margin: 0; font-size: 14px;">
+                            欢迎使用消安云管智能管理系统 - 集成用户管理、设备监控、文档处理和智能问答的综合管理平台。
                         </p>
                     </div>
                 </div>
@@ -2322,7 +2600,7 @@
                 document.getElementById('totalDevices').textContent = '0';
             }
 
-            // 加载文档统计
+            // 加载文档统计（简单版）
             try {
                 const response = await fetchWithAuth('/api/v1/documents/list?page=1&page_size=1');
                 const result = await response.json();
@@ -2333,6 +2611,12 @@
                 console.error('加载文档统计失败:', error);
                 document.getElementById('totalDocuments').textContent = '0';
             }
+
+            // 加载文档详细统计
+            await loadDocumentStats();
+            
+            // 加载系统状态
+            await loadSystemStatus();
         }
 
         // 切换页面
@@ -3825,6 +4109,131 @@
                     <div class="stat-label">文档块数</div>
                 </div>
             `;
+        }
+
+        // 加载文档统计数据
+        async function loadDocumentStats() {
+            try {
+                const response = await fetchWithAuth('/api/v1/documents/stats/overview');
+                const result = await response.json();
+                if (result.code === 200 && result.data) {
+                    const data = result.data;
+                    
+                    // 更新文档状态统计
+                    const completed = data.documents?.completed || 0;
+                    const processing = data.documents?.processing || 0;
+                    const queued = data.documents?.queued || 0;
+                    const failed = data.documents?.failed || 0;
+                    const total = completed + processing + queued + failed;
+                    
+                    document.getElementById('completedDocs').textContent = completed;
+                    document.getElementById('processingDocs').textContent = processing;
+                    document.getElementById('queuedDocs').textContent = queued;
+                    document.getElementById('failedDocs').textContent = failed;
+                    document.getElementById('totalChunks').textContent = data.chunks?.total || 0;
+                    document.getElementById('totalVectors').textContent = data.vectors?.total || 0;
+                    
+                    // 更新进度条
+                    if (total > 0) {
+                        document.getElementById('completedProgress').style.width = `${(completed / total) * 100}%`;
+                        document.getElementById('processingProgress').style.width = `${(processing / total) * 100}%`;
+                        document.getElementById('queuedProgress').style.width = `${(queued / total) * 100}%`;
+                        document.getElementById('failedProgress').style.width = `${(failed / total) * 100}%`;
+                    }
+                }
+            } catch (error) {
+                console.error('加载文档详细统计失败:', error);
+                // 设置默认值
+                document.getElementById('completedDocs').textContent = '0';
+                document.getElementById('processingDocs').textContent = '0';
+                document.getElementById('queuedDocs').textContent = '0';
+                document.getElementById('failedDocs').textContent = '0';
+                document.getElementById('totalChunks').textContent = '0';
+                document.getElementById('totalVectors').textContent = '0';
+            }
+        }
+
+        // 加载系统状态 - 使用专门的健康检查API
+        async function loadSystemStatus() {
+            console.log('开始检查系统状态...');
+            
+            try {
+                const response = await fetch('/api/v1/common/health');
+                const result = await response.json();
+                
+                if (result.code === 200 && result.data) {
+                    const healthData = result.data;
+                    
+                    // 更新各个组件状态
+                    updateComponentStatus('apiStatus', healthData.components.api);
+                    updateComponentStatus('dbStatus', healthData.components.database);
+                    updateComponentStatus('celeryStatus', healthData.components.celery);
+                    
+                    // 更新整体系统状态
+                    const systemElement = document.getElementById('systemStatus');
+                    if (healthData.status === 'healthy') {
+                        systemElement.textContent = '正常';
+                        systemElement.style.color = '#28a745';
+                        systemElement.title = `整体响应时间: ${healthData.response_time_ms}ms`;
+                    } else {
+                        systemElement.textContent = '异常';
+                        systemElement.style.color = '#dc3545';
+                        systemElement.title = '系统存在异常组件';
+                    }
+                    
+                    console.log('系统状态检查完成:', healthData);
+                } else {
+                    throw new Error('健康检查API返回异常');
+                }
+            } catch (error) {
+                console.error('系统状态检查失败:', error);
+                // 设置所有状态为异常
+                setAllStatusError();
+            }
+        }
+
+        // 更新组件状态显示
+        function updateComponentStatus(elementId, componentData) {
+            const element = document.getElementById(elementId);
+            
+            if (componentData.status === 'healthy') {
+                element.textContent = '正常';
+                element.style.color = '#28a745';
+                element.title = `${componentData.message} (${componentData.response_time_ms}ms)`;
+            } else if (componentData.status === 'degraded') {
+                element.textContent = '降级';
+                element.style.color = '#ffc107';
+                element.title = componentData.message;
+            } else {
+                element.textContent = '异常';
+                element.style.color = '#dc3545';
+                element.title = componentData.message;
+            }
+        }
+
+        // 设置所有状态为异常
+        function setAllStatusError() {
+            const statusElements = ['systemStatus', 'apiStatus', 'dbStatus', 'celeryStatus'];
+            statusElements.forEach(elementId => {
+                const element = document.getElementById(elementId);
+                element.textContent = '异常';
+                element.style.color = '#dc3545';
+                element.title = '检查失败';
+            });
+        }
+
+        // 刷新文档统计
+        async function refreshDocStats() {
+            await loadDocumentStats();
+            // 显示刷新成功提示
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✅ 已刷新';
+            btn.style.background = '#28a745';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+            }, 1000);
         }
     </script>
 </body>

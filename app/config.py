@@ -78,6 +78,9 @@ REDIS_DB = config("REDIS_DB", cast=int, default=0)
 # 文档存储路径
 DOCUMENT_STORE_PATH = os.path.join(BASE_PATH, "data", "documents")
 
+# 头像存储路径
+AVATAR_STORE_PATH = os.path.join(BASE_PATH, "data", "head")
+
 # 文件处理限制
 MAX_FILE_SIZE = config("MAX_FILE_SIZE", cast=int, default=50 * 1024 * 1024)  # 50MB
 ALLOWED_FILE_TYPES = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt']

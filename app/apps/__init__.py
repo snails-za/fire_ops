@@ -6,7 +6,7 @@ from fastapi.openapi.utils import get_openapi
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
-from config import DEBUG, STATIC_PATH
+from config import DEBUG, STATIC_PATH, BASE_PATH
 # ✅ 执行 Aerich 补丁以拦截 DROP 操作（防止误删表字段）
 from apps.utils import aerich_patch as aerich_patch
 
@@ -15,6 +15,7 @@ router = APIRouter()
 
 def init_static(app):
     app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
+    app.mount("/data", StaticFiles(directory=os.path.join(BASE_PATH, "data")), name="data")
 
 
 def init_cors(app):

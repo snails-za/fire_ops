@@ -14,7 +14,7 @@ from apps.models.user import User, FriendRequest
 from apps.utils import response
 from apps.utils.aes_helper import decrypt
 from apps.utils.common import get_hash, get_pinyin
-from config import AES_KEY, STATIC_PATH
+from config import AES_KEY, STATIC_PATH, AVATAR_STORE_PATH
 
 router = APIRouter(prefix="/admin", tags=["用户管理"])
 
@@ -25,12 +25,15 @@ User_Pydantic = pydantic_model_creator(User, name="User", exclude=("password",))
 async def upload_image(file: UploadFile = File(...)):
     ext = os.path.splitext(file.filename)[-1]
     filename = f"{uuid.uuid4().hex}{ext}"
-    save_path = os.path.join(STATIC_PATH, "images", "user", filename)
+    save_path = os.path.join(AVATAR_STORE_PATH, filename)
+
+    # 确保目录存在
+    os.makedirs(AVATAR_STORE_PATH, exist_ok=True)
 
     with open(save_path, "wb") as f:
         f.write(await file.read())
 
-    return response(data={"filepath": os.path.join("/", "static", "images", "user", filename)}, message="上传成功")
+    return response(data={"filepath": os.path.join("/", "data", "head", filename)}, message="上传成功")
 
 
 @router.get("/list", summary="用户列表", description="获取用户列表", dependencies=[Depends(check_admin_permission)])

@@ -2216,7 +2216,7 @@
                 </div>
                 <div class="topbar-right">
                     <div class="user-info" id="userInfo" onclick="toggleUserDropdown()">
-                        <img class="user-avatar" id="userAvatar" src="/static/images/user/demo/demo1.jpg" alt="用户头像">
+                        <img class="user-avatar" id="userAvatar" src="" alt="用户头像">
                         <span class="user-name" id="userName">加载中...</span>
                         <span style="font-size: 12px; color: #999;">▼</span>
                         <!-- 用户下拉菜单 -->
@@ -2950,6 +2950,9 @@
                 document.getElementById('userName').textContent = currentUser.username;
                 if (currentUser.head) {
                     document.getElementById('userAvatar').src = currentUser.head;
+                } else {
+                    // 设置默认头像占位符
+                    document.getElementById('userAvatar').src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNmMGYwZjAiLz4KPHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSIxMCIgeT0iMTAiPgo8cGF0aCBkPSJNMTAgMTBDMTIuNzYxNCAxMCAxNSA3Ljc2MTQyIDE1IDVDMTUgMi4yMzg1OCAxMi43NjE0IDAgMTAgMEM3LjIzODU4IDAgNSAyLjIzODU4IDUgNUM1IDcuNzYxNDIgNy4yMzg1OCAxMCAxMCAxMFoiIGZpbGw9IiM5OTk5OTkiLz4KPHBhdGggZD0iTTEwIDEyQzYuNjg2MyAxMiA0IDE0LjY4NjMgNCAxOEgxNkMxNiAxNC42ODYzIDEzLjMxMzcgMTIgMTAgMTJaIiBmaWxsPSIjOTk5OTk5Ii8+Cjwvc3ZnPgo8L3N2Zz4K';
                 }
                 // 更新下拉菜单中的用户信息
                 const dropdownUserName = document.getElementById('dropdownUserName');
@@ -3074,7 +3077,7 @@
                         tbody.innerHTML = users.map(user => `
                             <tr>
                                 <td>${user.id}</td>
-                                <td><img src="${user.head || '/static/images/user/demo/demo1.jpg'}" class="avatar-small" alt="头像"></td>
+                                <td><img src="${user.head || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiNmMGYwZjAiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSI4IiB5PSI4Ij4KPHBhdGggZD0iTTggOEM5LjEwNDU3IDggMTAgNy4xMDQ1NyAxMCA2QzEwIDQuODk1NDMgOS4xMDQ1NyA0IDggNEM2Ljg5NTQzIDQgNiA0Ljg5NTQzIDYgNkM2IDcuMTA0NTcgNi44OTU0MyA4IDggOFoiIGZpbGw9IiM5OTk5OTkiLz4KPHBhdGggZD0iTTggMTBDNS43OTA4NiAxMCA0IDExLjc5MDkgNCAxNEgxMkMxMiAxMS43OTA5IDEwLjIwOTEgMTAgOCAxMFoiIGZpbGw9IiM5OTk5OTkiLz4KPC9zdmc+Cjwvc3ZnPgo='}" class="avatar-small" alt="头像"></td>
                                 <td>${user.username}</td>
                                 <td>${user.email || '-'}</td>
                                 <td>${user.created_at ? new Date(user.created_at).toLocaleString('zh-CN') : '-'}</td>

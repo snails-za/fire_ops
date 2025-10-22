@@ -1,6 +1,7 @@
 import os
 import random
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
@@ -93,6 +94,8 @@ async def update_user(user_id: int, user: UserUpdate):
             return response(code=0, message="密码参数错误！")
     
     # 更新基本信息
+    update_data["updated_at"] = datetime.now()
+    print(datetime.now())
     await User.filter(id=user_id).update(**update_data)
     
     user_obj = await User.get(id=user_id)
@@ -188,7 +191,8 @@ async def get_contacts_apply(user: User = Depends(get_current_user)):
 async def process_apply(id: int, process: ProcessApplyRequest):
     if not await FriendRequest.filter(id=id).exists():
         return response(code=400, message="申请不存在")
-    await FriendRequest.filter(id=id).update(is_accept=process.accept)
+    from datetime import datetime
+    await FriendRequest.filter(id=id).update(is_accept=process.accept, updated_at=datetime.now())
     return response(message="更新成功")
 
 

@@ -317,6 +317,14 @@
 
         .info-value {
             color: #333;
+            font-variant-numeric: tabular-nums; /* 尝试让数字等宽 */
+        }
+
+        .info-value.time-value {
+            font-family: inherit;
+            font-size: inherit;
+            font-weight: inherit;
+            color: inherit;
         }
 
         @media (max-width: 768px) {
@@ -461,10 +469,6 @@
                     <div class="tab-pane active" id="info">
                         <h3 style="margin-bottom: 20px;">基本信息</h3>
                         <div class="info-item">
-                            <span class="info-label">用户ID</span>
-                            <span class="info-value" id="infoId">-</span>
-                        </div>
-                        <div class="info-item">
                             <span class="info-label">用户名</span>
                             <span class="info-value" id="infoUsername">-</span>
                         </div>
@@ -474,11 +478,11 @@
                         </div>
                         <div class="info-item">
                             <span class="info-label">注册时间</span>
-                            <span class="info-value" id="infoCreatedAt">-</span>
+                            <span class="info-value time-value" id="infoCreatedAt">-</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">更新时间</span>
-                            <span class="info-value" id="infoUpdatedAt">-</span>
+                            <span class="info-value time-value" id="infoUpdatedAt">-</span>
                         </div>
                     </div>
 
@@ -705,11 +709,10 @@
                     }
                     
                     // 更新基本信息标签页
-                    document.getElementById('infoId').textContent = user.id;
                     document.getElementById('infoUsername').textContent = user.username;
                     document.getElementById('infoEmail').textContent = user.email || '-';
-                    document.getElementById('infoCreatedAt').textContent = user.created_at ? new Date(user.created_at).toLocaleString() : '-';
-                    document.getElementById('infoUpdatedAt').textContent = user.updated_at ? new Date(user.updated_at).toLocaleString() : '-';
+                    document.getElementById('infoCreatedAt').textContent = user.created_at ? formatDateTime(user.created_at) : '-';
+                    document.getElementById('infoUpdatedAt').textContent = user.updated_at ? formatDateTime(user.updated_at) : '-';
                     
                     // 填充编辑表单
                     document.getElementById('editUsername').value = user.username || '';
@@ -842,6 +845,27 @@
             const response = await apiRequest('/api/v1/auth/info');
             const result = await response.json();
             return result.data;
+        }
+
+        // 统一的时间格式化函数
+        function formatDateTime(dateString) {
+            // 后端现在直接返回本地时间，直接使用即可
+            const date = new Date(dateString);
+            
+            // 检查日期是否有效
+            if (isNaN(date.getTime())) {
+                console.error('Invalid date:', dateString);
+                return '-';
+            }
+            
+            // 直接使用本地时间显示
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         }
 
         // 编辑资料表单提交

@@ -52,6 +52,8 @@ TORTOISE_ORM = {
             "default_connection": "default",
         }
     },
+    "use_tz": False,  # 不使用时区，直接使用本地时间
+    "timezone": "Asia/Shanghai",  # 设置时区
 }
 
 # 动态添加模型

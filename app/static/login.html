@@ -640,7 +640,7 @@
                 </div>
             </div>
 
-            <button type="submit" class="login-btn" id="loginBtn">登录</button>
+            <button type="submit" class="login-btn" id="loginBtn">后台登录</button>
             
             <button type="button" class="register-btn" id="registerBtn" onclick="goToRegister()">注册账号</button>
             
@@ -804,19 +804,21 @@
                 formData.append('captcha_text', captcha);
                 formData.append('captcha_id', captchaId);
 
-                const response = await fetch('/api/v1/auth/login', {
+                // 使用后台管理员登录接口
+                const response = await fetch('/api/v1/auth/admin/login', {
                     method: 'POST',
                     body: formData
                 });
 
                 const result = await response.json();
                 
-                console.log('登录API响应:', result); // 调试日志
+                console.log('后台登录API响应:', result); // 调试日志
                 
                 if (response.ok && result.code === 200) {
                     // 保存 token 和登录时间
                     localStorage.setItem('token', result.data.access_token);
                     localStorage.setItem('token_time', Date.now().toString());
+                    localStorage.setItem('user_role', result.data.user_role);
                     showMessage('登录成功，正在跳转...', 'success');
                     
                     // 跳转到后台管理页面

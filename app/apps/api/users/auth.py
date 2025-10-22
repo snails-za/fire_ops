@@ -54,7 +54,7 @@ async def get_captcha(redis_client: Redis = Depends(get_redis_client)):
     return response(data={"captcha_id": captcha_id, "captcha": base64_string})
 
 
-@router.post("/login", summary="登录接口", response_model=TokenResponse, description="登录接口")
+@router.post("/login", summary="前台登录接口", response_model=TokenResponse, description="前台登录接口（普通用户）")
 async def login(
         username: str = Form(...),
         password: str = Form(...),
@@ -62,26 +62,77 @@ async def login(
         captcha_id: str = Form(...),
         redis_client: Redis = Depends(get_redis_client)
 ):
-    # 这里可以添加登录逻辑
+    """
+    前台用户登录接口
+    只允许普通用户（role=user）登录
+    """
+    # 验证密码
     decrypt_pwd = decrypt(AES_KEY, password)
     user = await User.get_or_none(username=username, password=get_hash(decrypt_pwd))
     if not user:
         return response(code=401, message="用户名或密码错误")
+    
+    # 验证码检查
     session_captcha_text = await redis_client.get(captcha_id)
     print(session_captcha_text, captcha_text)
     if not session_captcha_text or session_captcha_text.lower() != captcha_text.lower():
         return response(code=401, message="验证码错误或已过期，请重新获取验证码！")
     # 删除验证码，避免重复使用
     await redis_client.delete(captcha_id)
+    
+    # 检查用户角色，只允许普通用户登录前台
+    if user.role != "user":
+        return response(code=403, message="管理员请使用后台登录接口")
+    
     # 登录成功，返回用户信息
     login_time = time.time()
     token = gen_token(user.id, login_time, seconds=MAX_AGE)
     await redis_client.set(f"token-{login_time}-{user.id}", token, MAX_AGE)
     await redis_client.set(f"refresh_token-{login_time}-{user.id}", token, REFRESH_MAX_AGE)
     
-    # 检查用户角色，只有管理员可以登录后台
+    resp = {
+        "access_token": token,
+        "token_type": "bearer",
+        "user_role": user.role
+    }
+    return response(data=resp, message="登录成功！")
+
+
+@router.post("/admin/login", summary="后台登录接口", response_model=TokenResponse, description="后台登录接口（管理员）")
+async def admin_login(
+        username: str = Form(...),
+        password: str = Form(...),
+        captcha_text: str = Form(...),
+        captcha_id: str = Form(...),
+        redis_client: Redis = Depends(get_redis_client)
+):
+    """
+    后台管理员登录接口
+    只允许管理员（role=admin）登录
+    """
+    # 验证密码
+    decrypt_pwd = decrypt(AES_KEY, password)
+    user = await User.get_or_none(username=username, password=get_hash(decrypt_pwd))
+    if not user:
+        return response(code=401, message="用户名或密码错误")
+    
+    # 验证码检查
+    session_captcha_text = await redis_client.get(captcha_id)
+    print(session_captcha_text, captcha_text)
+    if not session_captcha_text or session_captcha_text.lower() != captcha_text.lower():
+        return response(code=401, message="验证码错误或已过期，请重新获取验证码！")
+    # 删除验证码，避免重复使用
+    await redis_client.delete(captcha_id)
+    
+    # 检查用户角色，只允许管理员登录后台
     if user.role != "admin":
-        return response(code=403, message="普通用户无法登录后台管理系统")
+        return response(code=403, message="普通用户无法登录后台管理系统，请使用前台登录")
+    
+    # 登录成功，生成token
+    login_time = time.time()
+    token = gen_token(user.id, login_time, seconds=MAX_AGE)
+    await redis_client.set(f"token-{login_time}-{user.id}", token, MAX_AGE)
+    await redis_client.set(f"refresh_token-{login_time}-{user.id}", token, REFRESH_MAX_AGE)
     
     resp = {
         "access_token": token,

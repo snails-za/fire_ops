@@ -250,15 +250,31 @@
             margin-bottom: 30px;
         }
 
+        .system-logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .system-logo:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
         .login-header h1 {
             color: var(--text-color, #333);
             font-size: 28px;
             margin-bottom: 10px;
+            font-weight: 600;
         }
 
         .login-header p {
             color: #666;
             font-size: 14px;
+            margin-top: 5px;
         }
 
         .form-group {
@@ -572,6 +588,14 @@
             color: var(--text-color);
         }
 
+        [data-theme="dark"] .system-logo {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="dark"] .system-logo:hover {
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
 
         /* 紫色主题 */
         [data-theme="purple"] {
@@ -615,6 +639,7 @@
 <body>
     <div class="login-container">
         <div class="login-header">
+            <img src="/static/images/system_logo.png" alt="系统Logo" class="system-logo">
             <h1>消安云管</h1>
             <p>智能设备管理系统</p>
         </div>

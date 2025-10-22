@@ -747,7 +747,7 @@
                 const docResponse = await apiRequest('/api/v1/documents/list?page=1&page_size=1');
                 const docResult = await docResponse.json();
                 if (docResponse.ok && docResult.code === 200) {
-                    document.getElementById('documentCount').textContent = docResult.total || 0;
+                    document.getElementById('documentCount').textContent = docResult.data?.total || 0;
                 }
             } catch (error) {
                 console.error('加载统计信息失败:', error);

@@ -14,7 +14,7 @@ class Device(BaseModel):
     status = fields.CharField(max_length=50, null=True,description="设备状态")
     install_date = fields.DateField(null=True, description="安装日期")
     installer = fields.CharField(max_length=50, null=True, description="安装人")
-    contact = fields.CharField(max_length=11, null=True, description="联系人")
+    contact = fields.CharField(max_length=11, null=True, description="联系方式（手机号）")
     remark = fields.TextField(null=True, description="备注")
     created_by_user_id = fields.IntField(null=True, description="创建用户ID")
 

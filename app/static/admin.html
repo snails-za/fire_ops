@@ -2172,6 +2172,146 @@
             }
         }
 
+        /* Toast提示样式 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            z-index: 10000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 200px;
+            max-width: 400px;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .toast-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .toast-error {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        .toast-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        }
+
+        /* 删除确认模态框样式 */
+        .delete-confirm-modal {
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-confirm-modal.show {
+            display: flex;
+        }
+
+        .delete-confirm-content {
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .delete-confirm-header {
+            padding: 25px 25px 20px;
+            text-align: center;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .delete-confirm-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .delete-confirm-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .delete-confirm-message {
+            font-size: 14px;
+            color: #6c757d;
+            line-height: 1.5;
+        }
+
+        .delete-confirm-body {
+            padding: 25px;
+        }
+
+        .delete-confirm-footer {
+            padding: 15px 25px 25px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .delete-confirm-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .delete-confirm-btn-cancel {
+            background: #f8f9fa;
+            color: #495057;
+        }
+
+        .delete-confirm-btn-cancel:hover {
+            background: #e9ecef;
+        }
+
+        .delete-confirm-btn-delete {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+        }
+
+        .delete-confirm-btn-delete:hover {
+            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
         /* 响应式 */
         @media (max-width: 768px) {
             .sidebar {
@@ -2415,7 +2555,9 @@
                                 <input type="text" id="deviceSearchInput" placeholder="搜索设备名称...">
                                 <button class="btn btn-primary" onclick="searchDevices()">搜索</button>
                             </div>
-                            <button class="btn btn-success" onclick="refreshDevices()">刷新</button>
+                            <div class="controls-right">
+                                <button class="btn btn-primary" onclick="refreshDevices()">刷新</button>
+                            </div>
                         </div>
                         <div class="table-container">
                             <table id="devicesTable">
@@ -2425,12 +2567,13 @@
                                         <th>设备名称</th>
                                         <th>地址</th>
                                         <th>状态</th>
-                                        <th>联系人</th>
+                                        <th>联系方式</th>
                                         <th>安装日期</th>
+                                        <th>操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="devicesTableBody">
-                                    <tr><td colspan="6" class="loading"></td></tr>
+                                    <tr><td colspan="7" class="loading"></td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2515,6 +2658,34 @@
         </div>
     </div>
 
+    <!-- 设备详情模态框 -->
+    <div id="deviceDetailModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="deviceDetailModalTitle">设备详情</h3>
+                <span class="close" onclick="closeDeviceDetailModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="deviceDetailModalBody">
+                <!-- 设备详情表格将在这里显示 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除确认模态框 -->
+    <div id="deleteConfirmModal" class="delete-confirm-modal">
+        <div class="delete-confirm-content">
+            <div class="delete-confirm-header">
+                <div class="delete-confirm-icon">⚠️</div>
+                <div class="delete-confirm-title">确认删除</div>
+                <div class="delete-confirm-message">确定要删除这个设备吗？此操作不可恢复，请谨慎操作。</div>
+            </div>
+            <div class="delete-confirm-footer">
+                <button class="delete-confirm-btn delete-confirm-btn-cancel" onclick="closeDeleteConfirmModal()">取消</button>
+                <button class="delete-confirm-btn delete-confirm-btn-delete" onclick="executeDeleteDevice(document.getElementById('deleteConfirmModal').dataset.deviceId)">确定删除</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 上传文档对话框 -->
     <div id="uploadDialog" class="modal" style="display: none;">
         <div class="modal-content">
@@ -2582,11 +2753,28 @@
 
         // 点击模态框外部关闭
         window.onclick = function(event) {
-            const modal = document.getElementById('uploadDialog');
-            if (event.target === modal) {
+            const uploadModal = document.getElementById('uploadDialog');
+            const deviceDetailModal = document.getElementById('deviceDetailModal');
+            const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+            
+            if (event.target === uploadModal) {
                 closeUploadDialog();
             }
+            if (event.target === deviceDetailModal) {
+                closeDeviceDetailModal();
+            }
+            if (event.target === deleteConfirmModal) {
+                closeDeleteConfirmModal();
+            }
         }
+
+        // 点击设备详情模态框外部关闭
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('deviceDetailModal');
+            if (event.target === modal) {
+                closeDeviceDetailModal();
+            }
+        });
 
         // 为弹窗设置拖拽功能
         function setupDragAndDropForDialog() {
@@ -3123,7 +3311,7 @@
         // ==================== 设备管理 ====================
         async function loadDevices(page = 1, deviceName = '') {
             const tbody = document.getElementById('devicesTableBody');
-            tbody.innerHTML = '<tr><td colspan="6" class="loading"></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="loading"></td></tr>';
 
             try {
                 let url = `/api/v1/device/list?page=${page}&page_size=10`;
@@ -3144,23 +3332,36 @@
                                 <td>${device.id}</td>
                                 <td>${device.name || '-'}</td>
                                 <td>${device.address || '-'}</td>
-                                <td><span class="badge ${device.status ? 'badge-success' : 'badge-warning'}">${device.status || '未知'}</span></td>
+                                <td><span class="badge ${getDeviceStatusBadge(device.status)}">${device.status || '未知'}</span></td>
                                 <td>${device.contact || '-'}</td>
                                 <td>${device.install_date || '-'}</td>
+                                <td>
+                                    <button class="action-btn view-btn" onclick="viewDevice(${device.id})">查看详情</button>
+                                    <button class="action-btn delete-btn" onclick="deleteDevice(${device.id})">删除</button>
+                                </td>
                             </tr>
                         `).join('');
                         
                         updatePagination('devices', page, total, 10);
                     } else {
-                        tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="icon">📭</div><p>暂无设备数据</p></td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="icon">📭</div><p>暂无设备数据</p></td></tr>';
                     }
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>加载失败</p></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>加载失败</p></td></tr>';
                 }
             } catch (error) {
                 console.error('加载设备列表失败:', error);
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>加载失败</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>加载失败</p></td></tr>';
             }
+        }
+
+        function getDeviceStatusBadge(status) {
+            const statusMap = {
+                '正常': 'badge-success',
+                '异常': 'badge-danger',
+                '离线': 'badge-warning'
+            };
+            return statusMap[status] || 'badge-warning';
         }
 
         function searchDevices() {
@@ -3171,6 +3372,166 @@
         function refreshDevices() {
             document.getElementById('deviceSearchInput').value = '';
             loadDevices(1);
+        }
+
+        // 查看设备详情
+        async function viewDevice(deviceId) {
+            try {
+                const response = await fetchWithAuth(`/api/v1/device/detail/${deviceId}`);
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    const device = result.data;
+                    showDeviceDetailModal(device);
+                } else {
+                    alert('获取设备详情失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('查看设备详情失败:', error);
+                alert('查看设备详情失败: 网络错误');
+            }
+        }
+
+        // 显示设备详情模态框
+        function showDeviceDetailModal(device) {
+            const modal = document.getElementById('deviceDetailModal');
+            const modalTitle = document.getElementById('deviceDetailModalTitle');
+            const modalBody = document.getElementById('deviceDetailModalBody');
+            
+            modalTitle.textContent = `设备详情 - ${device.name || '未知设备'}`;
+            
+            const locationStr = device.location && device.location.length === 2 
+                ? `${device.location[0]}, ${device.location[1]}` 
+                : '无';
+            
+            const imagesStr = device.images && device.images.length > 0 
+                ? `${device.images.length}张` 
+                : '无';
+            
+            modalBody.innerHTML = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; width: 30%; background: #f8f9fa;">设备ID</td>
+                        <td style="padding: 12px; color: #6c757d;">${device.id}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">设备名称</td>
+                        <td style="padding: 12px; color: #6c757d;">${device.name || '-'}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">地址</td>
+                        <td style="padding: 12px; color: #6c757d;">${device.address || '-'}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">经纬度</td>
+                        <td style="padding: 12px; color: #6c757d;">${locationStr}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">状态</td>
+                        <td style="padding: 12px;"><span class="badge ${getDeviceStatusBadge(device.status)}">${device.status || '未知'}</span></td>
+                    </tr>
+                                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">联系方式</td>
+                        <td style="padding: 12px; color: #6c757d;">${device.contact || '-'}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">安装人</td>
+                        <td style="padding: 12px; color: #6c757d;">${device.installer || '-'}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">安装日期</td>
+                        <td style="padding: 12px; color: #6c757d;">${device.install_date || '-'}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">图片数量</td>
+                        <td style="padding: 12px; color: #6c757d;">${imagesStr}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">创建用户ID</td>
+                        <td style="padding: 12px; color: #6c757d;">${device.created_by_user_id || '-'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">备注</td>
+                        <td style="padding: 12px; color: #6c757d;">${device.remark || '-'}</td>
+                    </tr>
+                </table>
+            `;
+            
+            modal.style.display = 'block';
+        }
+
+        // 关闭设备详情模态框
+        function closeDeviceDetailModal() {
+            document.getElementById('deviceDetailModal').style.display = 'none';
+        }
+
+        // 删除设备
+        async function deleteDevice(deviceId) {
+            showDeleteConfirmModal(deviceId);
+        }
+
+        // 执行删除
+        async function executeDeleteDevice(deviceId) {
+            closeDeleteConfirmModal();
+            
+            try {
+                const response = await fetchWithAuth(`/api/v1/device/delete/${deviceId}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    showDeleteSuccessToast('设备删除成功');
+                    refreshDevices();
+                } else {
+                    showDeleteErrorToast('删除失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('删除设备失败:', error);
+                showDeleteErrorToast('删除设备失败: 网络错误');
+            }
+        }
+
+        // 显示删除确认模态框
+        function showDeleteConfirmModal(deviceId) {
+            const modal = document.getElementById('deleteConfirmModal');
+            modal.dataset.deviceId = deviceId;
+            modal.classList.add('show');
+        }
+
+        // 关闭删除确认模态框
+        function closeDeleteConfirmModal() {
+            const modal = document.getElementById('deleteConfirmModal');
+            modal.classList.remove('show');
+        }
+
+        // 显示删除成功Toast
+        function showDeleteSuccessToast(message) {
+            showToast(message, 'success');
+        }
+
+        // 显示删除失败Toast
+        function showDeleteErrorToast(message) {
+            showToast(message, 'error');
+        }
+
+        // 通用Toast提示
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
         }
 
         // ==================== 文档管理 ====================

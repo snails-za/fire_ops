@@ -15,3 +15,4 @@ class DeviceIn(BaseModel):
 
 class DeviceOut(DeviceIn):
     id: int
+    created_by_user_id: Optional[int] = Field(None, description="创建用户ID")

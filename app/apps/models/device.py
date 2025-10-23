@@ -16,6 +16,7 @@ class Device(BaseModel):
     installer = fields.CharField(max_length=50, null=True, description="安装人")
     contact = fields.CharField(max_length=11, null=True, description="联系人")
     remark = fields.TextField(null=True, description="备注")
+    created_by_user_id = fields.IntField(null=True, description="创建用户ID")
 
     class Meta:
         table = "device"

@@ -15,7 +15,7 @@ from config import STATIC_PATH
 
 router = APIRouter(prefix="/device", tags=["设备管理"])
 
-Device_Pydantic = pydantic_model_creator(Device, name="Device", exclude=("id",))
+Device_Pydantic = pydantic_model_creator(Device, name="Device")
 
 
 @router.post("/upload/image", summary="图像上传接口", description="图像上传接口", dependencies=[Depends(get_current_user)])
@@ -42,14 +42,14 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     if user.role == "admin":
         exists = await Device.filter(name=device.name).exists()
     else:
-        exists = await Device.filter(name=device.name, user_id=user.id).exists()
+        exists = await Device.filter(name=device.name, created_by_user_id=user.id).exists()
 
     if exists:
         return response(code=400, message="设备已存在")
 
     # 创建设备时关联用户ID
     device_data = device.model_dump(exclude_unset=True)
-    device_data["user_id"] = user.id
+    device_data["created_by_user_id"] = user.id
     device_obj = await Device.create(**device_data)
     data = await Device_Pydantic.from_tortoise_orm(device_obj)
     return response(data=data.model_dump())
@@ -73,7 +73,7 @@ async def device_list(
 
     # 👇 如果不是管理员，只查询当前用户的设备
     if user.role != "admin":  # 假设你的角色字段是 role
-        conditions.append(Q(user_id=user.id))
+        conditions.append(Q(created_by_user_id=user.id))
 
     query = Device.filter(*conditions).order_by("-id").offset((page - 1) * page_size).limit(page_size)
     res = await Device_Pydantic.from_queryset(query)
@@ -94,9 +94,9 @@ async def device_stats(user: User = Depends(get_current_user)):
         online = await Device.filter(status="在线").count()
         offline = await Device.filter(status="离线").count()
     else:
-        total = await Device.filter(user_id=user.id).count()
-        online = await Device.filter(user_id=user.id, status="在线").count()
-        offline = await Device.filter(user_id=user.id, status="离线").count()
+        total = await Device.filter(created_by_user_id=user.id).count()
+        online = await Device.filter(created_by_user_id=user.id, status="在线").count()
+        offline = await Device.filter(created_by_user_id=user.id, status="离线").count()
 
     return response(data={
         "total": total,

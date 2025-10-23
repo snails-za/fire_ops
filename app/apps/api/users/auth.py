@@ -81,8 +81,8 @@ async def login(
     await redis_client.delete(captcha_id)
     
     # 检查用户角色，只允许普通用户登录前台
-    if user.role != "user":
-        return response(code=403, message="管理员请使用后台登录接口")
+    # if user.role != "user":
+    #     return response(code=403, message="管理员请使用后台登录接口")
     
     # 登录成功，返回用户信息
     login_time = time.time()

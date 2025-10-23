@@ -77,11 +77,22 @@ REDIS_DB = config("REDIS_DB", cast=int, default=0)
 # 文档处理配置
 # =============================================================================
 
+# 数据存储路径
+DATA_DIR =  os.path.join(BASE_PATH, "data")
+
 # 文档存储路径
-DOCUMENT_STORE_PATH = os.path.join(BASE_PATH, "data", "documents")
+DOCUMENT_STORE_PATH = os.path.join(DATA_DIR, "documents")
 
 # 头像存储路径
-AVATAR_STORE_PATH = os.path.join(BASE_PATH, "data", "head")
+AVATAR_STORE_PATH = os.path.join(DATA_DIR, "head")
+
+# 设备存储路径
+DEVICE_STORE_PATH = os.path.join(DATA_DIR, "device")
+
+# 确保存储目录存在
+for path in [DOCUMENT_STORE_PATH, AVATAR_STORE_PATH, DEVICE_STORE_PATH]:
+    os.makedirs(path, exist_ok=True)
+
 
 # 文件处理限制
 MAX_FILE_SIZE = config("MAX_FILE_SIZE", cast=int, default=50 * 1024 * 1024)  # 50MB

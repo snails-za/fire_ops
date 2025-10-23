@@ -28,9 +28,6 @@ async def upload_image(file: UploadFile = File(...)):
     filename = f"{uuid.uuid4().hex}{ext}"
     save_path = os.path.join(AVATAR_STORE_PATH, filename)
 
-    # 确保目录存在
-    os.makedirs(AVATAR_STORE_PATH, exist_ok=True)
-
     with open(save_path, "wb") as f:
         f.write(await file.read())
 

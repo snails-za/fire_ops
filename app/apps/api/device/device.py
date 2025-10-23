@@ -11,7 +11,7 @@ from apps.form.device.device import DeviceOut, DeviceIn
 from apps.models.device import Device
 from apps.models.user import User
 from apps.utils import response
-from config import STATIC_PATH
+from config import DEVICE_STORE_PATH
 
 router = APIRouter(prefix="/device", tags=["设备管理"])
 
@@ -22,12 +22,12 @@ Device_Pydantic = pydantic_model_creator(Device, name="Device")
 async def upload_image(file: UploadFile = File(...)):
     ext = os.path.splitext(file.filename)[-1]
     filename = f"{uuid.uuid4().hex}{ext}"
-    save_path = os.path.join(STATIC_PATH, "images", "device", filename)
+    save_path = os.path.join(DEVICE_STORE_PATH, filename)
 
     with open(save_path, "wb") as f:
         f.write(await file.read())
 
-    return response(data={"filepath": os.path.join("/", "static", "images", "device", filename)}, message="上传成功")
+    return response(data={"filepath": os.path.join("/", "data", "device", filename)}, message="上传成功")
 
 
 @router.post("/create", response_model=DeviceOut, summary="创建设备", description="创建设备接口",

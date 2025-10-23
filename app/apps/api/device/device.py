@@ -7,7 +7,7 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
 from apps.dependencies.auth import get_current_user
-from apps.form.device.device import DeviceOut, DeviceIn
+from apps.form.device.device import DeviceOut, DeviceIn, DeviceUpdate
 from apps.models.device import Device
 from apps.models.user import User
 from apps.utils import response
@@ -51,6 +51,80 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     device_data = device.model_dump(exclude_unset=True)
     device_data["created_by_user_id"] = user.id
     device_obj = await Device.create(**device_data)
+    data = await Device_Pydantic.from_tortoise_orm(device_obj)
+    return response(data=data.model_dump())
+
+
+@router.put("/update/{device_id}", response_model=DeviceOut, summary="更新设备", description="更新设备信息",
+            dependencies=[Depends(get_current_user)])
+async def update_device(device_id: int, device: DeviceUpdate, user: User = Depends(get_current_user)):
+    """
+    更新设备信息
+    :param device_id: 设备ID
+    :param device: 设备更新数据
+    :param user: 当前用户
+    :return:
+    """
+    # 查询设备是否存在
+    if user.role == "admin":
+        device_obj = await Device.get_or_none(id=device_id)
+    else:
+        device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
+    
+    if not device_obj:
+        return response(code=404, message="设备不存在或无权访问")
+    
+    # 更新设备信息
+    update_data = device.model_dump(exclude_unset=True)
+    await device_obj.update_from_dict(update_data)
+    await device_obj.save()
+    
+    data = await Device_Pydantic.from_tortoise_orm(device_obj)
+    return response(data=data.model_dump(), message="更新成功")
+
+
+@router.delete("/delete/{device_id}", summary="删除设备", description="删除设备",
+               dependencies=[Depends(get_current_user)])
+async def delete_device(device_id: int, user: User = Depends(get_current_user)):
+    """
+    删除设备
+    :param device_id: 设备ID
+    :param user: 当前用户
+    :return:
+    """
+    # 查询设备是否存在
+    if user.role == "admin":
+        device_obj = await Device.get_or_none(id=device_id)
+    else:
+        device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
+    
+    if not device_obj:
+        return response(code=404, message="设备不存在或无权访问")
+    
+    # 删除设备
+    await device_obj.delete()
+    
+    return response(message="删除成功")
+
+
+@router.get("/detail/{device_id}", response_model=DeviceOut, summary="设备详情", description="获取设备详情",
+            dependencies=[Depends(get_current_user)])
+async def device_detail(device_id: int, user: User = Depends(get_current_user)):
+    """
+    获取设备详情
+    :param device_id: 设备ID
+    :param user: 当前用户
+    :return:
+    """
+    # 查询设备是否存在
+    if user.role == "admin":
+        device_obj = await Device.get_or_none(id=device_id)
+    else:
+        device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
+    
+    if not device_obj:
+        return response(code=404, message="设备不存在或无权访问")
+    
     data = await Device_Pydantic.from_tortoise_orm(device_obj)
     return response(data=data.model_dump())
 

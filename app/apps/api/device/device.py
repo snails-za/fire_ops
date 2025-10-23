@@ -88,18 +88,20 @@ async def device_stats(user: User = Depends(get_current_user)):
     获取设备统计信息
     :return:
     """
-    # 👇 根据角色决定查询范围
     if user.role == "admin":
         total = await Device.all().count()
-        online = await Device.filter(status="在线").count()
+        normal = await Device.filter(status="正常").count()
         offline = await Device.filter(status="离线").count()
+        error = await Device.filter(status="异常").count()
     else:
-        total = await Device.filter(created_by_user_id=user.id).count()
-        online = await Device.filter(created_by_user_id=user.id, status="在线").count()
-        offline = await Device.filter(created_by_user_id=user.id, status="离线").count()
+        total = await Device.filter(user_id=user.id).count()
+        normal = await Device.filter(user_id=user.id, status="正常").count()
+        offline = await Device.filter(user_id=user.id, status="离线").count()
+        error = await Device.filter(user_id=user.id, status="异常").count()
 
     return response(data={
         "total": total,
-        "online": online,
-        "offline": offline
+        "normal": normal,  # 👈 改为 normal 而不是 online
+        "offline": offline,
+        "error": error  # 👈 新增异常统计
     })

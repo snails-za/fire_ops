@@ -94,10 +94,10 @@ async def device_stats(user: User = Depends(get_current_user)):
         offline = await Device.filter(status="离线").count()
         error = await Device.filter(status="异常").count()
     else:
-        total = await Device.filter(user_id=user.id).count()
-        normal = await Device.filter(user_id=user.id, status="正常").count()
-        offline = await Device.filter(user_id=user.id, status="离线").count()
-        error = await Device.filter(user_id=user.id, status="异常").count()
+        total = await Device.filter(created_by_user_id=user.id).count()
+        normal = await Device.filter(created_by_user_id=user.id, status="正常").count()
+        offline = await Device.filter(created_by_user_id=user.id, status="离线").count()
+        error = await Device.filter(created_by_user_id=user.id, status="异常").count()
 
     return response(data={
         "total": total,

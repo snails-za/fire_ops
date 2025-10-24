@@ -75,23 +75,31 @@ class RAGGenerator:
                     )
 
                     # 创建系统提示模板
-                    system_template = """你是一个专业的文档问答助手。请基于提供的文档内容准确回答用户的问题。
+                    system_template = """你是一个专业的文档和设备信息问答助手。请基于提供的文档内容和设备信息准确回答用户的问题。
 
 回答要求：
-1. 严格基于提供的文档内容回答，不要添加文档中没有的信息
-2. 如果文档中没有相关信息，请明确说明"根据提供的文档内容，无法找到相关信息"
-3. 回答要准确、详细且有条理，使用清晰的段落结构：
+1. 严格基于提供的文档内容和设备信息回答，不要添加这些信息中没有的内容
+2. 如果文档和设备信息中都没有相关信息，请明确说明"根据提供的信息，无法找到相关内容"
+3. 如果提供了设备信息，优先使用设备信息回答关于设备状态、位置、安装等的问题
+4. 对于设备统计类问题，请基于提供的设备统计信息进行回答：
+   - 如果询问总设备数，直接回答统计信息中的总设备数
+   - 如果询问特定状态设备数，但统计信息中没有该状态的具体数据，请说明"根据提供的设备统计信息，无法确定特定状态的设备数量"
+   - 如果统计信息显示总设备数为0，请说明"根据提供的设备统计信息，当前没有设备"
+5. 回答要准确、详细且有条理，使用清晰的段落结构：
    - 使用标题和子标题组织内容
    - 重要信息用**粗体**标记
    - 使用项目符号(•)或数字列表展示要点
    - 每个段落专注一个主题，段落间留空行
    - 复杂内容使用表格或结构化格式
-4. 可以引用具体的文档名称和关键内容片段，格式：「文档名：具体内容」
-5. 如果有多个文档提供了相关信息，请综合分析并标明信息来源
-6. 用中文回答，语言要专业但易懂，适当使用emoji增强可读性
+6. 可以引用具体的文档名称和设备信息，格式：「文档名：具体内容」或「设备名：具体信息」
+7. 如果有多个信息来源提供了相关信息，请综合分析并标明信息来源
+8. 用中文回答，语言要专业但易懂，适当使用emoji增强可读性
 
 提供的文档内容：
-{context}"""
+{document_context}
+
+提供的设备信息：
+{device_context}"""
 
                     human_template = "问题：{question}"
 
@@ -118,7 +126,7 @@ class RAGGenerator:
         except Exception as e:
             raise Exception(f"RAGGenerator初始化失败: {e}")
 
-    async def generate_answer(self, query: str, context_chunks: List[Dict[str, Any]]) -> str:
+    async def generate_answer(self, query: str, context_chunks: List[Dict[str, Any]], device_context: str = "") -> str:
         """
         基于检索到的文档内容生成智能回答
         
@@ -130,28 +138,33 @@ class RAGGenerator:
         Args:
             query: 用户问题
             context_chunks: 检索到的相关文档块
+            device_context: 设备信息上下文
             
         Returns:
             str: 生成的回答
         """
         try:
-            # 检查是否有相关文档
-            if not context_chunks:
-                return "抱歉，没有找到相关的文档内容来回答您的问题。请确保已上传相关文档，或尝试使用不同的关键词重新提问。"
+            # 检查是否有相关文档或设备信息
+            if not context_chunks and not device_context:
+                return "抱歉，没有找到相关的文档内容或设备信息来回答您的问题。请确保已上传相关文档或添加设备信息，或尝试使用不同的关键词重新提问。"
 
-            # 构建上下文信息
+            # 构建文档上下文信息
             context_parts = []
+            print(f"RAG生成器接收到文档数量: {len(context_chunks)}")
+            
             for i, chunk in enumerate(context_chunks, 1):
                 # 处理不同的结果格式
                 if chunk.get('document') and chunk.get('chunk'):
                     doc_name = chunk['document'].original_filename or chunk['document'].filename
                     content = chunk['chunk'].content
+                    print(f"文档 {i}: {doc_name}, 内容长度: {len(content) if content else 0}")
                 else:
                     # 使用备用格式
                     doc_name = chunk.get('metadata', {}).get('source', '未知文档')
                     content = chunk.get('content', '无内容')
+                    print(f"备用格式文档 {i}: {doc_name}, 内容长度: {len(content) if content else 0}")
 
-                similarity = chunk['similarity']
+                similarity = chunk.get('similarity', 0)
 
                 # 格式化文档片段
                 context_part = f"""文档 {i}: {doc_name}
@@ -159,71 +172,89 @@ class RAGGenerator:
 内容: {content}"""
                 context_parts.append(context_part)
 
-            context = "\n\n" + "=" * 50 + "\n\n".join(context_parts)
+            document_context = "\n\n" + "=" * 50 + "\n\n".join(context_parts) if context_parts else "无相关文档"
+            print(f"构建的文档上下文长度: {len(document_context)}")
+
+            # 如果没有设备信息，使用空字符串
+            if not device_context:
+                device_context = "无相关设备信息"
 
             # 选择回答模式
             if self.llm_available and self.chain:
                 try:
-                    answer = await self._llm_answer(query, context)
+                    answer = await self._llm_answer(query, document_context, device_context)
 
                     # 不再自动添加来源信息，由前端决定是否显示
                     return answer
 
                 except Exception:
-                    return self._simple_answer(query, context_chunks)
+                    return self._simple_answer(query, context_chunks, device_context)
             else:
-                return self._simple_answer(query, context_chunks)
+                return self._simple_answer(query, context_chunks, device_context)
 
         except Exception as e:
             return f"抱歉，生成回答时出现错误: {str(e)}"
 
-    async def generate_answer_stream(self, query: str, context_chunks: List[Dict[str, Any]]):
+    async def generate_answer_stream(self, query: str, context_chunks: List[Dict[str, Any]], device_context: str = ""):
         """
         流式生成回答
         
         Args:
             query: 用户问题
             context_chunks: 文档上下文块列表
+            device_context: 设备信息上下文
             
         Yields:
             str: 流式生成的文本块
         """
         try:
-            # 构建上下文
+            # 构建文档上下文
             context_parts = []
+            print(f"流式RAG生成器接收到文档数量: {len(context_chunks)}")
+            
             for i, chunk in enumerate(context_chunks, 1):
                 # 直接使用数据结构
                 doc_name = chunk['document'].original_filename or chunk['document'].filename
                 content = chunk['chunk'].content
+                print(f"流式文档 {i}: {doc_name}, 内容长度: {len(content) if content else 0}")
                 context_parts.append(f"文档{i}: {doc_name}\n内容: {content}")
 
-            context = "\n\n" + "=" * 50 + "\n\n".join(context_parts)
+            document_context = "\n\n" + "=" * 50 + "\n\n".join(context_parts) if context_parts else "无相关文档"
+            print(f"流式构建的文档上下文长度: {len(document_context)}")
+            
+            # 如果没有设备信息，使用空字符串
+            if not device_context:
+                device_context = "无相关设备信息"
 
             # 选择回答模式
             if self.llm_available and self.chain:
                 try:
-                    async for chunk in self._llm_answer_stream(query, context):
+                    print(f"使用LLM流式生成回答")
+                    async for chunk in self._llm_answer_stream(query, document_context, device_context):
                         yield chunk
                 except Exception as e:
                     print(f"LLM流式生成失败: {e}")
+                    print(f"降级到简单回答模式")
                     # 降级到简单回答
-                    simple_answer = self._simple_answer(query, context_chunks)
+                    simple_answer = self._simple_answer(query, context_chunks, device_context)
                     yield simple_answer
             else:
+                print(f"LLM不可用，使用简单回答模式")
                 # 非LLM模式，直接返回简单回答
-                simple_answer = self._simple_answer(query, context_chunks)
+                simple_answer = self._simple_answer(query, context_chunks, device_context)
                 yield simple_answer
 
         except Exception as e:
             yield f"抱歉，生成回答时出现错误: {str(e)}"
 
-    async def _llm_answer_stream(self, query: str, context: str):
+    async def _llm_answer_stream(self, query: str, document_context: str, device_context: str):
         """
         使用LangChain链式流式生成智能回答
         
         Args:
             query: 用户问题
-            context: 文档上下文
+            document_context: 文档上下文
+            device_context: 设备信息上下文
             
         Yields:
             str: 流式生成的文本块
@@ -233,7 +264,8 @@ class RAGGenerator:
             if self.chain:
                 async for chunk in self.chain.astream({
                     "question": query,
-                    "context": context
+                    "document_context": document_context,
+                    "device_context": device_context
                 }):
                     if chunk:
                         yield chunk
@@ -244,13 +276,14 @@ class RAGGenerator:
             traceback.print_exc()
             raise Exception(f"LLM链式流式调用失败: {str(e)}")
 
-    async def _llm_answer(self, query: str, context: str) -> str:
+    async def _llm_answer(self, query: str, document_context: str, device_context: str) -> str:
         """
         使用LLM生成智能回答
         
         Args:
             query: 用户问题
-            context: 文档上下文
+            document_context: 文档上下文
+            device_context: 设备信息上下文
             
         Returns:
             str: LLM生成的回答
@@ -259,7 +292,8 @@ class RAGGenerator:
             # 调用LangChain处理链
             response = await self.chain.ainvoke({
                 "question": query,
-                "context": context
+                "document_context": document_context,
+                "device_context": device_context
             })
 
             if not response or not response.strip():
@@ -270,32 +304,48 @@ class RAGGenerator:
         except Exception as e:
             raise Exception(f"LLM调用失败: {str(e)}")
 
-    def _simple_answer(self, query: str, context_chunks: List[Dict[str, Any]]) -> str:
+    def _simple_answer(self, query: str, context_chunks: List[Dict[str, Any]], device_context: str = "") -> str:
         """
         简单回答模式 - 基于关键词匹配的备用方案
         
         Args:
             query: 用户问题
             context_chunks: 相关文档块
+            device_context: 设备信息上下文
             
         Returns:
             str: 简单模式生成的回答
         """
         try:
-            if not context_chunks:
-                return "抱歉，没有找到相关的文档内容来回答您的问题。"
-
-            # 获取最相关的文档片段
-            best_chunk = context_chunks[0]
-            document_name = best_chunk['document'].original_filename or best_chunk['document'].filename
-            content = best_chunk['chunk'].content
-
-            # 构建简单回答（不包含参考来源）
-            answer = f"""基于文档《{document_name}》中的相关内容：
-
-{content}
-
-💡 **提示**：当前使用简单回答模式。配置OpenAI API Key后可获得更智能的回答。"""
+            answer_parts = []
+            print(f"简单回答模式 - 设备上下文: {device_context}")
+            print(f"简单回答模式 - 文档块数量: {len(context_chunks) if context_chunks else 0}")
+            
+            # 添加设备信息
+            if device_context and device_context != "无相关设备信息":
+                print(f"添加设备信息到回答中")
+                answer_parts.append(f"📱 **设备信息：**\n{device_context}")
+            else:
+                print(f"设备上下文为空或为'无相关设备信息'，跳过设备信息")
+            
+            # 添加文档信息
+            if context_chunks:
+                print(f"添加文档信息到回答中")
+                best_chunk = context_chunks[0]
+                document_name = best_chunk['document'].original_filename or best_chunk['document'].filename
+                content = best_chunk['chunk'].content
+                answer_parts.append(f"📄 **基于文档《{document_name}》中的相关内容：**\n\n{content}")
+            else:
+                print(f"没有文档块，跳过文档信息")
+            
+            print(f"回答部分数量: {len(answer_parts)}")
+            
+            if not answer_parts:
+                print(f"没有回答部分，返回默认消息")
+                return "抱歉，没有找到相关的文档内容或设备信息来回答您的问题。"
+            
+            answer = "\n\n" + "\n\n".join(answer_parts)
+            answer += "\n\n💡 **提示**：当前使用简单回答模式。配置OpenAI API Key后可获得更智能的回答。"
 
             return answer
 

@@ -12,26 +12,30 @@
 import json
 import traceback
 
-from fastapi import APIRouter, Query, Form
+from fastapi import APIRouter, Query, Form, Depends
 from fastapi.responses import StreamingResponse
 
 from apps.utils import response
 from apps.utils.llm_optimizers import get_question_optimizer, get_search_optimizer, optimize_question
 from apps.utils.rag_helper import rag_generator
 from apps.utils.vector_db_selector import vector_search
+from apps.utils.device_helper import search_devices, format_device_context, should_search_devices, get_device_statistics
+from apps.dependencies.auth import get_current_user
+from apps.models.user import User
 from config import SIMILARITY_THRESHOLD
 
 # 智能问答API路由
 router = APIRouter(prefix="/chat", tags=["智能问答"])
 
 
-@router.post("/ask/stream", summary="流式智能问答", description="基于LLM的流式智能文档问答")
+@router.post("/ask/stream", summary="流式智能问答", description="基于LLM的流式智能文档和设备问答", dependencies=[Depends(get_current_user)])
 async def ask_question_stream(
     question: str = Form(..., description="用户问题"),
     top_k: int = Form(5, ge=1, le=10, description="检索相关文档数量"),
+    user: User = Depends(get_current_user)
 ):
     """
-    流式智能问答 - 实时输出回答内容
+    流式智能问答 - 实时输出回答内容（包含设备信息）
     """
     async def generate_stream():
         try:
@@ -63,18 +67,64 @@ async def ask_question_stream(
                     print(f"问题优化失败: {e}")
                     optimized_query = question
             print("问题优化结果：", optimized_query)
+            
             # 发送搜索状态
-            yield f"data: {json.dumps({'type': 'status', 'message': '🔍 正在搜索相关文档...'}, ensure_ascii=False)}\n\n"
+            if should_search_devices(optimized_query, question):
+                yield f"data: {json.dumps({'type': 'status', 'message': '🔍 正在搜索设备信息...'}, ensure_ascii=False)}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'status', 'message': '🔍 正在搜索相关文档...'}, ensure_ascii=False)}\n\n"
             
-            # 2. 向量搜索相关文档（使用MMR算法）
-            search_results = await vector_search.search_similar_documents(
-                query=optimized_query,
-                top_k=top_k,
-                use_threshold=True
-            )
+            # 2. 智能设备搜索（只在相关问题时搜索）
+            device_list = []
+            device_context = ""
+            search_results = []  # 默认不进行文档搜索
             
-            if not search_results:
-                yield f"data: {json.dumps({'type': 'content', 'message': '抱歉，我没有找到相关的文档内容来回答您的问题。'}, ensure_ascii=False)}\n\n"
+            if should_search_devices(optimized_query, question):
+                print(f"问题与设备相关，开始搜索设备信息...")
+                
+                # 检查是否为统计类问题（同时检查原始问题和优化后问题）
+                stats_keywords = ['统计', '总数', '有多少', '分布', '比例', '率', '数量', '概览', '几']
+                is_stats_question_optimized = any(keyword in optimized_query for keyword in stats_keywords)
+                is_stats_question_original = any(keyword in question for keyword in stats_keywords)
+                is_stats_question = is_stats_question_optimized or is_stats_question_original
+                
+                if is_stats_question:
+                    print(f"检测到统计类问题，获取设备统计信息...")
+                    device_stats = await get_device_statistics(
+                        user_id=user.id, 
+                        is_admin=(user.role == "admin"),
+                        query=optimized_query,
+                        original_query=question
+                    )
+                    
+                    # 统计类问题只返回统计信息，不搜索具体设备
+                    device_context = f"设备统计信息：\n- 总设备数: {device_stats['total_devices']}\n- 状态分布: {device_stats['status_distribution']}"
+                    device_list = []  # 统计问题不需要具体设备列表
+                    print(f"统计问题返回统计信息，不搜索具体设备")
+                    print(f"设备统计信息: {device_stats}")
+                    print(f"设备上下文: {device_context}")
+                else:
+                    device_list = await search_devices(
+                        query=optimized_query, 
+                        user_id=user.id, 
+                        is_admin=(user.role == "admin"),
+                        original_query=question  # 传递原始问题
+                    )
+                    print(f"找到设备数量: {len(device_list)}, 用户: {user.role}, 是否为管理员: {user.role == 'admin'}")
+                    print(f"设备列表: {device_list}")
+                    device_context = format_device_context(device_list) if device_list else ""
+                    print(f"设备信息格式化后长度: {len(device_context) if device_context else 0}")
+            else:
+                print(f"问题与设备无关，开始文档搜索...")
+                # 只有非设备相关的问题才进行文档搜索
+                search_results = await vector_search.search_similar_documents(
+                    query=optimized_query,
+                    top_k=top_k,
+                    use_threshold=True
+                )
+            
+            if not search_results and not device_context:
+                yield f"data: {json.dumps({'type': 'content', 'message': '抱歉，我没有找到相关的文档内容或设备信息来回答您的问题。'}, ensure_ascii=False)}\n\n"
                 return
             
             # 发送文档信息
@@ -108,7 +158,8 @@ async def ask_question_stream(
                 "similarity_threshold": SIMILARITY_THRESHOLD,
                 "result_quality": "high" if high_quality_results else ("low" if low_quality_results else "none"),
                 "optimized_query": optimized_query,
-                "question_analysis": question_analysis
+                "question_analysis": question_analysis,
+                "device_count": len(device_list)  # 添加设备数量
             }
 
             # 添加问题分析的关键词信息
@@ -119,16 +170,17 @@ async def ask_question_stream(
                 # 如果没有关键词但有优化查询，使用优化查询作为关键词
                 keywords = [optimized_query]
             
-            yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'search_info': search_info, 'keywords': keywords}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'sources', 'sources': sources, 'search_info': search_info, 'keywords': keywords, 'devices': device_list}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'status', 'message': '🤖 正在生成回答...'}, ensure_ascii=False)}\n\n"
             
-            # 3. 生成真正的流式回答
+            # 4. 生成真正的流式回答
             current_text = ""
             
-            # 使用RAG生成器的流式方法
+            # 使用RAG生成器的流式方法（包含设备信息）
             async for chunk in rag_generator.generate_answer_stream(
                 query=question,
-                context_chunks=search_results
+                context_chunks=search_results,
+                device_context=device_context
             ):
                 if chunk:
                     current_text += chunk
@@ -159,20 +211,22 @@ async def ask_question_stream(
     )
 
 
-@router.post("/ask", summary="智能问答(匿名)", description="基于LLM的智能文档问答（无需登录）")
+@router.post("/ask", summary="智能问答", description="基于LLM的智能文档和设备问答", dependencies=[Depends(get_current_user)])
 async def ask_question_anonymous(
     question: str = Form(..., description="用户问题"),
     top_k: int = Form(5, ge=1, le=10, description="检索相关文档数量"),
+    user: User = Depends(get_current_user)
 ):
     """
-    匿名智能问答 - 集成LLM问题理解和搜索优化
+    智能问答 - 集成LLM问题理解和搜索优化，支持设备信息查询
     
     Args:
         question: 用户问题
         top_k: 检索相关文档数量
+        user: 当前登录用户
         
     Returns:
-        智能问答结果，包含答案、相关文档和问题分析
+        智能问答结果，包含答案、相关文档、设备信息和问题分析
     """
     try:
         # 1. 问题理解和优化
@@ -207,35 +261,76 @@ async def ask_question_anonymous(
                 print(f"问题优化失败: {e}")
                 optimized_query = question
         
-        # 2. 向量搜索相关文档
-        search_results = await vector_search.search_similar_documents(
-            query=optimized_query,
-            top_k=top_k,
-            use_threshold=True,  # 不使用阈值过滤，返回所有找到的结果
-            lambda_param=0.7  # MMR参数：0.7表示70%相关性，30%多样性
-        )
+        # 2. 智能设备搜索（只在相关问题时搜索）
+        device_list = []
+        device_context = ""
+        search_results = []  # 默认不进行文档搜索
         
-        if not search_results:
+        if should_search_devices(optimized_query, question):
+            print(f"问题与设备相关，开始搜索设备信息...")
+            
+            # 检查是否为统计类问题（同时检查原始问题和优化后问题）
+            stats_keywords = ['统计', '总数', '有多少', '分布', '比例', '率', '数量', '概览', '几']
+            is_stats_question_optimized = any(keyword in optimized_query for keyword in stats_keywords)
+            is_stats_question_original = any(keyword in question for keyword in stats_keywords)
+            is_stats_question = is_stats_question_optimized or is_stats_question_original
+            
+            if is_stats_question:
+                print(f"检测到统计类问题，获取设备统计信息...")
+                device_stats = await get_device_statistics(
+                    user_id=user.id, 
+                    is_admin=(user.role == "admin"),
+                    query=optimized_query,
+                    original_query=question
+                )
+                
+                # 统计类问题只返回统计信息，不搜索具体设备
+                device_context = f"设备统计信息：\n- 总设备数: {device_stats['total_devices']}\n- 状态分布: {device_stats['status_distribution']}"
+                device_list = []  # 统计问题不需要具体设备列表
+                print(f"统计问题返回统计信息，不搜索具体设备")
+                print(f"设备统计信息: {device_stats}")
+                print(f"设备上下文: {device_context}")
+            else:
+                device_list = await search_devices(
+                    query=optimized_query, 
+                    user_id=user.id, 
+                    is_admin=(user.role == "admin"),
+                    original_query=question  # 传递原始问题
+                )
+                device_context = format_device_context(device_list) if device_list else ""
+        else:
+            print(f"问题与设备无关，开始文档搜索...")
+            # 只有非设备相关的问题才进行文档搜索
+            search_results = await vector_search.search_similar_documents(
+                query=optimized_query,
+                top_k=top_k,
+                use_threshold=True
+            )
+        
+        if not search_results and not device_context:
             return response(
                 data={
-                    "answer": "抱歉，我没有找到相关的文档内容来回答您的问题。请尝试：\n1. 重新表述问题\n2. 使用更具体的关键词\n3. 确保相关文档已上传",
+                    "answer": "抱歉，我没有找到相关的文档内容或设备信息来回答您的问题。请尝试：\n1. 重新表述问题\n2. 使用更具体的关键词\n3. 确保相关文档已上传或设备信息已添加",
                     "sources": [],
+                    "devices": [],
                     "question_analysis": question_analysis,
                     "optimized_query": optimized_query,
                     "search_count": 0,
+                    "device_count": 0,
                     "similarity_threshold": SIMILARITY_THRESHOLD
                 },
-                message="未找到相关文档"
+                message="未找到相关信息"
             )
         
-        # 3. 分析搜索结果质量并生成智能回答
+        # 4. 分析搜索结果质量并生成智能回答
         high_quality_results = [r for r in search_results if r.get('above_threshold', True)]
         low_quality_results = [r for r in search_results if not r.get('above_threshold', True)]
         
-        # 生成基础回答
+        # 生成基础回答（包含设备信息）
         answer = await rag_generator.generate_answer(
             query=question,
-            context_chunks=search_results
+            context_chunks=search_results,
+            device_context=device_context
         )
         
         # 根据结果质量调整回答
@@ -267,9 +362,11 @@ async def ask_question_anonymous(
             data={
                 "answer": answer,
                 "sources": sources,
+                "devices": device_list,
                 "question_analysis": question_analysis,
                 "optimized_query": optimized_query,
                 "search_count": len(search_results),
+                "device_count": len(device_list),
                 "high_quality_count": len(high_quality_results),
                 "low_quality_count": len(low_quality_results),
                 "similarity_threshold": SIMILARITY_THRESHOLD,
@@ -284,10 +381,11 @@ async def ask_question_anonymous(
         return response(code=0, message=f"问答失败: {str(e)}")
 
 
-@router.get("/search", summary="文档搜索(匿名)", description="基于LLM优化的文档搜索（无需登录）")
+@router.get("/search", summary="文档搜索", description="基于LLM优化的文档搜索", dependencies=[Depends(get_current_user)])
 async def search_documents(
     query: str,
     top_k: int = Query(5, ge=1, le=20, description="返回结果数量"),
+    user: User = Depends(get_current_user)
 ):
     """搜索相关文档 - 集成LLM查询优化"""
     try:
@@ -371,9 +469,10 @@ async def get_config():
     )
 
 
-@router.post("/analyze", summary="问题分析(匿名)", description="使用LLM分析问题意图和关键词（无需登录）")
+@router.post("/analyze", summary="问题分析", description="使用LLM分析问题意图和关键词", dependencies=[Depends(get_current_user)])
 async def analyze_question(
     question: str = Form(..., description="用户问题"),
+    user: User = Depends(get_current_user)
 ):
     """问题分析 - 展示LLM的问题理解能力"""
     try:

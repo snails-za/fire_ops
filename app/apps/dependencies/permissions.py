@@ -4,7 +4,7 @@
 """
 
 from functools import wraps
-from typing import List, Optional
+from typing import List
 
 from fastapi import HTTPException, Depends
 
@@ -35,7 +35,7 @@ def require_role(allowed_roles: List[str]):
                 # 如果没有直接传入用户，尝试从依赖注入获取
                 try:
                     user = await get_current_user()
-                except:
+                except Exception as _:
                     raise HTTPException(status_code=401, detail="未登录")
             
             # 检查用户角色

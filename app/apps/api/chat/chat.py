@@ -80,7 +80,7 @@ async def ask_question_stream(
             search_results = []  # 默认不进行文档搜索
             
             if should_search_devices(optimized_query, question):
-                print(f"问题与设备相关，开始搜索设备信息...")
+                print("问题与设备相关，开始搜索设备信息...")
                 
                 # 检查是否为统计类问题（同时检查原始问题和优化后问题）
                 stats_keywords = ['统计', '总数', '有多少', '分布', '比例', '率', '数量', '概览', '几']
@@ -89,7 +89,7 @@ async def ask_question_stream(
                 is_stats_question = is_stats_question_optimized or is_stats_question_original
                 
                 if is_stats_question:
-                    print(f"检测到统计类问题，获取设备统计信息...")
+                    print("检测到统计类问题，获取设备统计信息...")
                     device_stats = await get_device_statistics(
                         user_id=user.id, 
                         is_admin=(user.role == "admin"),
@@ -100,7 +100,7 @@ async def ask_question_stream(
                     # 统计类问题只返回统计信息，不搜索具体设备
                     device_context = f"设备统计信息：\n- 总设备数: {device_stats['total_devices']}\n- 状态分布: {device_stats['status_distribution']}"
                     device_list = []  # 统计问题不需要具体设备列表
-                    print(f"统计问题返回统计信息，不搜索具体设备")
+                    print("统计问题返回统计信息，不搜索具体设备")
                     print(f"设备统计信息: {device_stats}")
                     print(f"设备上下文: {device_context}")
                 else:
@@ -115,7 +115,7 @@ async def ask_question_stream(
                     device_context = format_device_context(device_list) if device_list else ""
                     print(f"设备信息格式化后长度: {len(device_context) if device_context else 0}")
             else:
-                print(f"问题与设备无关，开始文档搜索...")
+                print("问题与设备无关，开始文档搜索...")
                 # 只有非设备相关的问题才进行文档搜索
                 search_results = await vector_search.search_similar_documents(
                     query=optimized_query,
@@ -267,7 +267,7 @@ async def ask_question_anonymous(
         search_results = []  # 默认不进行文档搜索
         
         if should_search_devices(optimized_query, question):
-            print(f"问题与设备相关，开始搜索设备信息...")
+            print("问题与设备相关，开始搜索设备信息...")
             
             # 检查是否为统计类问题（同时检查原始问题和优化后问题）
             stats_keywords = ['统计', '总数', '有多少', '分布', '比例', '率', '数量', '概览', '几']
@@ -276,7 +276,7 @@ async def ask_question_anonymous(
             is_stats_question = is_stats_question_optimized or is_stats_question_original
             
             if is_stats_question:
-                print(f"检测到统计类问题，获取设备统计信息...")
+                print("检测到统计类问题，获取设备统计信息...")
                 device_stats = await get_device_statistics(
                     user_id=user.id, 
                     is_admin=(user.role == "admin"),
@@ -287,7 +287,7 @@ async def ask_question_anonymous(
                 # 统计类问题只返回统计信息，不搜索具体设备
                 device_context = f"设备统计信息：\n- 总设备数: {device_stats['total_devices']}\n- 状态分布: {device_stats['status_distribution']}"
                 device_list = []  # 统计问题不需要具体设备列表
-                print(f"统计问题返回统计信息，不搜索具体设备")
+                print("统计问题返回统计信息，不搜索具体设备")
                 print(f"设备统计信息: {device_stats}")
                 print(f"设备上下文: {device_context}")
             else:
@@ -299,7 +299,7 @@ async def ask_question_anonymous(
                 )
                 device_context = format_device_context(device_list) if device_list else ""
         else:
-            print(f"问题与设备无关，开始文档搜索...")
+            print("问题与设备无关，开始文档搜索...")
             # 只有非设备相关的问题才进行文档搜索
             search_results = await vector_search.search_similar_documents(
                 query=optimized_query,

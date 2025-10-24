@@ -242,7 +242,6 @@ class DocumentParser:
             
             content = ""
             successful_pages = 0
-            current_page_num = 0
 
             print(f"📄 开始分批处理 {total_pages} 页...")
             print(f"⚙️ OCR并发数: {OCR_MAX_CONCURRENT_PAGES} 页")

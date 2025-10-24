@@ -229,17 +229,17 @@ class RAGGenerator:
             # 选择回答模式
             if self.llm_available and self.chain:
                 try:
-                    print(f"使用LLM流式生成回答")
+                    print("使用LLM流式生成回答")
                     async for chunk in self._llm_answer_stream(query, document_context, device_context):
                         yield chunk
                 except Exception as e:
                     print(f"LLM流式生成失败: {e}")
-                    print(f"降级到简单回答模式")
+                    print("降级到简单回答模式")
                     # 降级到简单回答
                     simple_answer = self._simple_answer(query, context_chunks, device_context)
                     yield simple_answer
             else:
-                print(f"LLM不可用，使用简单回答模式")
+                print("LLM不可用，使用简单回答模式")
                 # 非LLM模式，直接返回简单回答
                 simple_answer = self._simple_answer(query, context_chunks, device_context)
                 yield simple_answer
@@ -323,25 +323,25 @@ class RAGGenerator:
             
             # 添加设备信息
             if device_context and device_context != "无相关设备信息":
-                print(f"添加设备信息到回答中")
+                print("添加设备信息到回答中")
                 answer_parts.append(f"📱 **设备信息：**\n{device_context}")
             else:
-                print(f"设备上下文为空或为'无相关设备信息'，跳过设备信息")
+                print("设备上下文为空或为'无相关设备信息'，跳过设备信息")
             
             # 添加文档信息
             if context_chunks:
-                print(f"添加文档信息到回答中")
+                print("添加文档信息到回答中")
                 best_chunk = context_chunks[0]
                 document_name = best_chunk['document'].original_filename or best_chunk['document'].filename
                 content = best_chunk['chunk'].content
                 answer_parts.append(f"📄 **基于文档《{document_name}》中的相关内容：**\n\n{content}")
             else:
-                print(f"没有文档块，跳过文档信息")
+                print("没有文档块，跳过文档信息")
             
             print(f"回答部分数量: {len(answer_parts)}")
             
             if not answer_parts:
-                print(f"没有回答部分，返回默认消息")
+                print("没有回答部分，返回默认消息")
                 return "抱歉，没有找到相关的文档内容或设备信息来回答您的问题。"
             
             answer = "\n\n" + "\n\n".join(answer_parts)

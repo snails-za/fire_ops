@@ -4,7 +4,6 @@
 提供设备信息的智能查询功能，用于增强问答系统
 """
 
-from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 from tortoise.expressions import Q
@@ -95,7 +94,7 @@ async def _search_devices_exact(query: str, permission_conditions: List) -> List
             devices = await Device.all().limit(10)
         
         return [_device_to_dict(device) for device in devices]
-    except:
+    except Exception as _:
         return []
 
 
@@ -118,7 +117,7 @@ async def _search_devices_fuzzy(query: str, permission_conditions: List) -> List
             devices = await Device.all().limit(10)
         
         return [_device_to_dict(device) for device in devices]
-    except:
+    except Exception as _:
         return []
 
 
@@ -157,7 +156,7 @@ async def _search_devices_keywords(query: str, permission_conditions: List) -> L
             devices = await Device.all().limit(10)
         
         return [_device_to_dict(device) for device in devices]
-    except:
+    except Exception as _:
         return []
 
 
@@ -187,7 +186,7 @@ async def _search_devices_by_status(query: str, permission_conditions: List) -> 
             devices = await Device.all().limit(10)
         
         return [_device_to_dict(device) for device in devices]
-    except:
+    except Exception as _:
         return []
 
 

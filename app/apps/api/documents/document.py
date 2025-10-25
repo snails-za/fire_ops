@@ -111,13 +111,14 @@ async def get_documents(
             doc_data = await Document_Pydantic.from_tortoise_orm(doc)
             data.append(doc_data.model_dump())
 
-        return response(data={
-            "documents": data,
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": (total + page_size - 1) // page_size
-        })
+        total_page = (total + page_size - 1) // page_size
+
+        return response(
+            data=data,
+            total=total,
+            total_page=total_page,
+            message="获取文档列表成功"
+        )
 
     except Exception as e:
         return response(code=500, message=f"获取文档列表失败: {str(e)}")
@@ -169,13 +170,14 @@ async def get_document_chunks(
             chunk_data = await DocumentChunk_Pydantic.from_tortoise_orm(chunk)
             data.append(chunk_data.model_dump())
 
-        return response(data={
-            "chunks": data,
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": (total + page_size - 1) // page_size
-        })
+        total_page = (total + page_size - 1) // page_size
+
+        return response(
+            data=data,
+            total=total,
+            total_page=total_page,
+            message="获取文档分块成功"
+        )
 
     except Exception as e:
         return response(code=500, message=f"获取文档分块失败: {str(e)}")

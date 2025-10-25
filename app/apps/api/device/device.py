@@ -149,11 +149,21 @@ async def device_list(
     if user.role != "admin":  # 假设你的角色字段是 role
         conditions.append(Q(created_by_user_id=user.id))
 
-    query = Device.filter(*conditions).order_by("-id").offset((page - 1) * page_size).limit(page_size)
+    query = Device.filter(*conditions).order_by("-id")
+    total = await query.count()
+    
+    query = query.offset((page - 1) * page_size).limit(page_size)
     res = await Device_Pydantic.from_queryset(query)
 
     data = [item.model_dump() for item in res]
-    return response(data=data)
+    total_page = (total + page_size - 1) // page_size
+    
+    return response(
+        data=data,
+        total=total,
+        total_page=total_page,
+        message="获取设备列表成功"
+    )
 
 
 @router.get("/stats", summary="设备统计", description="获取设备统计信息", dependencies=[Depends(get_current_user)])

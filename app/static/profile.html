@@ -299,6 +299,90 @@
             color: #721c24;
         }
 
+        /* 公告横幅样式 */
+        .announcement-banner {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .announcement-content {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            position: relative;
+        }
+
+        .announcement-icon {
+            font-size: 24px;
+            margin-right: 12px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .announcement-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .announcement-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .announcement-content-text {
+            font-size: 14px;
+            opacity: 0.9;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .announcement-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            margin-left: 12px;
+        }
+
+        .announcement-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
         .info-item {
             display: flex;
             justify-content: space-between;
@@ -420,6 +504,18 @@
                 <h1>个人中心</h1>
             </div>
             <a href="/static/admin.html" class="back-btn">返回首页</a>
+        </div>
+
+        <!-- 公告横幅 -->
+        <div id="announcementBanner" class="announcement-banner" style="display: none;">
+            <div class="announcement-content">
+                <div class="announcement-icon">📢</div>
+                <div class="announcement-text">
+                    <div class="announcement-title" id="announcementTitle"></div>
+                    <div class="announcement-content-text" id="announcementContent"></div>
+                </div>
+                <button class="announcement-close" onclick="closeAnnouncement()">×</button>
+            </div>
         </div>
 
         <div class="content-grid">
@@ -1050,10 +1146,45 @@
             }
         });
 
+        // 加载公告
+        async function loadAnnouncement() {
+            try {
+                const response = await fetch('/api/v1/announcement/public/list?page=1&page_size=1');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.data && result.data.length > 0) {
+                        const announcement = result.data[0];
+                        showAnnouncement(announcement);
+                    }
+                }
+            } catch (error) {
+                console.error('加载公告失败:', error);
+            }
+        }
+
+        // 显示公告
+        function showAnnouncement(announcement) {
+            const banner = document.getElementById('announcementBanner');
+            const title = document.getElementById('announcementTitle');
+            const content = document.getElementById('announcementContent');
+            
+            title.textContent = announcement.title;
+            content.textContent = announcement.content;
+            
+            banner.style.display = 'block';
+        }
+
+        // 关闭公告
+        function closeAnnouncement() {
+            const banner = document.getElementById('announcementBanner');
+            banner.style.display = 'none';
+        }
+
         // 页面加载时
         window.addEventListener('DOMContentLoaded', () => {
             loadProfile();
             loadStats();
+            loadAnnouncement();
         });
     </script>
 </body>

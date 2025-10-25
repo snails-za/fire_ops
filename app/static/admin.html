@@ -3654,30 +3654,11 @@
                         TokenManager.clearToken();
                         window.location.href = 'login.html';
                         throw new Error('登录已失效，请重新登录');
+                    } else if (response.status === 402) {
+                        console.log('🔴 收到 402，权限不足');
+                        return response;
                     } else if (response.status === 403) {
-                        console.log('🔴 收到 403，检查是否为权限问题');
-                        
-                        // 先尝试解析响应，判断是否为权限问题
-                        try {
-                            const errorData = await response.clone().json();
-                            console.log('403错误详情:', errorData);
-                            
-                            // 如果是权限不足（非token问题），直接返回403响应
-                            if (errorData.message && (
-                                errorData.message.includes('权限') || 
-                                errorData.message.includes('无权') ||
-                                errorData.message.includes('只有管理员') ||
-                                errorData.message.includes('无权操作')
-                            )) {
-                                console.log('🔴 403是权限问题，不刷新token');
-                                return response;
-                            }
-                        } catch (parseError) {
-                            console.log('无法解析403响应，可能是权限问题');
-                        }
-                        
-                        // 如果不是权限问题，尝试刷新token
-                        console.log('🔴 403可能是token问题，尝试刷新 token');
+                        console.log('🔴 收到 403，尝试刷新 token');
                         
                         if (!isRefreshing) {
                             isRefreshing = true;
@@ -4637,7 +4618,7 @@
             if (!confirm('确定要删除这个文档吗？')) return;
 
             try {
-                const response = await fetch(`/api/v1/documents/${docId}`, {
+                const response = await fetchWithAuth(`/api/v1/documents/${docId}`, {
                     method: 'DELETE'
                 });
 
@@ -5033,7 +5014,7 @@
         // 查看文档内容
         async function viewDocument(documentId, chunkId, documentName) {
             try {
-                const response = await fetch(`/api/v1/documents/${documentId}/view?chunk_id=${chunkId}`);
+                const response = await fetchWithAuth(`/api/v1/documents/${documentId}/view?chunk_id=${chunkId}`);
                 const result = await response.json();
                 
                 if (response.ok && result.code === 200) {
@@ -5063,7 +5044,7 @@
                 const apiUrl = `/api/v1/documents/${documentId}/view?chunk_id=${chunkId}&highlight=${encodeURIComponent(highlightText)}`;
                 console.log('调用API:', apiUrl);
                 
-                const response = await fetch(apiUrl);
+                const response = await fetchWithAuth(apiUrl);
                 const result = await response.json();
                 console.log('API响应:', result);
                 
@@ -5859,11 +5840,7 @@
         // 加载公告数据
         async function loadAnnouncementData(announcementId) {
             try {
-                const response = await fetch(`/api/v1/announcement/${announcementId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
+                const response = await fetchWithAuth(`/api/v1/announcement/${announcementId}`);
                 
                 if (response.ok) {
                     const result = await response.json();
@@ -5961,11 +5938,7 @@
                 if (status) url += `&status=${status}`;
                 if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
                 
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
+                const response = await fetchWithAuth(url);
                 
                 if (response.ok) {
                     const result = await response.json();

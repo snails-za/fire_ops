@@ -41,7 +41,7 @@ def require_role(allowed_roles: List[str]):
             # 检查用户角色
             if user.role not in allowed_roles:
                 raise HTTPException(
-                    status_code=403, 
+                    status_code=402,
                     detail=f"权限不足，需要角色: {', '.join(allowed_roles)}"
                 )
             

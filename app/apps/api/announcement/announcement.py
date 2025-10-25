@@ -34,7 +34,7 @@ async def create_announcement(form: AnnouncementCreateForm, user: User = Depends
         expire_time=form.expire_time,
         created_by_user_id=user.id
     )
-    data = Announcement_Pydantic.from_tortoise_orm(announcement)
+    data = await Announcement_Pydantic.from_tortoise_orm(announcement)
 
     return response(
         data=data.model_dump(),
@@ -95,8 +95,9 @@ async def get_announcement_detail(announcement_id: int):
     if not announcement:
         return response(code=0, message="公告不存在！")
 
+    data = await Announcement_Pydantic.from_tortoise_orm(announcement)
     return response(
-        data=Announcement_Pydantic.from_tortoise_orm(announcement).model_dump(),
+        data=data.model_dump(),
         message="获取公告详情成功"
     )
 
@@ -115,8 +116,9 @@ async def update_announcement(announcement_id: int, form: AnnouncementUpdateForm
 
     await announcement.save()
 
+    data = await Announcement_Pydantic.from_tortoise_orm(announcement)
     return response(
-        data=Announcement_Pydantic.from_tortoise_orm(announcement).model_dump(),
+        data=data.model_dump(),
         message="公告更新成功"
     )
 
@@ -147,8 +149,9 @@ async def publish_announcement(announcement_id: int):
 
     await announcement.save()
 
+    data = await Announcement_Pydantic.from_tortoise_orm(announcement)
     return response(
-        data=Announcement_Pydantic.from_tortoise_orm(announcement).model_dump(),
+        data=data.model_dump(),
         message="公告发布成功"
     )
 
@@ -164,8 +167,9 @@ async def archive_announcement(announcement_id: int):
     announcement.status = "archived"
     await announcement.save()
 
+    data = await Announcement_Pydantic.from_tortoise_orm(announcement)
     return response(
-        data=Announcement_Pydantic.from_tortoise_orm(announcement).model_dump(),
+        data=data.model_dump(),
         message="公告归档成功"
     )
 

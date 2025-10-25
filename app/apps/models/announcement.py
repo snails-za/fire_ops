@@ -21,7 +21,7 @@ class Announcement(BaseModel):
 
     class Meta:
         table = "announcements"
-        ordering = ["-is_pinned", "-priority", "-created_at"]
+        ordering = ["-created_at"]
         table_description = "公告表"
     
     def __str__(self):

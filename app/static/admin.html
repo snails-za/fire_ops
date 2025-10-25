@@ -3655,7 +3655,29 @@
                         window.location.href = 'login.html';
                         throw new Error('登录已失效，请重新登录');
                     } else if (response.status === 403) {
-                        console.log('🔴 收到 403，尝试刷新 token');
+                        console.log('🔴 收到 403，检查是否为权限问题');
+                        
+                        // 先尝试解析响应，判断是否为权限问题
+                        try {
+                            const errorData = await response.clone().json();
+                            console.log('403错误详情:', errorData);
+                            
+                            // 如果是权限不足（非token问题），直接返回403响应
+                            if (errorData.message && (
+                                errorData.message.includes('权限') || 
+                                errorData.message.includes('无权') ||
+                                errorData.message.includes('只有管理员') ||
+                                errorData.message.includes('无权操作')
+                            )) {
+                                console.log('🔴 403是权限问题，不刷新token');
+                                return response;
+                            }
+                        } catch (parseError) {
+                            console.log('无法解析403响应，可能是权限问题');
+                        }
+                        
+                        // 如果不是权限问题，尝试刷新token
+                        console.log('🔴 403可能是token问题，尝试刷新 token');
                         
                         if (!isRefreshing) {
                             isRefreshing = true;

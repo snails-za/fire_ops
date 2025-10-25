@@ -105,7 +105,7 @@ async def update_user(user_id: int, user: UserUpdate):
 async def read_user(user_id: int):
     user = await User.get_or_none(id=user_id)
     if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        return response(code=404, message="用户不存在")
     data = await User_Pydantic.from_tortoise_orm(user)
     return response(data=data.model_dump())
 

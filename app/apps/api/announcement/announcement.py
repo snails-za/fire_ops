@@ -106,7 +106,7 @@ async def update_announcement(announcement_id: int, form: AnnouncementUpdateForm
     # 查找公告
     announcement = await Announcement.get_or_none(id=announcement_id)
     if not announcement:
-        raise HTTPException(status_code=404, detail="公告不存在")
+        return response(code=404, message="公告不存在")
 
     # 更新字段
     update_data = form.dict(exclude_unset=True)
@@ -123,69 +123,51 @@ async def update_announcement(announcement_id: int, form: AnnouncementUpdateForm
 
 @router.delete("/{announcement_id}", summary="删除公告", dependencies=[Depends(get_current_user)])
 async def delete_announcement(announcement_id: int):
-    try:
-        # 查找公告
-        announcement = await Announcement.get_or_none(id=announcement_id)
-        if not announcement:
-            raise HTTPException(status_code=404, detail="公告不存在")
+    # 查找公告
+    announcement = await Announcement.get_or_none(id=announcement_id)
+    if not announcement:
+        return response(code=404, message="公告不存在")
 
-        await announcement.delete()
+    await announcement.delete()
 
-        return response(message="公告删除成功")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"删除公告失败: {str(e)}")
+    return response(message="公告删除成功")
 
 
 @router.post("/{announcement_id}/publish", dependencies=[Depends(get_current_user)])
 async def publish_announcement(announcement_id: int):
-    try:
-        # 查找公告
-        announcement = await Announcement.get_or_none(id=announcement_id)
-        if not announcement:
-            raise HTTPException(status_code=404, detail="公告不存在")
+    # 查找公告
+    announcement = await Announcement.get_or_none(id=announcement_id)
+    if not announcement:
+        return response(code=404, message="公告不存在")
 
-        # 更新状态和发布时间
-        announcement.status = "published"
-        if not announcement.publish_time:
-            announcement.publish_time = datetime.now()
+    # 更新状态和发布时间
+    announcement.status = "published"
+    if not announcement.publish_time:
+        announcement.publish_time = datetime.now()
 
-        await announcement.save()
+    await announcement.save()
 
-        return response(
-            data=Announcement_Pydantic.from_tortoise_orm(announcement).model_dump(),
-            message="公告发布成功"
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"发布公告失败: {str(e)}")
+    return response(
+        data=Announcement_Pydantic.from_tortoise_orm(announcement).model_dump(),
+        message="公告发布成功"
+    )
 
 
 @router.post("/{announcement_id}/archive", summary="归档公告", dependencies=[Depends(get_current_user)])
 async def archive_announcement(announcement_id: int):
-    try:
-        # 查找公告
-        announcement = await Announcement.get_or_none(id=announcement_id)
-        if not announcement:
-            raise HTTPException(status_code=404, detail="公告不存在")
+    # 查找公告
+    announcement = await Announcement.get_or_none(id=announcement_id)
+    if not announcement:
+        return response(code=404, message="公告不存在")
 
-        # 更新状态
-        announcement.status = "archived"
-        await announcement.save()
+    # 更新状态
+    announcement.status = "archived"
+    await announcement.save()
 
-        return response(
-            data=Announcement_Pydantic.from_tortoise_orm(announcement).model_dump(),
-            message="公告归档成功"
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"归档公告失败: {str(e)}")
+    return response(
+        data=Announcement_Pydantic.from_tortoise_orm(announcement).model_dump(),
+        message="公告归档成功"
+    )
 
 
 @router.get("/public/list", summary="获取公开公告列表", dependencies=[Depends(get_current_user)])

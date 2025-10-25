@@ -5914,23 +5914,21 @@
                 
                 const method = currentAnnouncementId ? 'PUT' : 'POST';
                 
-                const response = await fetch(url, {
+                const response = await fetchWithAuth(url, {
                     method: method,
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(data)
                 });
                 
-                if (response.ok) {
-                    const result = await response.json();
+                const result = await response.json();
+                if (result.code === 200) {
                     showToast(result.message || '公告保存成功', 'success');
                     closeAnnouncementModal();
                     loadAnnouncements();
                 } else {
-                    const error = await response.json();
-                    showToast(error.detail || '保存公告失败', 'error');
+                    showToast(result.message || '保存失败', 'error');
                 }
             } catch (error) {
                 console.error('保存公告失败:', error);
@@ -6038,7 +6036,7 @@
                             ${getStatusText(announcement.status)}
                         </span>
                     </td>
-                    <td>系统</td>
+                    <td>${announcement.created_by_username || '未知用户'}</td>
                     <td>${announcement.publish_time || '-'}</td>
                     <td>
                         <div class="action-buttons">
@@ -6070,48 +6068,40 @@
         // 发布公告
         async function publishAnnouncement(announcementId) {
             try {
-                const response = await fetch(`/api/v1/announcement/${announcementId}/publish`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
+                const response = await fetchWithAuth(`/api/v1/announcement/${announcementId}/publish`, {
+                    method: 'POST'
                 });
                 
-                if (response.ok) {
-                    const result = await response.json();
+                const result = await response.json();
+                if (result.code === 200) {
                     showToast(result.message || '公告发布成功', 'success');
                     loadAnnouncements();
                 } else {
-                    const error = await response.json();
-                    showToast(error.detail || '发布公告失败', 'error');
+                    showToast(result.message || '发布失败', 'error');
                 }
             } catch (error) {
                 console.error('发布公告失败:', error);
-                showToast('发布公告失败', 'error');
+                showToast('发布失败', 'error');
             }
         }
 
         // 归档公告
         async function archiveAnnouncement(announcementId) {
             try {
-                const response = await fetch(`/api/v1/announcement/${announcementId}/archive`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
+                const response = await fetchWithAuth(`/api/v1/announcement/${announcementId}/archive`, {
+                    method: 'POST'
                 });
                 
-                if (response.ok) {
-                    const result = await response.json();
+                const result = await response.json();
+                if (result.code === 200) {
                     showToast(result.message || '公告归档成功', 'success');
                     loadAnnouncements();
                 } else {
-                    const error = await response.json();
-                    showToast(error.detail || '归档公告失败', 'error');
+                    showToast(result.message || '归档失败', 'error');
                 }
             } catch (error) {
                 console.error('归档公告失败:', error);
-                showToast('归档公告失败', 'error');
+                showToast('归档失败', 'error');
             }
         }
 
@@ -6122,24 +6112,20 @@
             }
             
             try {
-                const response = await fetch(`/api/v1/announcement/${announcementId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
+                const response = await fetchWithAuth(`/api/v1/announcement/${announcementId}`, {
+                    method: 'DELETE'
                 });
                 
-                if (response.ok) {
-                    const result = await response.json();
+                const result = await response.json();
+                if (result.code === 200) {
                     showToast(result.message || '公告删除成功', 'success');
                     loadAnnouncements();
                 } else {
-                    const error = await response.json();
-                    showToast(error.detail || '删除公告失败', 'error');
+                    showToast(result.message || '删除失败', 'error');
                 }
             } catch (error) {
                 console.error('删除公告失败:', error);
-                showToast('删除公告失败', 'error');
+                showToast('删除失败', 'error');
             }
         }
 

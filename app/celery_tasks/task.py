@@ -4,9 +4,10 @@ import traceback
 from tortoise import Tortoise
 
 import config
-from apps.utils.document_parser import document_processor
+from apps.utils.document_parser import DocumentProcessor
 from celery_tasks.app import celery_
 
+_document_processor = None
 
 @celery_.task(bind=True, max_retries=3, default_retry_delay=60)
 def process_document_task(self, document_id: int, file_path: str, file_type: str):
@@ -21,7 +22,9 @@ def process_document_task(self, document_id: int, file_path: str, file_type: str
     Returns:
         dict: 处理结果
     """
-    
+    global _document_processor
+    if _document_processor is None:
+        _document_processor = DocumentProcessor()
     async def _process_document():
         # 初始化 Tortoise ORM 连接
         await Tortoise.init(config=config.TORTOISE_ORM)
@@ -41,7 +44,7 @@ def process_document_task(self, document_id: int, file_path: str, file_type: str
             )
 
             # 调用现有的文档处理器
-            success = await document_processor.process_document(
+            success = await _document_processor.process_document(
                 document_id,
                 file_path,
                 file_type

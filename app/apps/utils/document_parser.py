@@ -436,6 +436,7 @@ class DocumentProcessor:
                 chunk_overlap=200,  # 块之间的重叠字符数，保持上下文连续性
                 length_function=len,  # 使用字符长度计算
             )
+            self.document_parser = DocumentParser()
 
             # 配置HuggingFace环境变量
             os.environ["HF_HOME"] = HF_HOME
@@ -475,7 +476,7 @@ class DocumentProcessor:
             await document.save()
 
             # 2. 提取文档内容
-            content = await document_parser.extract_content(file_path, file_type)
+            content = await self.document_parser.extract_content(file_path, file_type)
             if not content or not content.strip():
                 raise Exception("文档内容为空或无法提取")
 
@@ -534,8 +535,8 @@ class DocumentProcessor:
 
 
 # 全局实例 - 单例模式
-try:
-    document_parser = DocumentParser()
-    document_processor = DocumentProcessor()
-except Exception as e:
-    raise Exception(f"文档处理系统初始化失败: {e}")
+# try:
+#     document_parser = DocumentParser()
+#     document_processor = DocumentProcessor()
+# except Exception as e:
+#     raise Exception(f"文档处理系统初始化失败: {e}")

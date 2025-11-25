@@ -11,13 +11,14 @@ async def upgrade(db: BaseDBAsyncClient) -> str:
 );
 CREATE TABLE IF NOT EXISTS "user" (
     "id" SERIAL NOT NULL PRIMARY KEY,
-    "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "username" VARCHAR(20) NOT NULL UNIQUE,
-    "email" VARCHAR(50)  UNIQUE,
+    "email" VARCHAR(50) UNIQUE,
     "password" VARCHAR(128),
     "head" VARCHAR(255),
-    "pinyin" VARCHAR(255)
+    "pinyin" VARCHAR(255),
+    "role" VARCHAR(20) NOT NULL DEFAULT 'user'
 );
 CREATE INDEX IF NOT EXISTS "idx_user_usernam_9987ab" ON "user" ("username");
 CREATE INDEX IF NOT EXISTS "idx_user_email_1b4f1c" ON "user" ("email");
@@ -29,11 +30,12 @@ COMMENT ON COLUMN "user"."email" IS '邮箱';
 COMMENT ON COLUMN "user"."password" IS '密码';
 COMMENT ON COLUMN "user"."head" IS '头像';
 COMMENT ON COLUMN "user"."pinyin" IS '用户名首字母';
+COMMENT ON COLUMN "user"."role" IS '用户角色: user, admin';
 CREATE TABLE IF NOT EXISTS "friendrequest" (
     "id" SERIAL NOT NULL PRIMARY KEY,
-    "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "is_star" BOOL NOT NULL  DEFAULT False,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "is_star" BOOL NOT NULL DEFAULT False,
     "is_accept" BOOL,
     "bak" TEXT,
     "receiver_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE,
@@ -49,8 +51,8 @@ COMMENT ON COLUMN "friendrequest"."receiver_id" IS '接收人';
 COMMENT ON COLUMN "friendrequest"."requester_id" IS '申请人';
 CREATE TABLE IF NOT EXISTS "device" (
     "id" SERIAL NOT NULL PRIMARY KEY,
-    "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "name" VARCHAR(100),
     "address" VARCHAR(100),
     "location" JSONB,
@@ -60,6 +62,7 @@ CREATE TABLE IF NOT EXISTS "device" (
     "installer" VARCHAR(50),
     "contact" VARCHAR(11),
     "remark" TEXT,
+    "created_by_user_id" INT,
     CONSTRAINT "uid_device_name_374f1e" UNIQUE ("name", "address")
 );
 CREATE INDEX IF NOT EXISTS "idx_device_name_d43932" ON "device" ("name");
@@ -73,15 +76,16 @@ COMMENT ON COLUMN "device"."images" IS '设备图片';
 COMMENT ON COLUMN "device"."status" IS '设备状态';
 COMMENT ON COLUMN "device"."install_date" IS '安装日期';
 COMMENT ON COLUMN "device"."installer" IS '安装人';
-COMMENT ON COLUMN "device"."contact" IS '联系人';
+COMMENT ON COLUMN "device"."contact" IS '联系方式（手机号）';
 COMMENT ON COLUMN "device"."remark" IS '备注';
+COMMENT ON COLUMN "device"."created_by_user_id" IS '创建用户ID';
 CREATE TABLE IF NOT EXISTS "chat_session" (
     "id" SERIAL NOT NULL PRIMARY KEY,
-    "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "session_name" VARCHAR(100) NOT NULL,
-    "created_time" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "last_active" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "created_time" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "last_active" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE
 );
 COMMENT ON COLUMN "chat_session"."id" IS '会话ID';
@@ -94,11 +98,11 @@ COMMENT ON COLUMN "chat_session"."user_id" IS '用户';
 COMMENT ON TABLE "chat_session" IS '聊天会话模型';
 CREATE TABLE IF NOT EXISTS "chat_message" (
     "id" SERIAL NOT NULL PRIMARY KEY,
-    "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "role" VARCHAR(20) NOT NULL,
     "content" TEXT NOT NULL,
-    "timestamp" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "timestamp" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "metadata" JSONB,
     "session_id" INT NOT NULL REFERENCES "chat_session" ("id") ON DELETE CASCADE
 );
@@ -113,16 +117,17 @@ COMMENT ON COLUMN "chat_message"."session_id" IS '所属会话';
 COMMENT ON TABLE "chat_message" IS '聊天消息模型';
 CREATE TABLE IF NOT EXISTS "document" (
     "id" SERIAL NOT NULL PRIMARY KEY,
-    "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "filename" VARCHAR(255) NOT NULL,
     "original_filename" VARCHAR(255) NOT NULL,
     "file_path" VARCHAR(500) NOT NULL,
     "file_size" INT NOT NULL,
     "file_type" VARCHAR(50) NOT NULL,
     "content" TEXT NOT NULL,
-    "status" VARCHAR(20) NOT NULL  DEFAULT 'processing',
-    "upload_time" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "status" VARCHAR(20) NOT NULL DEFAULT 'queued',
+    "task_id" VARCHAR(255),
+    "upload_time" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "process_time" TIMESTAMPTZ,
     "error_message" TEXT
 );
@@ -135,15 +140,16 @@ COMMENT ON COLUMN "document"."file_path" IS '文件路径';
 COMMENT ON COLUMN "document"."file_size" IS '文件大小(字节)';
 COMMENT ON COLUMN "document"."file_type" IS '文件类型';
 COMMENT ON COLUMN "document"."content" IS '文档内容';
-COMMENT ON COLUMN "document"."status" IS '处理状态: processing, completed, failed';
+COMMENT ON COLUMN "document"."status" IS '处理状态: queued, processing, completed, failed';
+COMMENT ON COLUMN "document"."task_id" IS 'Celery任务ID';
 COMMENT ON COLUMN "document"."upload_time" IS '上传时间';
 COMMENT ON COLUMN "document"."process_time" IS '处理完成时间';
 COMMENT ON COLUMN "document"."error_message" IS '错误信息';
 COMMENT ON TABLE "document" IS '文档模型';
 CREATE TABLE IF NOT EXISTS "document_chunk" (
     "id" SERIAL NOT NULL PRIMARY KEY,
-    "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "chunk_index" INT NOT NULL,
     "content" TEXT NOT NULL,
     "content_length" INT NOT NULL,
@@ -158,7 +164,27 @@ COMMENT ON COLUMN "document_chunk"."content" IS '分块内容';
 COMMENT ON COLUMN "document_chunk"."content_length" IS '内容长度';
 COMMENT ON COLUMN "document_chunk"."metadata" IS '元数据';
 COMMENT ON COLUMN "document_chunk"."document_id" IS '所属文档';
-COMMENT ON TABLE "document_chunk" IS '文档分块模型';"""
+COMMENT ON TABLE "document_chunk" IS '文档分块模型';
+CREATE TABLE IF NOT EXISTS "announcements" (
+    "id" SERIAL NOT NULL PRIMARY KEY,
+    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "title" VARCHAR(200) NOT NULL,
+    "content" TEXT NOT NULL,
+    "status" VARCHAR(20) NOT NULL DEFAULT 'draft',
+    "publish_time" TIMESTAMPTZ,
+    "expire_time" TIMESTAMPTZ,
+    "created_by_user_id" INT NOT NULL
+);
+COMMENT ON COLUMN "announcements"."created_at" IS '创建时间';
+COMMENT ON COLUMN "announcements"."updated_at" IS '更新时间';
+COMMENT ON COLUMN "announcements"."title" IS '公告标题';
+COMMENT ON COLUMN "announcements"."content" IS '公告内容';
+COMMENT ON COLUMN "announcements"."status" IS '状态：draft/published/archived';
+COMMENT ON COLUMN "announcements"."publish_time" IS '发布时间';
+COMMENT ON COLUMN "announcements"."expire_time" IS '过期时间';
+COMMENT ON COLUMN "announcements"."created_by_user_id" IS '创建者用户ID';
+COMMENT ON TABLE "announcements" IS '公告表';"""
 
 
 async def downgrade(db: BaseDBAsyncClient) -> str:

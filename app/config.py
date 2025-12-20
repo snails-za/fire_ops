@@ -126,6 +126,11 @@ CHUNK_OVERLAP = config("CHUNK_OVERLAP", cast=int, default=200)
 SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.7)
 DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
 
+# 设备数据配置
+# 传递给LLM的设备详细列表的最大数量（用于控制上下文大小）
+# 统计信息不受此限制，始终包含完整统计
+MAX_DEVICES_FOR_LLM = config("MAX_DEVICES_FOR_LLM", cast=int, default=200)
+
 # =============================================================================
 # NLTK 配置
 # =============================================================================

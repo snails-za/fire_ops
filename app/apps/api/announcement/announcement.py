@@ -4,7 +4,7 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
@@ -84,7 +84,7 @@ async def get_announcement_list(
         try:
             user = await User.get_or_none(id=announcement_dict['created_by_user_id'])
             announcement_dict['created_by_username'] = user.username if user else '未知用户'
-        except:
+        except Exception as _:
             announcement_dict['created_by_username'] = '未知用户'
         data.append(announcement_dict)
 
@@ -220,7 +220,7 @@ async def get_public_announcement_list(
         try:
             user = await User.get_or_none(id=announcement_dict['created_by_user_id'])
             announcement_dict['created_by_username'] = user.username if user else '未知用户'
-        except:
+        except Exception as _:
             announcement_dict['created_by_username'] = '未知用户'
         data.append(announcement_dict)
 

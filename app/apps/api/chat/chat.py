@@ -19,7 +19,7 @@ from apps.utils import response
 from apps.utils.llm_optimizers import get_question_optimizer, get_search_optimizer, optimize_question
 from apps.utils.rag_helper import rag_generator
 from apps.utils.vector_db_selector import vector_search
-from apps.utils.device_helper import search_devices, format_device_context, should_search_devices, get_device_statistics
+from apps.utils.device_helper import format_device_context, get_all_devices_by_permission
 from apps.dependencies.auth import get_current_user
 from apps.models.user import User
 from config import SIMILARITY_THRESHOLD
@@ -69,59 +69,30 @@ async def ask_question_stream(
             print("问题优化结果：", optimized_query)
             
             # 发送搜索状态
-            if should_search_devices(optimized_query, question):
-                yield f"data: {json.dumps({'type': 'status', 'message': '🔍 正在搜索设备信息...'}, ensure_ascii=False)}\n\n"
-            else:
-                yield f"data: {json.dumps({'type': 'status', 'message': '🔍 正在搜索相关文档...'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'message': '🔍 正在获取数据...'}, ensure_ascii=False)}\n\n"
             
-            # 2. 智能设备搜索（只在相关问题时搜索）
-            device_list = []
-            device_context = ""
-            search_results = []  # 默认不进行文档搜索
+            # 2. 同时获取设备数据和文档数据，不进行任何规则判断
+            # 获取设备数据（统计信息 + 设备列表摘要）
+            print("获取设备数据...")
+            device_data = await get_all_devices_by_permission(
+                user_id=user.id, 
+                is_admin=(user.role == "admin")
+            )
+            device_list = device_data.get("devices", []) if device_data else []
+            print(f"设备总数: {device_data.get('total', 0) if device_data else 0}, 返回详情数量: {len(device_list)}, 用户: {user.role}")
             
-            if should_search_devices(optimized_query, question):
-                print("问题与设备相关，开始搜索设备信息...")
-                
-                # 检查是否为统计类问题（同时检查原始问题和优化后问题）
-                stats_keywords = ['统计', '总数', '有多少', '分布', '比例', '率', '数量', '概览', '几']
-                is_stats_question_optimized = any(keyword in optimized_query for keyword in stats_keywords)
-                is_stats_question_original = any(keyword in question for keyword in stats_keywords)
-                is_stats_question = is_stats_question_optimized or is_stats_question_original
-                
-                if is_stats_question:
-                    print("检测到统计类问题，获取设备统计信息...")
-                    device_stats = await get_device_statistics(
-                        user_id=user.id, 
-                        is_admin=(user.role == "admin"),
-                        query=optimized_query,
-                        original_query=question
-                    )
-                    
-                    # 统计类问题只返回统计信息，不搜索具体设备
-                    device_context = f"设备统计信息：\n- 总设备数: {device_stats['total_devices']}\n- 状态分布: {device_stats['status_distribution']}"
-                    device_list = []  # 统计问题不需要具体设备列表
-                    print("统计问题返回统计信息，不搜索具体设备")
-                    print(f"设备统计信息: {device_stats}")
-                    print(f"设备上下文: {device_context}")
-                else:
-                    device_list = await search_devices(
-                        query=optimized_query, 
-                        user_id=user.id, 
-                        is_admin=(user.role == "admin"),
-                        original_query=question  # 传递原始问题
-                    )
-                    print(f"找到设备数量: {len(device_list)}, 用户: {user.role}, 是否为管理员: {user.role == 'admin'}")
-                    print(f"设备列表: {device_list}")
-                    device_context = format_device_context(device_list) if device_list else ""
-                    print(f"设备信息格式化后长度: {len(device_context) if device_context else 0}")
-            else:
-                print("问题与设备无关，开始文档搜索...")
-                # 只有非设备相关的问题才进行文档搜索
-                search_results = await vector_search.search_similar_documents(
-                    query=optimized_query,
-                    top_k=top_k,
-                    use_threshold=True
-                )
+            # 格式化设备上下文
+            device_context = format_device_context(device_data) if device_data else ""
+            print(f"设备信息格式化后长度: {len(device_context) if device_context else 0}")
+            
+            # 同时搜索相关文档
+            print("搜索相关文档...")
+            search_results = await vector_search.search_similar_documents(
+                query=optimized_query,
+                top_k=top_k,
+                use_threshold=True
+            )
+            print(f"搜索到文档数量: {len(search_results)}")
             
             if not search_results and not device_context:
                 yield f"data: {json.dumps({'type': 'content', 'message': '抱歉，我没有找到相关的文档内容或设备信息来回答您的问题。'}, ensure_ascii=False)}\n\n"
@@ -261,51 +232,28 @@ async def ask_question_anonymous(
                 print(f"问题优化失败: {e}")
                 optimized_query = question
         
-        # 2. 智能设备搜索（只在相关问题时搜索）
-        device_list = []
-        device_context = ""
-        search_results = []  # 默认不进行文档搜索
+        # 2. 同时获取设备数据和文档数据，不进行任何规则判断
+        # 获取设备数据（统计信息 + 设备列表摘要）
+        print("获取设备数据...")
+        device_data = await get_all_devices_by_permission(
+            user_id=user.id, 
+            is_admin=(user.role == "admin")
+        )
+        device_list = device_data.get("devices", []) if device_data else []
+        print(f"设备总数: {device_data.get('total', 0) if device_data else 0}, 返回详情数量: {len(device_list)}, 用户: {user.role}")
         
-        if should_search_devices(optimized_query, question):
-            print("问题与设备相关，开始搜索设备信息...")
-            
-            # 检查是否为统计类问题（同时检查原始问题和优化后问题）
-            stats_keywords = ['统计', '总数', '有多少', '分布', '比例', '率', '数量', '概览', '几']
-            is_stats_question_optimized = any(keyword in optimized_query for keyword in stats_keywords)
-            is_stats_question_original = any(keyword in question for keyword in stats_keywords)
-            is_stats_question = is_stats_question_optimized or is_stats_question_original
-            
-            if is_stats_question:
-                print("检测到统计类问题，获取设备统计信息...")
-                device_stats = await get_device_statistics(
-                    user_id=user.id, 
-                    is_admin=(user.role == "admin"),
-                    query=optimized_query,
-                    original_query=question
-                )
-                
-                # 统计类问题只返回统计信息，不搜索具体设备
-                device_context = f"设备统计信息：\n- 总设备数: {device_stats['total_devices']}\n- 状态分布: {device_stats['status_distribution']}"
-                device_list = []  # 统计问题不需要具体设备列表
-                print("统计问题返回统计信息，不搜索具体设备")
-                print(f"设备统计信息: {device_stats}")
-                print(f"设备上下文: {device_context}")
-            else:
-                device_list = await search_devices(
-                    query=optimized_query, 
-                    user_id=user.id, 
-                    is_admin=(user.role == "admin"),
-                    original_query=question  # 传递原始问题
-                )
-                device_context = format_device_context(device_list) if device_list else ""
-        else:
-            print("问题与设备无关，开始文档搜索...")
-            # 只有非设备相关的问题才进行文档搜索
-            search_results = await vector_search.search_similar_documents(
-                query=optimized_query,
-                top_k=top_k,
-                use_threshold=True
-            )
+        # 格式化设备上下文
+        device_context = format_device_context(device_data) if device_data else ""
+        print(f"设备信息格式化后长度: {len(device_context) if device_context else 0}")
+        
+        # 同时搜索相关文档
+        print("搜索相关文档...")
+        search_results = await vector_search.search_similar_documents(
+            query=optimized_query,
+            top_k=top_k,
+            use_threshold=True
+        )
+        print(f"搜索到文档数量: {len(search_results)}")
         
         if not search_results and not device_context:
             return response(

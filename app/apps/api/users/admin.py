@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File
 from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 

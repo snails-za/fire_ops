@@ -1,7 +1,7 @@
 import base64
 import hashlib
 import os
-from typing import Optional, Tuple, Any
+from typing import Optional
 
 from pypinyin import lazy_pinyin
 

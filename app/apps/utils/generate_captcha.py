@@ -9,7 +9,7 @@ from config import BASE_PATH
 
 
 def generate_captcha(width=140, height=50, font_size=None):
-    letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    letters = '0123456789'
     captcha_text = ''.join(random.choice(letters) for _ in range(5))  # 5个字母
     img = Image.new('RGB', (width, height), color=(255, 255, 255))  # 白色背景
     d = ImageDraw.Draw(img)

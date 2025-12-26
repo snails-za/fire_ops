@@ -14,8 +14,10 @@ from apps.models.user import User
 
 class UserRole:
     """用户角色常量"""
-    USER = "user"      # 普通用户
-    ADMIN = "admin"    # 管理员
+    USER = "user"          # 普通用户
+    ADMIN = "admin"        # 管理员（后台）
+    LEADER = "leader"      # 班长
+    MAINTAINER = "maintainer"  # 维护人员
 
 
 def require_role(allowed_roles: List[str]):
@@ -94,6 +96,52 @@ async def get_user_with_role_check(user: User = Depends(get_current_user)):
     return {
         "user": user,
         "is_admin": user.role == UserRole.ADMIN,
+        "is_leader": user.role == UserRole.LEADER,
+        "is_maintainer": user.role == UserRole.MAINTAINER,
         "is_user": user.role == UserRole.USER,
         "role": user.role
     }
+
+
+def can_view_all_events(user: User) -> bool:
+    """
+    检查用户是否可以查看所有事件
+    
+    Args:
+        user: 当前用户
+        
+    Returns:
+        bool: True表示可以查看所有事件（admin和leader），False表示只能查看自己负责的事件
+    """
+    return user.role in [UserRole.ADMIN, UserRole.LEADER]
+
+
+def can_view_all_devices(user: User) -> bool:
+    """
+    检查用户是否可以查看所有设备
+    
+    Args:
+        user: 当前用户
+        
+    Returns:
+        bool: True表示可以查看所有设备（admin和leader），False表示只能查看自己创建的设备
+    """
+    return user.role in [UserRole.ADMIN, UserRole.LEADER]
+
+
+def can_manage_event(user: User, event_responsible_user_id: int = None) -> bool:
+    """
+    检查用户是否可以管理事件
+    
+    Args:
+        user: 当前用户
+        event_responsible_user_id: 事件负责人ID
+        
+    Returns:
+        bool: True表示可以管理事件（admin、leader或负责人本人）
+    """
+    if user.role in [UserRole.ADMIN, UserRole.LEADER]:
+        return True
+    if event_responsible_user_id and event_responsible_user_id == user.id:
+        return True
+    return False

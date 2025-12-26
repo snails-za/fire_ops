@@ -6,16 +6,80 @@ from fastapi import APIRouter, UploadFile, File, Depends
 from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
+from datetime import datetime
 from apps.dependencies.auth import get_current_user
 from apps.form.device.device import DeviceOut, DeviceIn, DeviceUpdate
 from apps.models.device import Device
 from apps.models.user import User
+from apps.models.event import Event, EventMessage, EventProgress
 from apps.utils import response
 from config import DEVICE_STORE_PATH
 
 router = APIRouter(prefix="/device", tags=["设备管理"])
 
 Device_Pydantic = pydantic_model_creator(Device, name="Device")
+
+
+async def create_event_from_device(device: Device, status: str, user: User):
+    """
+    从设备状态变更自动创建事件
+    允许同一设备创建多条相同类型的事件（例如多次告警）
+    :param device: 设备对象
+    :param status: 设备状态（告警、异常、离线）
+    :param user: 操作用户
+    """
+    # 确定事件等级
+    level = "severe" if status == "告警" else ("high" if status == "异常" else "medium")
+    
+    # 构建事件标题（根据UI图格式：3号楼・烟感告警 (A区 2F)）
+    location_parts = []
+    if device.address:
+        location_parts.append(device.address)
+    location_str = "・".join(location_parts) if location_parts else ""
+    
+    # 构建标题，格式：设备名・状态类型 (位置)
+    title = f"{device.name}・{status}"
+    if location_str:
+        title += f" ({location_str})"
+    
+    # 创建事件（每次状态变更都创建新事件，允许同一设备有多条告警）
+    event = await Event.create(
+        title=title,
+        level=level,
+        status="alarm",  # 事件初始状态为"alarm"（告警）
+        device=device,
+        device_name=device.name,
+        device_address=device.address,
+        location=device.address,  # 可以后续扩展更详细的位置信息
+        triggered_at=datetime.now(),
+        triggered_by="system"
+    )
+    
+    # 创建系统消息
+    await EventMessage.create(
+        event=event,
+        user=None,  # 系统消息
+        username="系统",
+        user_role="system",
+        content=f"告警触发({status})",
+        message_type="system"
+    )
+    
+    # 创建初始进度记录
+    await EventProgress.create(
+        event=event,
+        progress_type="告警触发",
+        description=f"系统收到{status}上报，自动创建事件并推送值班。",
+        operator=None,
+        operator_username="系统",
+        status="completed"
+    )
+    
+    # 更新事件消息计数
+    event.message_count = 1
+    await event.save()
+    
+    return event
 
 
 @router.post("/upload/image", summary="图像上传接口", description="图像上传接口", dependencies=[Depends(get_current_user)])
@@ -38,8 +102,8 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     :param device:
     :return:
     """
-    # 检查设备是否存在（如果是管理员，可以创建任意设备名；普通用户检查自己的设备）
-    if user.role == "admin":
+    # 检查设备是否存在（管理员和班长可以创建任意设备名；普通用户检查自己的设备）
+    if user.role in ["admin", "leader"]:
         exists = await Device.filter(name=device.name).exists()
     else:
         exists = await Device.filter(name=device.name, created_by_user_id=user.id).exists()
@@ -47,10 +111,22 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     if exists:
         return response(code=400, message="设备已存在")
 
-    # 创建设备时关联用户ID
+    # 验证设备状态：只允许四种状态
+    valid_statuses = ["告警", "异常", "离线", "正常"]
     device_data = device.model_dump(exclude_unset=True)
+    device_status = device_data.get('status', '正常')  # 默认为正常
+    
+    if device_status and device_status not in valid_statuses:
+        return response(code=400, message=f"设备状态无效，只允许：{', '.join(valid_statuses)}")
+    
+    # 创建设备时关联用户ID
     device_data["created_by_user_id"] = user.id
     device_obj = await Device.create(**device_data)
+    
+    # 如果设备状态不是正常，自动创建事件
+    if device_obj.status and device_obj.status in ["告警", "异常", "离线"]:
+        await create_event_from_device(device_obj, device_obj.status, user)
+    
     data = await Device_Pydantic.from_tortoise_orm(device_obj)
     return response(data=data.model_dump())
 
@@ -65,8 +141,8 @@ async def update_device(device_id: int, device: DeviceUpdate, user: User = Depen
     :param user: 当前用户
     :return:
     """
-    # 查询设备是否存在
-    if user.role == "admin":
+    # 查询设备是否存在（管理员和班长可以访问所有设备，其他用户只能访问自己创建的设备）
+    if user.role in ["admin", "leader"]:
         device_obj = await Device.get_or_none(id=device_id)
     else:
         device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
@@ -74,10 +150,48 @@ async def update_device(device_id: int, device: DeviceUpdate, user: User = Depen
     if not device_obj:
         return response(code=404, message="设备不存在或无权访问")
     
-    # 更新设备信息
+    # 记录旧状态，用于判断是否需要创建事件
+    old_status = device_obj.status
     update_data = device.model_dump(exclude_unset=True)
+    new_status = update_data.get('status', old_status)
+    
+    # 验证设备状态：只允许四种状态
+    valid_statuses = ["告警", "异常", "离线", "正常"]
+    if new_status and new_status not in valid_statuses:
+        return response(code=400, message=f"设备状态无效，只允许：{', '.join(valid_statuses)}")
+    
+    # 更新设备信息
     await device_obj.update_from_dict(update_data)
     await device_obj.save()
+    
+    # 如果设备状态变为非正常状态，自动创建事件
+    # 每次状态变更都会创建新事件，允许同一设备有多条告警
+    if new_status in ["告警", "异常", "离线"]:
+        # 如果状态发生变化（从正常变为非正常，或从一种非正常状态变为另一种非正常状态）
+        if old_status != new_status:
+            await create_event_from_device(device_obj, new_status, user)
+    
+    # 如果设备状态从非正常变为正常，关闭相关的事件
+    if new_status == "正常" and old_status in ["告警", "异常", "离线"]:
+        # 关闭该设备所有进行中的事件
+        ongoing_events = await Event.filter(
+            device_id=device_obj.id,
+            status__in=["alarm", "processing"]
+        )
+        for event in ongoing_events:
+            event.status = "closed"
+            event.conclusion = f"设备状态已恢复为正常"
+            await event.save()
+            
+            # 创建系统消息
+            await EventMessage.create(
+                event=event,
+                user=None,
+                username="系统",
+                user_role="system",
+                content=f"设备状态已恢复为正常，事件已关闭",
+                message_type="system"
+            )
     
     data = await Device_Pydantic.from_tortoise_orm(device_obj)
     return response(data=data.model_dump(), message="更新成功")
@@ -92,8 +206,8 @@ async def delete_device(device_id: int, user: User = Depends(get_current_user)):
     :param user: 当前用户
     :return:
     """
-    # 查询设备是否存在
-    if user.role == "admin":
+    # 查询设备是否存在（管理员和班长可以访问所有设备，其他用户只能访问自己创建的设备）
+    if user.role in ["admin", "leader"]:
         device_obj = await Device.get_or_none(id=device_id)
     else:
         device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
@@ -116,8 +230,8 @@ async def device_detail(device_id: int, user: User = Depends(get_current_user)):
     :param user: 当前用户
     :return:
     """
-    # 查询设备是否存在
-    if user.role == "admin":
+    # 查询设备是否存在（管理员和班长可以访问所有设备，其他用户只能访问自己创建的设备）
+    if user.role in ["admin", "leader"]:
         device_obj = await Device.get_or_none(id=device_id)
     else:
         device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
@@ -133,20 +247,30 @@ async def device_detail(device_id: int, user: User = Depends(get_current_user)):
             dependencies=[Depends(get_current_user)])
 async def device_list(
         device_name: Optional[str] = None,
+        status: Optional[str] = None,  # 新增状态筛选：告警、异常、离线、正常
         page: int = 1,
         page_size: int = 10,
         user: User = Depends(get_current_user)  # 👈 获取当前用户
 ):
     """
     获取设备列表
+    支持按设备名称和状态筛选
+    设备状态：告警、异常、离线、正常
     :return:
     """
     conditions = []
     if device_name:
         conditions.append(Q(name__icontains=device_name))
+    
+    # 状态筛选：告警、异常、离线、正常
+    if status:
+        valid_statuses = ["告警", "异常", "离线", "正常"]
+        if status not in valid_statuses:
+            return response(code=400, message=f"设备状态无效，只允许：{', '.join(valid_statuses)}")
+        conditions.append(Q(status=status))
 
-    # 👇 如果不是管理员，只查询当前用户的设备
-    if user.role != "admin":  # 假设你的角色字段是 role
+    # 如果不是管理员或班长，只查询当前用户的设备
+    if user.role not in ["admin", "leader"]:
         conditions.append(Q(created_by_user_id=user.id))
 
     query = Device.filter(*conditions).order_by("-id")
@@ -169,23 +293,27 @@ async def device_list(
 @router.get("/stats", summary="设备统计", description="获取设备统计信息", dependencies=[Depends(get_current_user)])
 async def device_stats(user: User = Depends(get_current_user)):
     """
-    获取设备统计信息
+    获取设备统计信息（用于今日概览）
+    设备状态：告警、异常、离线、正常
     :return:
     """
-    if user.role == "admin":
+    # admin和leader可以看到所有设备，maintainer只能看到自己创建的设备
+    if user.role in ["admin", "leader"]:
         total = await Device.all().count()
-        normal = await Device.filter(status="正常").count()
+        alarm = await Device.filter(status="告警").count()
+        abnormal = await Device.filter(status="异常").count()
         offline = await Device.filter(status="离线").count()
-        error = await Device.filter(status="异常").count()
+        normal = await Device.filter(status="正常").count()
     else:
         total = await Device.filter(created_by_user_id=user.id).count()
-        normal = await Device.filter(created_by_user_id=user.id, status="正常").count()
+        alarm = await Device.filter(created_by_user_id=user.id, status="告警").count()
+        abnormal = await Device.filter(created_by_user_id=user.id, status="异常").count()
         offline = await Device.filter(created_by_user_id=user.id, status="离线").count()
-        error = await Device.filter(created_by_user_id=user.id, status="异常").count()
+        normal = await Device.filter(created_by_user_id=user.id, status="正常").count()
 
     return response(data={
-        "total": total,
-        "normal": normal,  # 👈 改为 normal 而不是 online
-        "offline": offline,
-        "error": error  # 👈 新增异常统计
+        "alarm": alarm,      # 告警
+        "abnormal": abnormal,  # 异常
+        "offline": offline,   # 离线
+        "normal": normal      # 正常
     })

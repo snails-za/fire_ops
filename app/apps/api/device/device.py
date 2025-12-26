@@ -43,16 +43,23 @@ async def create_event_from_device(device: Device, status: str, user: User):
         title += f" ({location_str})"
     
     # 创建事件（每次状态变更都创建新事件，允许同一设备有多条告警）
+    status_display = {
+        "告警": "alarm",
+        "处理中": "processing",
+        "已关闭": "closed"
+    }
     event = await Event.create(
         title=title,
         level=level,
-        status="alarm",  # 事件初始状态为"alarm"（告警）
+        status=status_display.get(status),  # 事件初始状态为"alarm"（告警）
         device=device,
         device_name=device.name,
         device_address=device.address,
         location=device.address,  # 可以后续扩展更详细的位置信息
         triggered_at=datetime.now(),
-        triggered_by="system"
+        triggered_by="system",
+        responsible_user=user,
+        responsible_username=user.username,
     )
     
     # 创建系统消息

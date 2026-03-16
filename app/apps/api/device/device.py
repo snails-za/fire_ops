@@ -29,7 +29,7 @@ async def create_event_from_device(device: Device, status: str, user: User):
     :param user: 操作用户
     """
     # 确定事件等级
-    level = "severe" if status == "告警" else ("high" if status == "异常" else "medium")
+    level = "high" if status == "告警" else ("medium" if status == "异常" else "low")
     
     # 构建事件标题（根据UI图格式：3号楼・烟感告警 (A区 2F)）
     location_parts = []
@@ -43,15 +43,10 @@ async def create_event_from_device(device: Device, status: str, user: User):
         title += f" ({location_str})"
     
     # 创建事件（每次状态变更都创建新事件，允许同一设备有多条告警）
-    status_display = {
-        "告警": "alarm",
-        "处理中": "processing",
-        "已关闭": "closed"
-    }
     event = await Event.create(
         title=title,
         level=level,
-        status=status_display.get(status),  # 事件初始状态为"alarm"（告警）
+        status="wait",
         device=device,
         device_name=device.name,
         device_address=device.address,

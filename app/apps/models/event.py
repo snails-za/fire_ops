@@ -7,8 +7,8 @@ class Event(BaseModel):
     
     # 事件基本信息
     title = fields.CharField(max_length=200, description="事件标题，如：3号楼・烟感告警 (A区 2F)")
-    level = fields.CharField(max_length=20, default="normal", description="事件等级：严重(severe)、高(high)、中(medium)、低(low)、正常(normal)")
-    status = fields.CharField(max_length=20, default="alarm", description="事件状态：告警(alarm)、处理中(processing)、已关闭(closed)")
+    level = fields.CharField(max_length=20, default="medium", description="事件等级：高(high)、中(medium)、低(low)")
+    status = fields.CharField(max_length=20, default="wait", description="事件状态：待处理(wait)、处理中(processing)、已关闭(closed)")
     
     # 关联设备
     device = fields.ForeignKeyField("models.Device", related_name="events", on_delete=fields.CASCADE, null=True, description="关联设备")

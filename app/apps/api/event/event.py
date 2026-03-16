@@ -264,8 +264,6 @@ async def get_event_detail(
                 }
         progress_list.append(prog_dict)
     event_dict['progresses'] = progress_list
-    event.status = "processing"
-    await event.save()
     
     return response(data=event_dict, message="获取事件详情成功")
 
@@ -375,7 +373,7 @@ async def update_event(
         # 如果状态变更，自动创建进度记录
         if old_status != new_status:
             status_display = {
-                "alarm": "告警",
+                "wait": "待处理",
                 "processing": "处理中",
                 "closed": "已关闭"
             }
@@ -423,7 +421,8 @@ async def update_event(
         event.conclusion = update_data["conclusion"]
     if "estimated_arrival" in update_data:
         event.estimated_arrival = update_data["estimated_arrival"]
-    
+    event.status = "processing"
+
     await event.save()
     
     event_data = await Event_Pydantic.from_tortoise_orm(event)

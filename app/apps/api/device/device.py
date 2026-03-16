@@ -255,6 +255,7 @@ async def device_detail(device_id: int, user: User = Depends(get_current_user)):
 async def device_list(
         device_name: Optional[str] = None,
         status: Optional[str] = None,  # 新增状态筛选：告警、异常、离线、正常
+        exclude_status: Optional[str] = None,
         page: int = 1,
         page_size: int = 10,
         user: User = Depends(get_current_user)  # 👈 获取当前用户
@@ -275,7 +276,11 @@ async def device_list(
         if status not in valid_statuses:
             return response(code=400, message=f"设备状态无效，只允许：{', '.join(valid_statuses)}")
         conditions.append(Q(status=status))
-
+    if exclude_status:
+        valid_statuses = ["告警", "异常", "离线", "正常"]
+        if exclude_status not in valid_statuses:
+            return response(code=400, message=f"设备状态无效，只允许：{', '.join(valid_statuses)}")
+        conditions.append(~Q(status=exclude_status))
     # 如果不是管理员或班长，只查询当前用户的设备
     if user.role not in ["admin", "leader"]:
         conditions.append(Q(created_by_user_id=user.id))

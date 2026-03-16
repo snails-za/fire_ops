@@ -6,7 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from tortoise.contrib.pydantic import pydantic_model_creator
-from tortoise.expressions import Q
+from tortoise.expressions import Q, RawSQL
 
 from apps.dependencies.auth import get_current_user
 from apps.form.event.form import (
@@ -68,9 +68,22 @@ async def get_event_list(
         query_condition = conditions[0]
         for condition in conditions[1:]:
             query_condition &= condition
-        query = Event.filter(query_condition).order_by('-created_at')
+        base_qs = Event.filter(query_condition)
     else:
-        query = Event.all().order_by('-created_at')
+        base_qs = Event.all()
+    query = (
+        base_qs
+        .annotate(
+            level_order=RawSQL(
+                "CASE level "
+                "WHEN 'high' THEN 0 "
+                "WHEN 'medium' THEN 1 "
+                "WHEN 'low' THEN 2 "
+                "ELSE 3 END"
+            )
+        )
+        .order_by("level_order", "-created_at")
+    )
     
     # 分页
     total = await query.count()

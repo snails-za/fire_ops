@@ -264,6 +264,8 @@ async def get_event_detail(
                 }
         progress_list.append(prog_dict)
     event_dict['progresses'] = progress_list
+    event.status = "processing"
+    await event.save()
     
     return response(data=event_dict, message="获取事件详情成功")
 

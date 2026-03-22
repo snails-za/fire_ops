@@ -18,6 +18,7 @@ config = Config()
 DEBUG = config("DEBUG", cast=bool, default=False)
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 STATIC_PATH = os.path.join(BASE_PATH, "static")
+REACT_PLUGINS_DIR = config("REACT_PLUGINS_DIR", default=os.path.join(BASE_PATH, "react_plugins"))
 
 # 安全配置
 SECRET_KEY = config("SECRET_KEY", default="adjasdmasdjoqwijeqwbhfqwnqndaslmdlkas")

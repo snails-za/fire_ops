@@ -4673,10 +4673,7 @@
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: new URLSearchParams({
-                        'question': question,
-                        'top_k': '5'
-                    })
+                    body: new URLSearchParams({ 'question': question })
                 });
 
                 if (!response.ok) {
@@ -4690,6 +4687,7 @@
                 let sources = null;
                 let searchInfo = null;
                 let analysisKeywords = null;
+                let streamError = false;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -4703,41 +4701,44 @@
                         if (line.startsWith('data: ')) {
                             try {
                                 const data = JSON.parse(line.slice(6));
-                                
+
                                 switch (data.type) {
+                                    case 'thought':
+                                        updateThoughtStreaming(assistantMessageId, data.content || '');
+                                        break;
                                     case 'status':
-                                        // 显示状态消息，并添加特殊样式
-                                        console.log('收到状态消息:', data.message);
-                                        updateStreamingMessage(assistantMessageId, `<div class="status-message">${data.message || ''}</div>`, null, null);
+                                        appendReactToolLog(assistantMessageId, data.message || '');
                                         break;
                                     case 'sources':
-                                        // 只保存数据，不立即显示
                                         sources = data.sources;
                                         searchInfo = data.search_info;
                                         analysisKeywords = data.keywords || null;
-                                        lastAnalysisKeywords = analysisKeywords; // 保存到全局变量
-                                        if (analysisKeywords && analysisKeywords.length > 0) {
-                                            console.log('收到后端关键词:', analysisKeywords);
-                                        } else {
-                                            console.log('后端未提供关键词，将使用前端提取');
-                                        }
+                                        lastAnalysisKeywords = analysisKeywords;
                                         break;
                                     case 'content':
                                         currentContent = data.content || data.message || '';
-                                        // 如果有内容，清除状态消息并显示内容
                                         updateStreamingMessage(assistantMessageId, currentContent, null, null);
                                         break;
                                     case 'error':
-                                        updateStreamingMessage(assistantMessageId + data.message, sources, searchInfo);
+                                        streamError = true;
+                                        updateStreamingMessage(
+                                            assistantMessageId,
+                                            '**错误：** ' + (data.message || '请求失败'),
+                                            null,
+                                            null
+                                        );
                                         break;
                                     case 'done':
-                                        // 流式输出完成，移除光标动画并显示相关文档和搜索信息
-                                        const streamingContent = document.querySelector(`#${assistantMessageId} .streaming-content`);
-                                        if (streamingContent) {
-                                            streamingContent.classList.add('completed');
+                                        {
+                                            const streamingContent = document.querySelector(`#${assistantMessageId} .streaming-content`);
+                                            if (streamingContent) {
+                                                streamingContent.classList.add('completed');
+                                            }
+                                            if (streamError || data.error) {
+                                                break;
+                                            }
+                                            updateStreamingMessage(assistantMessageId, currentContent, sources, searchInfo);
                                         }
-                                        // 现在显示相关文档和搜索信息
-                                        updateStreamingMessage(assistantMessageId, currentContent, sources, searchInfo);
                                         break;
                                 }
                             } catch (e) {
@@ -4755,6 +4756,55 @@
             }
         }
 
+        function updateThoughtStreaming(messageId, text) {
+            const messageDiv = document.getElementById(messageId);
+            if (!messageDiv) return;
+            const mc = messageDiv.querySelector('.message-content');
+            if (!mc) return;
+            let el = messageDiv.querySelector('.react-thought');
+            if (!el) {
+                el = document.createElement('div');
+                el.className = 'react-thought';
+                el.style.cssText = 'font-size:12px;color:#64748b;margin-bottom:8px;border-left:2px solid #94a3b8;padding-left:8px;white-space:pre-wrap;';
+                const sc = mc.querySelector('.streaming-content');
+                if (sc) {
+                    mc.insertBefore(el, sc);
+                } else {
+                    mc.insertBefore(el, mc.firstChild);
+                }
+            }
+            el.textContent = text ? ('💭 ' + text) : '';
+            el.style.display = text ? 'block' : 'none';
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function appendReactToolLog(messageId, text) {
+            const messageDiv = document.getElementById(messageId);
+            if (!messageDiv || !text) return;
+            let mc = messageDiv.querySelector('.message-content');
+            if (!mc) return;
+            let log = mc.querySelector('.react-tool-log');
+            if (!log) {
+                log = document.createElement('div');
+                log.className = 'react-tool-log';
+                log.style.cssText = 'font-size:12px;color:#555;margin-bottom:8px;padding:6px 8px;background:#f1f5f9;border-radius:6px;border-left:3px solid #0ea5e9;';
+                const sc = mc.querySelector('.streaming-content');
+                if (sc) {
+                    mc.insertBefore(log, sc);
+                } else {
+                    mc.insertBefore(log, mc.firstChild);
+                }
+            }
+            const line = document.createElement('div');
+            line.className = 'react-tool-line';
+            line.style.marginTop = '2px';
+            line.textContent = text;
+            log.appendChild(line);
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
         // 添加流式消息到聊天
         function addStreamingMessageToChat(role, content, metadata = null, searchInfo = null, messageId = null) {
             const chatMessages = document.getElementById('chatMessages');
@@ -4769,7 +4819,6 @@
             messageDiv.className = `message ${role}`;
             messageDiv.id = messageId || 'msg-' + Date.now();
 
-            // 初始内容
             messageDiv.innerHTML = `
                 <div class="message-content">
                     <div class="streaming-content">${content || ''}</div>
@@ -4868,50 +4917,83 @@
                 }
             }
 
-            // 添加搜索信息显示
             let searchInfoHtml = '';
             if (searchInfo) {
-                const isEnhanced = searchInfo.llm_enhanced;
-                const resultsCount = searchInfo.search_count || 0;
-                const searchQuery = searchInfo.optimized_query;
-                const originalQuery = searchInfo.question || searchInfo.original_query;
-                const similarityThreshold = searchInfo.similarity_threshold;
-                const resultQuality = searchInfo.result_quality;
-                const highQualityCount = searchInfo.high_quality_count || 0;
-                const lowQualityCount = searchInfo.low_quality_count || 0;
-                
-                let qualityInfo = '';
-                if (resultQuality === 'high') {
-                    qualityInfo = `✅ ${highQualityCount} 个高质量匹配`;
-                } else if (resultQuality === 'low') {
-                    qualityInfo = `⚠️ ${lowQualityCount} 个低质量匹配`;
+                if (searchInfo.pattern === 'react_xml_sql' || searchInfo.react_steps != null) {
+                    const steps = searchInfo.react_steps != null ? searchInfo.react_steps : '—';
+                    searchInfoHtml = `
+                    <div class="search-info delayed-content" style="margin-top: 10px; padding: 8px; background: #ecfeff; border-radius: 6px; font-size: 12px; color: #666; border-left: 3px solid #06b6d4;">
+                        🤖 数据库 ReAct 问答 · 推理步数: <strong>${steps}</strong>
+                        ${searchInfo.pattern ? ` · <code style="font-size:11px;">${searchInfo.pattern}</code>` : ''}
+                    </div>
+                `;
                 } else {
-                    qualityInfo = '❌ 无匹配结果';
-                }
-                
-                searchInfoHtml = `
-                    <div class="search-info delayed-content" style="margin-top: 10px; padding: 8px; background: ${resultQuality === 'high' ? '#f0f8ff' : (resultQuality === 'low' ? '#fff8e1' : '#ffebee')}; border-radius: 6px; font-size: 12px; color: #666;">
+                    const isEnhanced = searchInfo.llm_enhanced;
+                    const searchQuery = searchInfo.optimized_query;
+                    const originalQuery = searchInfo.question || searchInfo.original_query;
+                    const resultQuality = searchInfo.result_quality || 'none';
+                    const highQualityCount = searchInfo.high_quality_count || 0;
+                    const lowQualityCount = searchInfo.low_quality_count || 0;
+
+                    let qualityInfo = '';
+                    if (resultQuality === 'high') {
+                        qualityInfo = `✅ ${highQualityCount} 个高质量匹配`;
+                    } else if (resultQuality === 'low') {
+                        qualityInfo = `⚠️ ${lowQualityCount} 个低质量匹配`;
+                    } else {
+                        qualityInfo = '❌ 无匹配结果';
+                    }
+
+                    const bg =
+                        resultQuality === 'high'
+                            ? '#f0f8ff'
+                            : resultQuality === 'low'
+                              ? '#fff8e1'
+                              : '#ffebee';
+
+                    searchInfoHtml = `
+                    <div class="search-info delayed-content" style="margin-top: 10px; padding: 8px; background: ${bg}; border-radius: 6px; font-size: 12px; color: #666;">
                         ${isEnhanced ? '🧠 AI增强搜索' : '📝 基础搜索'} | ${qualityInfo}
                         ${searchQuery && searchQuery !== originalQuery ? `<br>🔍 优化查询: "${searchQuery}"` : ''}
                     </div>
                 `;
+                }
             }
 
-            // 检查是否已经完成（保持completed类）
-            const existingStreamingContent = messageDiv.querySelector('.streaming-content');
-            const isCompleted = existingStreamingContent && existingStreamingContent.classList.contains('completed');
-            
-            // 渲染Markdown内容
-            const renderedContent = renderMarkdown(content || '');
-            
-            messageDiv.innerHTML = `
-                <div class="message-content">
-                    <div class="streaming-content${isCompleted ? ' completed' : ''}">${renderedContent}</div>
+            let mc = messageDiv.querySelector('.message-content');
+            if (!mc) {
+                messageDiv.innerHTML = `<div class="message-content">
+                    <div class="streaming-content"></div>
                     <div class="message-time">${new Date().toLocaleString()}</div>
-                    ${sourcesHtml}
-                    ${searchInfoHtml}
-                </div>
-            `;
+                </div>`;
+                mc = messageDiv.querySelector('.message-content');
+            }
+
+            const existingStreamingContent = mc.querySelector('.streaming-content');
+            const isCompleted =
+                existingStreamingContent && existingStreamingContent.classList.contains('completed');
+            const renderedContent = renderMarkdown(content || '');
+
+            if (existingStreamingContent) {
+                existingStreamingContent.innerHTML = renderedContent;
+                if (isCompleted) {
+                    existingStreamingContent.classList.add('completed');
+                }
+            }
+
+            const mt = mc.querySelector('.message-time');
+            if (mt) {
+                mt.textContent = new Date().toLocaleString();
+            }
+
+            mc.querySelectorAll('.sources.delayed-content').forEach((n) => n.remove());
+            mc.querySelectorAll('.search-info.delayed-content').forEach((n) => n.remove());
+
+            const tail = document.createElement('div');
+            tail.innerHTML = sourcesHtml + searchInfoHtml;
+            while (tail.firstChild) {
+                mc.appendChild(tail.firstChild);
+            }
 
             const chatMessages = document.getElementById('chatMessages');
             chatMessages.scrollTop = chatMessages.scrollHeight;

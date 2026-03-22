@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from apps.utils import response
 from apps.utils.llm_optimizers import get_question_optimizer, get_search_optimizer, optimize_question
 from apps.utils.vector_db_selector import vector_search
-from apps.utils.react_sql_agent import ReactAgent, ReactAgentConfig
+from apps.utils.react_agent import ReactAgent, ReactAgentConfig
 from apps.utils.react_sse import iter_sse_from_agent_streaming, sse_data_line
 from apps.dependencies.auth import get_current_user
 from apps.models.user import User

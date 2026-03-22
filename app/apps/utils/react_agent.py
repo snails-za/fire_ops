@@ -37,9 +37,8 @@ ToolFn = Callable[..., Awaitable[str]]
 
 REDACT_PLACEHOLDER = "[已隐藏·敏感字段]"
 
-# ReAct 聊天区「可下载文档」：避免一次 SQL 扫全表列出上百个文件
-REACT_SQL_DOC_SOURCE_MAX = 5
-REACT_SQL_DOC_MAX_DATA_ROWS = 12  # 超过此行数认为是大范围探测，不自动挂下载
+# 插件 REACT_PLUGIN_STATE 里声明「从 sql_ctx.extra 哪个键取 list 写入本轮 meta['sources']」时使用的状态键（通用约定）
+PLUGIN_STATE_META_SOURCES_EXTRA_KEY = "meta_sources_extra_key"
 
 
 # ---------------------------------------------------------------------------
@@ -86,11 +85,7 @@ SYSTEM_PROMPT = """你是数据分析助手，必须用 ReAct：思考 →（如
 
 【禁止】
 - 不要自己编造 <observation>，系统会在你输出后追加。
-- 不要臆造查询结果；以 Observation 为准。
-
-【文档下载（界面会列出可下载文件）】
-- 仅当你用 execute_sql 查询 **document** 表且一次返回 **很少行**（建议 ≤10 行）时，系统才会在回答下方显示下载入口。
-- 若用户只要某一文件，请用 WHERE 条件限定 id 或文件名，不要 SELECT 全表。"""
+- 不要臆造查询结果；以 Observation 为准。"""
 
 
 # ---------------------------------------------------------------------------
@@ -191,7 +186,12 @@ class ReactAgent:
                 temperature=self.config.temperature,
                 max_tokens=self.config.max_tokens,
             )
-            system_prompt = SYSTEM_PROMPT + "\n\n" + self._tool_names_line(registry)
+            system_prompt = (
+                    SYSTEM_PROMPT
+                    + sql_ctx.plugin_system_prompt_append
+                    + "\n\n"
+                    + self._tool_names_line(registry)
+            )
 
             history_xml = ""
             trace: List[Dict[str, Any]] = []
@@ -266,12 +266,11 @@ class ReactAgent:
                 observation = await dispatcher.run(action, payload)
                 trace[-1]["observation"] = observation[:800]
                 history_xml = self._history_append(history_xml, step + 1, raw, observation)
-                an = action.strip().lower().replace(" ", "_")
-                if an == "execute_sql" and isinstance(payload, dict):
-                    sql_q = str(payload.get("sql") or "")
-                    batch = extract_react_document_sources_from_sql(observation, sql_q)
-                    if batch:
-                        last_react_doc_sources = batch
+                _k = sql_ctx.plugin_state.get(PLUGIN_STATE_META_SOURCES_EXTRA_KEY)
+                if isinstance(_k, str) and _k.strip():
+                    bucket = sql_ctx.extra.get(_k.strip())
+                    if isinstance(bucket, list) and bucket:
+                        last_react_doc_sources = list(bucket)
                 yield {
                     "event": "tool_end",
                     "name": action,
@@ -349,13 +348,21 @@ class ActionDispatcher:
             return f"工具执行异常 {name}"
 
 
-def load_tools_from_directory(dir_path: Union[str, Path]) -> Dict[str, ToolFn]:
+def load_tools_from_directory(
+    dir_path: Union[str, Path],
+) -> Tuple[Dict[str, ToolFn], str, Dict[str, Any]]:
+    """
+    加载目录下插件：REACT_TOOLS、可选 REACT_SYSTEM_PROMPT_APPEND、
+    可选 REACT_PLUGIN_STATE（dict，按文件顺序 merge，同 key 后加载覆盖先加载）。
+    """
     out: Dict[str, ToolFn] = {}
+    prompt_append = ""
+    plugin_state: Dict[str, Any] = {}
     p = Path(dir_path)
     if not p.is_dir():
-        return out
+        return out, prompt_append, plugin_state
     for fp in sorted(p.glob("*.py")):
-        if fp.name.startswith("_"):
+        if fp.name.startswith("_") or fp.name == "__init__.py":
             continue
         spec = importlib.util.spec_from_file_location(fp.stem, fp)
         if spec is None or spec.loader is None:
@@ -371,7 +378,13 @@ def load_tools_from_directory(dir_path: Union[str, Path]) -> Dict[str, ToolFn]:
             for name, fn in tools.items():
                 if callable(fn):
                     out[str(name)] = fn  # type: ignore[assignment]
-    return out
+        frag = getattr(mod, "REACT_SYSTEM_PROMPT_APPEND", None)
+        if isinstance(frag, str) and frag.strip():
+            prompt_append += "\n\n" + frag.strip()
+        st = getattr(mod, "REACT_PLUGIN_STATE", None)
+        if isinstance(st, dict):
+            plugin_state.update(st)
+    return out, prompt_append, plugin_state
 
 
 def build_tool_registry(
@@ -391,9 +404,14 @@ def build_tool_registry(
     }
     if extra:
         reg.update(extra)
+    sql_ctx.plugin_system_prompt_append = ""
+    sql_ctx.plugin_state = {}
     if plugin_dirs:
         for d in plugin_dirs:
-            reg.update(load_tools_from_directory(d))
+            pt, pp, st = load_tools_from_directory(d)
+            reg.update(pt)
+            sql_ctx.plugin_system_prompt_append += pp
+            sql_ctx.plugin_state.update(st)
     return reg
 
 
@@ -407,6 +425,8 @@ class SqlToolContext:
         self.pool = pool
         self.cfg = cfg
         self.extra: Dict[str, Any] = {}
+        self.plugin_system_prompt_append: str = ""
+        self.plugin_state: Dict[str, Any] = {}
 
 
 def _normalize_pg_dsn(url: str) -> str:
@@ -607,104 +627,6 @@ async def builtin_execute_sql(ctx: SqlToolContext, **kw: Any) -> str:
     if len(msg) > 14000:
         return msg[:14000] + "\n...(结果已截断)"
     return msg
-
-
-def _sql_targets_document_table(sql: str) -> bool:
-    """仅当 SQL 显式查询 document 表时才尝试挂下载，避免 JOIN 其它大表误匹配。"""
-    body = _strip_sql_string_literals((sql or "").strip()).lower()
-    body = re.sub(r"--[^\n]*", " ", body)
-    return bool(
-        re.search(r"\bfrom\s+(?:public\.)?(?:\"document\"|document)\b", body)
-    ) or bool(
-        re.search(r"\bjoin\s+(?:public\.)?(?:\"document\"|document)\b", body)
-    )
-
-
-def extract_react_document_sources_from_sql(
-    observation: str, sql: str
-) -> List[Dict[str, Any]]:
-    """
-    从 execute_sql 的 TSV 结果解析可下载文档，供聊天 sources 使用。
-    条件：SQL 须针对 document 表；数据行数不超过 REACT_SQL_DOC_MAX_DATA_ROWS；
-    最多返回 REACT_SQL_DOC_SOURCE_MAX 条（按出现顺序去重 id）。
-    """
-    if not _sql_targets_document_table(sql):
-        return []
-    text = (observation or "").strip()
-    if not text or text.startswith(("SQL 校验失败", "执行失败", "(查询成功，0 行)")):
-        return []
-    lines = [
-        ln
-        for ln in text.split("\n")
-        if ln.strip() and not ln.strip().startswith("...(")
-    ]
-    if len(lines) < 2:
-        return []
-    data_lines = lines[1:]
-    if len(data_lines) > REACT_SQL_DOC_MAX_DATA_ROWS:
-        return []
-
-    header_cells = lines[0].split("\t")
-    h = [c.strip().strip('"').lower() for c in header_cells]
-
-    def col(name: str) -> Optional[int]:
-        try:
-            return h.index(name)
-        except ValueError:
-            return None
-
-    i_id = col("id")
-    i_orig = col("original_filename")
-    if i_id is None or i_orig is None:
-        return []
-    if (
-        col("filename") is None
-        and col("file_type") is None
-        and col("file_path") is None
-    ):
-        return []
-
-    i_fn = col("filename")
-    i_ft = col("file_type")
-    out: List[Dict[str, Any]] = []
-    seen: set[int] = set()
-    for line in data_lines:
-        if len(out) >= REACT_SQL_DOC_SOURCE_MAX:
-            break
-        cells = line.split("\t")
-        idxs = [i_id, i_orig]
-        if i_fn is not None:
-            idxs.append(i_fn)
-        if i_ft is not None:
-            idxs.append(i_ft)
-        need = max(idxs) + 1
-        if len(cells) < need:
-            continue
-        try:
-            doc_id = int(str(cells[i_id]).strip())
-        except ValueError:
-            continue
-        if doc_id in seen:
-            continue
-        orig = cells[i_orig].strip() if i_orig < len(cells) else ""
-        if not orig:
-            continue
-        seen.add(doc_id)
-        ft = "pdf"
-        if i_ft is not None and i_ft < len(cells):
-            ft = (cells[i_ft].strip() or "pdf").lower() or "pdf"
-        out.append(
-            {
-                "document_id": doc_id,
-                "document_name": orig,
-                "original_filename": orig,
-                "file_type": ft,
-                "similarity": 1.0,
-                "chunk_id": 0,
-                "from_sql_react": True,
-            }
-        )
-    return out
 
 
 # ---------------------------------------------------------------------------

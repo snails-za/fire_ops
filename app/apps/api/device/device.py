@@ -22,45 +22,53 @@ Device_Pydantic = pydantic_model_creator(Device, name="Device")
 
 async def create_event_from_device(device: Device, status: str, user: User):
     """
-    从设备状态变更自动创建事件
-    允许同一设备创建多条相同类型的事件（例如多次告警）
-    :param device: 设备对象
-    :param status: 设备状态（告警、异常、离线）
-    :param user: 操作用户
+    从设备状态变更自动创建或更新事件。
+    同一设备同时只允许一个未关闭事件（wait/processing）；若已存在则复用并追加系统消息。
     """
-    # 确定事件等级
     level = "high" if status == "告警" else ("medium" if status == "异常" else "low")
-    
-    # 构建事件标题（根据UI图格式：3号楼・烟感告警 (A区 2F)）
+
     location_parts = []
     if device.address:
         location_parts.append(device.address)
     location_str = "・".join(location_parts) if location_parts else ""
-    
-    # 构建标题，格式：设备名・状态类型 (位置)
+
     title = f"{device.name}・{status}"
     if location_str:
         title += f" ({location_str})"
-    
-    # 创建事件（每次状态变更都创建新事件，允许同一设备有多条告警）
-    event = await Event.create(
-        title=title,
-        level=level,
-        status="wait",
-        device=device,
-        location=device.address,  # 可以后续扩展更详细的位置信息
+
+    existing = (
+        await Event.filter(
+            device_id=device.id,
+            status__in=["wait", "processing"],
+        )
+        .order_by("-created_at")
+        .first()
     )
-    
-    # 创建系统消息
+
+    if existing:
+        existing.title = title
+        existing.level = level
+        existing.location = device.address
+        await existing.save()
+        event = existing
+    else:
+        event = await Event.create(
+            title=title,
+            level=level,
+            status="wait",
+            device=device,
+            location=device.address,
+        )
+
     await EventMessage.create(
         event=event,
-        user=None,  # 系统消息
+        user=None,
         username="系统",
         user_role="system",
         content=f"告警触发({status})",
-        message_type="system"
+        message_type="system",
     )
-    
+
     return event
 
 
@@ -158,10 +166,7 @@ async def update_device(device_id: int, device: DeviceUpdate, user: User = Depen
     await device_obj.update_from_dict(update_data)
     await device_obj.save()
     
-    # 如果设备状态变为非正常状态，自动创建事件
-    # 每次状态变更都会创建新事件，允许同一设备有多条告警
     if new_status in ["告警", "异常", "离线"]:
-        # 如果状态发生变化（从正常变为非正常，或从一种非正常状态变为另一种非正常状态）
         if old_status != new_status:
             await create_event_from_device(device_obj, new_status, user)
     
@@ -174,7 +179,6 @@ async def update_device(device_id: int, device: DeviceUpdate, user: User = Depen
         )
         for event in ongoing_events:
             event.status = "closed"
-            event.conclusion = f"设备状态已恢复为正常"
             await event.save()
             
             # 创建系统消息

@@ -210,6 +210,12 @@ async def update_event(
 
     await event.save()
 
+    if update_data.get("status") == "closed":
+        await event.fetch_related("device")
+        if event.device:
+            event.device.status = "正常"
+            await event.device.save()
+
     event_data = await Event_Pydantic.from_tortoise_orm(event)
     return response(data=event_data.model_dump(), message="事件更新成功")
 

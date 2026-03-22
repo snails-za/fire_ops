@@ -16,7 +16,20 @@ class Device(BaseModel):
     installer = fields.CharField(max_length=50, null=True, description="安装人")
     contact = fields.CharField(max_length=11, null=True, description="联系方式（手机号）")
     remark = fields.TextField(null=True, description="备注")
-    created_by_user_id = fields.IntField(null=True, description="创建用户ID")
+    created_by_user = fields.ForeignKeyField(
+        "models.User",
+        related_name="devices_created",
+        on_delete=fields.SET_NULL,
+        null=True,
+        description="创建用户",
+    )
+    maintainer_user = fields.ForeignKeyField(
+        "models.User",
+        related_name="devices_maintained",
+        on_delete=fields.SET_NULL,
+        null=True,
+        description="设备负责人",
+    )
 
     class Meta:
         table = "device"

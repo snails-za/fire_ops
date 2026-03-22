@@ -13,6 +13,7 @@ class DeviceIn(BaseModel):
     installer: Optional[str] = Field(None, description="安装人")
     contact: Optional[str] = Field(None, description="联系方式（手机号）")
     remark: Optional[str] = Field(None, description="备注")
+    maintainer_user_id: Optional[int] = Field(None, description="设备负责人用户ID（不传则默认当前登录用户）")
 
     @field_validator('contact')
     @classmethod
@@ -36,6 +37,7 @@ class DeviceUpdate(BaseModel):
     installer: Optional[str] = Field(None, description="安装人")
     contact: Optional[str] = Field(None, description="联系方式（手机号）")
     remark: Optional[str] = Field(None, description="备注")
+    maintainer_user_id: Optional[int] = Field(None, description="设备负责人用户ID")
 
     @field_validator('contact')
     @classmethod
@@ -51,3 +53,4 @@ class DeviceUpdate(BaseModel):
 class DeviceOut(DeviceIn):
     id: int
     created_by_user_id: Optional[int] = Field(None, description="创建用户ID")
+    maintainer_user_id: Optional[int] = Field(None, description="设备负责人用户ID")

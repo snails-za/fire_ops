@@ -11,7 +11,7 @@ from apps.dependencies.auth import get_current_user
 from apps.form.device.device import DeviceOut, DeviceIn, DeviceUpdate
 from apps.models.device import Device
 from apps.models.user import User
-from apps.models.event import Event, EventMessage, EventProgress
+from apps.models.event import Event, EventMessage
 from apps.utils import response
 from config import DEVICE_STORE_PATH
 
@@ -48,13 +48,7 @@ async def create_event_from_device(device: Device, status: str, user: User):
         level=level,
         status="wait",
         device=device,
-        device_name=device.name,
-        device_address=device.address,
         location=device.address,  # 可以后续扩展更详细的位置信息
-        triggered_at=datetime.now(),
-        triggered_by="system",
-        responsible_user=user,
-        responsible_username=user.username,
     )
     
     # 创建系统消息
@@ -66,20 +60,6 @@ async def create_event_from_device(device: Device, status: str, user: User):
         content=f"告警触发({status})",
         message_type="system"
     )
-    
-    # 创建初始进度记录
-    await EventProgress.create(
-        event=event,
-        progress_type="告警触发",
-        description=f"系统收到{status}上报，自动创建事件并推送值班。",
-        operator=None,
-        operator_username="系统",
-        status="completed"
-    )
-    
-    # 更新事件消息计数
-    event.message_count = 1
-    await event.save()
     
     return event
 
@@ -123,6 +103,13 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     
     # 创建设备时关联用户ID
     device_data["created_by_user_id"] = user.id
+
+    # 设备负责人：优先使用传入的 maintainer_user_id，否则默认当前登录用户
+    maintainer_id = device_data.pop("maintainer_user_id", None)
+    if not maintainer_id:
+        maintainer_id = user.id
+    device_data["maintainer_user_id"] = maintainer_id
+
     device_obj = await Device.create(**device_data)
     
     # 如果设备状态不是正常，自动创建事件
@@ -157,6 +144,11 @@ async def update_device(device_id: int, device: DeviceUpdate, user: User = Depen
     update_data = device.model_dump(exclude_unset=True)
     new_status = update_data.get('status', old_status)
     
+    # 处理设备负责人变更（仅存 user_id，不做强关联）
+    maintainer_id = update_data.pop("maintainer_user_id", None)
+    if maintainer_id is not None:
+        device_obj.maintainer_user_id = maintainer_id
+
     # 验证设备状态：只允许四种状态
     valid_statuses = ["告警", "异常", "离线", "正常"]
     if new_status and new_status not in valid_statuses:
@@ -178,7 +170,7 @@ async def update_device(device_id: int, device: DeviceUpdate, user: User = Depen
         # 关闭该设备所有进行中的事件
         ongoing_events = await Event.filter(
             device_id=device_obj.id,
-            status__in=["alarm", "processing"]
+            status__in=["wait", "processing"]
         )
         for event in ongoing_events:
             event.status = "closed"
@@ -276,9 +268,12 @@ async def device_list(
         if exclude_status not in valid_statuses:
             return response(code=400, message=f"设备状态无效，只允许：{', '.join(valid_statuses)}")
         conditions.append(~Q(status=exclude_status))
-    # 如果不是管理员或班长，只查询当前用户的设备
+    # 如果不是管理员或班长，只查询与当前用户有关的设备：
+    # 1）当前用户创建的设备 2）当前用户作为负责人维护的设备
     if user.role not in ["admin", "leader"]:
-        conditions.append(Q(created_by_user_id=user.id))
+        conditions.append(
+            Q(created_by_user_id=user.id) | Q(maintainer_user_id=user.id)
+        )
 
     query = Device.filter(*conditions).order_by("-id")
     total = await query.count()
@@ -304,7 +299,8 @@ async def device_stats(user: User = Depends(get_current_user)):
     设备状态：告警、异常、离线、正常
     :return:
     """
-    # admin和leader可以看到所有设备，maintainer只能看到自己创建的设备
+    # admin和leader可以看到所有设备，
+    # maintainer只能看到与自己有关的设备（创建者或负责人）
     if user.role in ["admin", "leader"]:
         total = await Device.all().count()
         alarm = await Device.filter(status="告警").count()
@@ -312,13 +308,17 @@ async def device_stats(user: User = Depends(get_current_user)):
         offline = await Device.filter(status="离线").count()
         normal = await Device.filter(status="正常").count()
     else:
-        total = await Device.filter(created_by_user_id=user.id).count()
-        alarm = await Device.filter(created_by_user_id=user.id, status="告警").count()
-        abnormal = await Device.filter(created_by_user_id=user.id, status="异常").count()
-        offline = await Device.filter(created_by_user_id=user.id, status="离线").count()
-        normal = await Device.filter(created_by_user_id=user.id, status="正常").count()
+        base_q = Device.filter(
+            Q(created_by_user_id=user.id) | Q(maintainer_user_id=user.id)
+        )
+        total = await base_q.count()
+        alarm = await base_q.filter(status="告警").count()
+        abnormal = await base_q.filter(status="异常").count()
+        offline = await base_q.filter(status="离线").count()
+        normal = await base_q.filter(status="正常").count()
 
     return response(data={
+        "total": total,      # 总共
         "alarm": alarm,      # 告警
         "abnormal": abnormal,  # 异常
         "offline": offline,   # 离线

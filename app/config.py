@@ -56,8 +56,8 @@ TORTOISE_ORM = {
     "timezone": "Asia/Shanghai",  # 设置时区
 }
 
-# 动态添加模型
-for _ in os.listdir(os.path.join("apps", "models")):
+_models_dir = os.path.join(BASE_PATH, "apps", "models")
+for _ in os.listdir(_models_dir):
     if _.endswith(".py") and _ != "__init__.py":
         TORTOISE_ORM["apps"]["models"]["models"].append(f"apps.models.{_.split('.')[0]}")
 

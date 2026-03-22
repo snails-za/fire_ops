@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS "device" (
     "installer" VARCHAR(50),
     "contact" VARCHAR(11),
     "remark" TEXT,
-    "created_by_user_id" INT,
+    "created_by_user_id" INT REFERENCES "user" ("id") ON DELETE SET NULL,
+    "maintainer_user_id" INT REFERENCES "user" ("id") ON DELETE SET NULL,
     CONSTRAINT "uid_device_name_374f1e" UNIQUE ("name", "address")
 );
 CREATE INDEX IF NOT EXISTS "idx_device_name_d43932" ON "device" ("name");
@@ -78,28 +79,16 @@ COMMENT ON COLUMN "device"."install_date" IS '安装日期';
 COMMENT ON COLUMN "device"."installer" IS '安装人';
 COMMENT ON COLUMN "device"."contact" IS '联系方式（手机号）';
 COMMENT ON COLUMN "device"."remark" IS '备注';
-COMMENT ON COLUMN "device"."created_by_user_id" IS '创建用户ID';
+COMMENT ON COLUMN "device"."created_by_user_id" IS '创建用户';
+COMMENT ON COLUMN "device"."maintainer_user_id" IS '设备负责人';
 CREATE TABLE IF NOT EXISTS "event" (
     "id" SERIAL NOT NULL PRIMARY KEY,
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "title" VARCHAR(200) NOT NULL,
-    "level" VARCHAR(20) NOT NULL DEFAULT 'normal',
-    "status" VARCHAR(20) NOT NULL DEFAULT 'alarm',
-    "device_name" VARCHAR(100),
-    "device_address" VARCHAR(100),
+    "level" VARCHAR(20) NOT NULL DEFAULT 'medium',
+    "status" VARCHAR(20) NOT NULL DEFAULT 'wait',
     "location" VARCHAR(200),
-    "circuit" VARCHAR(50),
-    "triggered_at" TIMESTAMPTZ,
-    "triggered_by" VARCHAR(50),
-    "responsible_username" VARCHAR(50),
-    "collaborator_username" VARCHAR(50),
-    "suggestion" TEXT,
-    "conclusion" TEXT,
-    "estimated_arrival" VARCHAR(50),
-    "message_count" INT NOT NULL DEFAULT 0,
-    "unread_count" INT NOT NULL DEFAULT 0,
-    "collaborator_user_id" INT REFERENCES "user" ("id") ON DELETE SET NULL,
     "device_id" INT REFERENCES "device" ("id") ON DELETE CASCADE,
     "responsible_user_id" INT REFERENCES "user" ("id") ON DELETE SET NULL
 );
@@ -109,24 +98,11 @@ CREATE INDEX IF NOT EXISTS "idx_event_respons_c4dea6" ON "event" ("responsible_u
 COMMENT ON COLUMN "event"."created_at" IS '创建时间';
 COMMENT ON COLUMN "event"."updated_at" IS '更新时间';
 COMMENT ON COLUMN "event"."title" IS '事件标题，如：3号楼・烟感告警 (A区 2F)';
-COMMENT ON COLUMN "event"."level" IS '事件等级：严重(severe)、高(high)、中(medium)、低(low)、正常(normal)';
-COMMENT ON COLUMN "event"."status" IS '事件状态：告警(alarm)、处理中(processing)、已关闭(closed)';
-COMMENT ON COLUMN "event"."device_name" IS '设备名称（冗余字段，便于查询）';
-COMMENT ON COLUMN "event"."device_address" IS '设备地址（冗余字段）';
+COMMENT ON COLUMN "event"."level" IS '事件等级：高(high)、中(medium)、低(low)';
+COMMENT ON COLUMN "event"."status" IS '事件状态：待处理(wait)、处理中(processing)、已关闭(closed)';
 COMMENT ON COLUMN "event"."location" IS '位置信息，如：3号楼A区2F';
-COMMENT ON COLUMN "event"."circuit" IS '回路信息，如：2-04';
-COMMENT ON COLUMN "event"."triggered_at" IS '触发时间';
-COMMENT ON COLUMN "event"."triggered_by" IS '触发来源：系统/用户';
-COMMENT ON COLUMN "event"."responsible_username" IS '负责人用户名（冗余字段）';
-COMMENT ON COLUMN "event"."collaborator_username" IS '协同人用户名（冗余字段）';
-COMMENT ON COLUMN "event"."suggestion" IS '建议/处理建议';
-COMMENT ON COLUMN "event"."conclusion" IS '结论/处理结果';
-COMMENT ON COLUMN "event"."estimated_arrival" IS '预计到场时间，如：5分钟';
-COMMENT ON COLUMN "event"."message_count" IS '消息数量';
-COMMENT ON COLUMN "event"."unread_count" IS '未读消息数量';
-COMMENT ON COLUMN "event"."collaborator_user_id" IS '协同人（值班员/班长）';
 COMMENT ON COLUMN "event"."device_id" IS '关联设备';
-COMMENT ON COLUMN "event"."responsible_user_id" IS '负责人（维护人员）';
+COMMENT ON COLUMN "event"."responsible_user_id" IS '负责人（历史字段，当前业务未使用）';
 COMMENT ON TABLE "event" IS '事件模型 - 以事件为核心的处理流程';
 CREATE TABLE IF NOT EXISTS "event_message" (
     "id" SERIAL NOT NULL PRIMARY KEY,
@@ -154,27 +130,6 @@ COMMENT ON COLUMN "event_message"."read_at" IS '已读时间';
 COMMENT ON COLUMN "event_message"."event_id" IS '所属事件';
 COMMENT ON COLUMN "event_message"."user_id" IS '发送用户（null表示系统消息）';
 COMMENT ON TABLE "event_message" IS '事件消息模型 - 事件会话中的消息';
-CREATE TABLE IF NOT EXISTS "event_progress" (
-    "id" SERIAL NOT NULL PRIMARY KEY,
-    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "progress_type" VARCHAR(50) NOT NULL,
-    "description" TEXT NOT NULL,
-    "operator_username" VARCHAR(50),
-    "status" VARCHAR(20) NOT NULL DEFAULT 'pending',
-    "event_id" INT NOT NULL REFERENCES "event" ("id") ON DELETE CASCADE,
-    "operator_id" INT REFERENCES "user" ("id") ON DELETE SET NULL
-);
-CREATE INDEX IF NOT EXISTS "idx_event_progr_event_i_c3c9d4" ON "event_progress" ("event_id", "created_at");
-COMMENT ON COLUMN "event_progress"."created_at" IS '创建时间';
-COMMENT ON COLUMN "event_progress"."updated_at" IS '更新时间';
-COMMENT ON COLUMN "event_progress"."progress_type" IS '进度类型：告警触发、派单/指派负责人、到场检查中、处理完成等';
-COMMENT ON COLUMN "event_progress"."description" IS '进度描述';
-COMMENT ON COLUMN "event_progress"."operator_username" IS '操作人用户名（冗余字段）';
-COMMENT ON COLUMN "event_progress"."status" IS '进度状态：pending(待处理)、in_progress(进行中)、completed(已完成)';
-COMMENT ON COLUMN "event_progress"."event_id" IS '所属事件';
-COMMENT ON COLUMN "event_progress"."operator_id" IS '操作人';
-COMMENT ON TABLE "event_progress" IS '事件进度模型 - 记录事件处置进度时间线';
 CREATE TABLE IF NOT EXISTS "chat_session" (
     "id" SERIAL NOT NULL PRIMARY KEY,
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -10,13 +10,11 @@ from tortoise.functions import Count
 
 from apps.dependencies.auth import get_current_user
 from apps.form.event.form import (
-    EventCreateForm,
     EventUpdateForm,
     EventMessageForm,
 )
 from apps.models.event import Event, EventMessage
 from apps.models.user import User
-from apps.models.device import Device
 from apps.utils import response
 
 router = APIRouter(prefix="/event", tags=["事件管理"])
@@ -176,38 +174,6 @@ async def get_event_detail(
     event_dict['messages'] = message_list
 
     return response(data=event_dict, message="获取事件详情成功")
-
-
-@router.post("/create", summary="创建事件", dependencies=[Depends(get_current_user)])
-async def create_event(
-        form: EventCreateForm,
-):
-    """创建事件"""
-    device = None
-    if form.device_id:
-        device = await Device.get_or_none(id=form.device_id)
-        if not device:
-            return response(code=404, message="设备不存在")
-
-    event = await Event.create(
-        title=form.title,
-        level=form.level or "medium",
-        status="wait",
-        device=device,
-        location=form.location,
-    )
-
-    await EventMessage.create(
-        event=event,
-        user=None,
-        username="系统",
-        user_role="system",
-        content=f"事件已创建：{form.title}",
-        message_type="system"
-    )
-
-    event_data = await Event_Pydantic.from_tortoise_orm(event)
-    return response(data=event_data.model_dump(), message="事件创建成功")
 
 
 @router.put("/{event_id}", summary="更新事件", dependencies=[Depends(get_current_user)])

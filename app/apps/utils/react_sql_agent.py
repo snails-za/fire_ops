@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
-"""XML ReAct + SQL Agent：支持 ainvoke 与 astream（按 <thought>/<final_answer> 增量解析）。依赖: langchain-openai, langchain-core, asyncpg。"""
+"""XML ReAct + SQL Agent（LLM astream，按 <thought>/<final_answer> 增量解析）。
+
+阅读顺序（自上而下 = 调用链从外到内）：
+  ReactAgent → ActionDispatcher / build_tool_registry → 内置工具 → SQL 校验与脱敏
+  → XmlStepParser → 流式标签解析（stream_tag_content_deltas）
+
+依赖: langchain-openai, langchain-core, asyncpg。
+"""
 
 from __future__ import annotations
 
@@ -28,13 +35,16 @@ from langchain_openai import ChatOpenAI
 
 ToolFn = Callable[..., Awaitable[str]]
 
-
 REDACT_PLACEHOLDER = "[已隐藏·敏感字段]"
 
 
+# ---------------------------------------------------------------------------
+# 配置与系统提示
+# ---------------------------------------------------------------------------
+
+
 @dataclass
-class ReactSqlAgentConfig:
-    # model: str = "gpt-3.5-turbo"
+class ReactAgentConfig:
     model: str = "deepseek-chat"
     max_iterations: int = 10
     temperature: float = 0.1
@@ -75,396 +85,17 @@ SYSTEM_PROMPT = """你是数据分析助手，必须用 ReAct：思考 →（如
 - 不要臆造查询结果；以 Observation 为准。"""
 
 
-class XmlStepParser:
-    @staticmethod
-    def strip_fence(text: str) -> str:
-        s = text.strip()
-        if not s.startswith("```"):
-            return s
-        s = re.sub(r"^```[a-zA-Z0-9]*\s*\n?", "", s)
-        s = re.sub(r"\n?```\s*$", "", s)
-        return s.strip()
-
-    @staticmethod
-    def extract_tag(text: str, tag: str) -> Optional[str]:
-        pat = rf"<{tag}\s*>(.*?)</{tag}\s*>"
-        m = re.search(pat, text, flags=re.DOTALL | re.IGNORECASE)
-        return m.group(1).strip() if m else None
-
-    @classmethod
-    def step_inner(cls, raw: str) -> str:
-        raw = cls.strip_fence(raw)
-        inner = cls.extract_tag(raw, "step")
-        return inner if inner is not None else raw
-
-    @classmethod
-    def parse_final_answer(cls, step_inner: str) -> Optional[str]:
-        fa = cls.extract_tag(step_inner, "final_answer")
-        if not fa or not fa.strip():
-            return None
-        return xml_esc.unescape(fa.strip()) or None
-
-    @classmethod
-    def parse_action(cls, step_inner: str) -> Tuple[Optional[str], Optional[Any]]:
-        act = cls.extract_tag(step_inner, "action")
-        if not act:
-            return None, None
-        name = act.strip()
-        if re.match(r"(?i)^final_answer$", name):
-            return None, None
-        raw_j = cls.extract_tag(step_inner, "action_input")
-        if raw_j is None:
-            return name, None
-        try:
-            return name, json.loads(raw_j.strip())
-        except json.JSONDecodeError:
-            return name, None
-
-
-def _lc_text_content(msg: Any) -> str:
-    c = getattr(msg, "content", msg)
-    if isinstance(c, str):
-        return c
-    if isinstance(c, list):
-        parts: List[str] = []
-        for b in c:
-            if isinstance(b, dict) and b.get("type") == "text":
-                parts.append(str(b.get("text", "")))
-            elif isinstance(b, str):
-                parts.append(b)
-        return "".join(parts)
-    return str(c or "")
-
-
-def _ai_message_text(msg: Any) -> str:
-    return _lc_text_content(msg)
-
-
-def _tag_bounds(buf: str, tag: str) -> Tuple[Optional[int], Optional[int], Optional[int]]:
-    open_pat = re.compile(rf"<{tag}\s*>", re.IGNORECASE)
-    close_pat = re.compile(rf"</{tag}\s*>", re.IGNORECASE)
-    mo = open_pat.search(buf)
-    if not mo:
-        return None, None, None
-    start = mo.end()
-    mc = close_pat.search(buf, start)
-    if not mc:
-        return start, None, None
-    return start, mc.start(), mc.end()
-
-
-def _strip_incomplete_close_tag_suffix(tag: str, text: str) -> str:
-    """
-    流式时 `</tag>` 可能尚未收齐（缺 `>`），正则无法判定结束位，尾部会混入 `</tag` 片段。
-    若当前文本以 `</tag` 的任意非空前缀结尾，则从该前缀起截断，避免把闭合标签打进正文增量。
-    """
-    close = f"</{tag}>"
-    if len(text) < 2:
-        return text
-    for k in range(len(close) - 1, 1, -1):
-        suf = close[:k]
-        if len(text) >= k and text[-k:].lower() == suf.lower():
-            return text[:-k]
-    return text
-
-
-def stream_tag_content_deltas(
-    buffer: str, tag: str, emitted_length: int
-) -> Tuple[List[str], int, bool]:
-    start, end, _ = _tag_bounds(buffer, tag)
-    if start is None:
-        return [], emitted_length, False
-    chunk = buffer[start:] if end is None else buffer[start:end]
-    if end is None:
-        chunk = _strip_incomplete_close_tag_suffix(tag, chunk)
-    if len(chunk) <= emitted_length:
-        return [], emitted_length, end is not None
-    new_part = chunk[emitted_length:]
-    new_len = len(chunk)
-    return ([new_part] if new_part else []), new_len, end is not None
-
-
-def _normalize_pg_dsn(url: str) -> str:
-    if url.startswith("postgres://"):
-        return "postgresql://" + url[len("postgres://") :]
-    return url
-
-
-def _strip_sql_string_literals(sql: str) -> str:
-    return re.sub(r"'(?:[^']|'')*'", "''", sql)
-
-
-def _is_sensitive_column_name(name: str) -> bool:
-    n = name.lower().strip().strip('"').strip("'")
-    exact = frozenset(
-        {
-            "password",
-            "passwd",
-            "pwd",
-            "salt",
-            "secret",
-            "api_key",
-            "access_token",
-            "refresh_token",
-            "private_key",
-            "credential",
-            "credentials",
-            "hashed_password",
-            "password_hash",
-            "pass_hash",
-            "secret_key",
-            "auth_token",
-            "jwt",
-            "token",
-        }
-    )
-    if n in exact:
-        return True
-    for frag in (
-        "password",
-        "passwd",
-        "secret_key",
-        "api_key",
-        "_token",
-        "private_key",
-        "credential",
-        "pass_hash",
-    ):
-        if frag in n:
-            return True
-    return False
-
-
-def _sql_mentions_sensitive_identifier(sql: str) -> Optional[str]:
-    """去掉字符串字面量后，若仍出现敏感标识符则拒绝执行。"""
-    body = _strip_sql_string_literals(sql).lower()
-    patterns = (
-        r"\bpassword\b",
-        r"\bpasswd\b",
-        r"\bhashed_password\b",
-        r"\bpassword_hash\b",
-        r"\bpass_hash\b",
-        r"\bsecret_key\b",
-        r"\bapi_key\b",
-        r"\baccess_token\b",
-        r"\brefresh_token\b",
-        r"\bprivate_key\b",
-        r"\bauth_token\b",
-        r"\bcredentials?\b",
-        r"\.password\b",
-        r"\.passwd\b",
-    )
-    for pat in patterns:
-        if re.search(pat, body):
-            return (
-                "该 SQL 涉及敏感字段（password/token/密钥等），已禁止执行。"
-                "请向用户说明：无法提供密码或凭据，可引导其使用「忘记密码」或联系管理员重置。"
-            )
-    return None
-
-
-def _validate_execute_sql(sql: str, cfg: ReactSqlAgentConfig) -> Optional[str]:
-    s = sql.strip()
-    if not s:
-        return "SQL 为空"
-    lines = []
-    for line in s.splitlines():
-        c = line.split("--")[0].strip()
-        if c:
-            lines.append(c)
-    s = " ".join(lines).strip()
-    if not s:
-        return "SQL 无有效内容"
-    if ";" in s.rstrip(";"):
-        return "禁止多语句，请只写一条 SQL"
-    s_one = s.rstrip().rstrip(";")
-    up = s_one.upper()
-
-    if cfg.sql_readonly:
-        if not (up.startswith("SELECT") or up.startswith("WITH")):
-            return "只读模式下仅允许 SELECT 或 WITH 查询"
-        forbidden = (
-            "INSERT ",
-            "UPDATE ",
-            "DELETE ",
-            "DROP ",
-            "CREATE ",
-            "ALTER ",
-            "TRUNCATE ",
-            "GRANT ",
-            "REVOKE ",
-            "COPY ",
-            "EXECUTE ",
-            "CALL ",
-        )
-        u2 = " " + up + " "
-        for w in forbidden:
-            if w in u2:
-                return f"禁止关键字: {w.strip()}"
-
-    if cfg.sql_redact_sensitive:
-        no_lit = _strip_sql_string_literals(s_one).upper()
-        if re.search(r"\bSELECT\b\s+(?:DISTINCT\s+)?\*\s+FROM\b", no_lit):
-            return (
-                "禁止使用 SELECT *（无法对敏感列脱敏），请只列出允许展示的非敏感列名。"
-            )
-        sens = _sql_mentions_sensitive_identifier(s_one)
-        if sens:
-            return sens
-
-    return None
-
-
-class SqlToolContext:
-    def __init__(self, pool: asyncpg.Pool, cfg: ReactSqlAgentConfig) -> None:
-        self.pool = pool
-        self.cfg = cfg
-        self.extra: Dict[str, Any] = {}
-
-
-def _sql_cell_str(v: Any) -> str:
-    if v is None:
-        return "NULL"
-    s = str(v)
-    return s.replace("\t", " ").replace("\n", " ")[:500]
-
-
-async def builtin_get_database_schema(ctx: SqlToolContext, **_kw: Any) -> str:
-    q = """
-    SELECT table_name, column_name, data_type, is_nullable
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-    ORDER BY table_name, ordinal_position;
-    """
-    async with ctx.pool.acquire() as conn:
-        rows = await conn.fetch(q)
-    if not rows:
-        return "未查到 public schema 下的表结构（可能为空库或无权访问 information_schema）。"
-    lines: List[str] = []
-    cur_table = ""
-    redact = ctx.cfg.sql_redact_sensitive
-    for r in rows:
-        t, c, dt, nul = r["table_name"], r["column_name"], r["data_type"], r["is_nullable"]
-        if redact and _is_sensitive_column_name(c):
-            continue
-        if t != cur_table:
-            cur_table = t
-            lines.append(f"\n表 {t}:")
-        lines.append(f"  - {c}  {dt}  nullable={nul}")
-    text = "\n".join(lines)
-    if len(text) > 12000:
-        return text[:12000] + "\n...(已截断)"
-    return text
-
-
-async def builtin_execute_sql(ctx: SqlToolContext, **kw: Any) -> str:
-    sql = (kw.get("sql") or "").strip()
-    err = _validate_execute_sql(sql, ctx.cfg)
-    if err:
-        return f"SQL 校验失败: {err}"
-    try:
-        async with ctx.pool.acquire() as conn:
-            await conn.execute(f"SET statement_timeout = '{ctx.cfg.sql_statement_timeout_sec}s'")
-            rows = await conn.fetch(sql.rstrip(";"))
-    except Exception as e:
-        return f"执行失败: {e!s}"
-    if not rows:
-        return "(查询成功，0 行)"
-    keys = list(rows[0].keys())
-    max_r = ctx.cfg.sql_max_rows
-    slice_rows = rows[:max_r]
-    redact = ctx.cfg.sql_redact_sensitive
-
-    def cell(k: str, v: Any) -> str:
-        if redact and _is_sensitive_column_name(k):
-            return REDACT_PLACEHOLDER
-        return _sql_cell_str(v)
-
-    out_lines = ["\t".join(keys)]
-    for r in slice_rows:
-        out_lines.append("\t".join(cell(k, r[k]) for k in keys))
-    msg = "\n".join(out_lines)
-    if len(rows) > max_r:
-        msg += f"\n...(仅显示前 {max_r} 行，共 {len(rows)} 行)"
-    if len(msg) > 14000:
-        return msg[:14000] + "\n...(结果已截断)"
-    return msg
-
-
-def load_tools_from_directory(dir_path: Union[str, Path]) -> Dict[str, ToolFn]:
-    out: Dict[str, ToolFn] = {}
-    p = Path(dir_path)
-    if not p.is_dir():
-        return out
-    for fp in sorted(p.glob("*.py")):
-        if fp.name.startswith("_"):
-            continue
-        spec = importlib.util.spec_from_file_location(fp.stem, fp)
-        if spec is None or spec.loader is None:
-            continue
-        mod = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(mod)
-        except Exception:
-            traceback.print_exc()
-            continue
-        tools = getattr(mod, "REACT_TOOLS", None)
-        if isinstance(tools, dict):
-            for name, fn in tools.items():
-                if callable(fn):
-                    out[str(name)] = fn  # type: ignore[assignment]
-    return out
-
-
-def build_tool_registry(
-    sql_ctx: SqlToolContext,
-    extra: Optional[Dict[str, ToolFn]] = None,
-    plugin_dirs: Optional[List[Union[str, Path]]] = None,
-) -> Dict[str, ToolFn]:
-    async def _schema(**kw: Any) -> str:
-        return await builtin_get_database_schema(sql_ctx, **kw)
-
-    async def _sql(**kw: Any) -> str:
-        return await builtin_execute_sql(sql_ctx, **kw)
-
-    reg: Dict[str, ToolFn] = {
-        "get_database_schema": _schema,
-        "execute_sql": _sql,
-    }
-    if extra:
-        reg.update(extra)
-    if plugin_dirs:
-        for d in plugin_dirs:
-            reg.update(load_tools_from_directory(d))
-    return reg
-
-
-class ActionDispatcher:
-    def __init__(self, registry: Dict[str, ToolFn], sql_ctx: SqlToolContext) -> None:
-        self._registry = registry
-        self._sql_ctx = sql_ctx
-
-    async def run(self, action_name: str, payload: Optional[Dict[str, Any]]) -> str:
-        name = (action_name or "").strip()
-        fn = self._registry.get(name)
-        if not fn:
-            return f"未知工具「{name}」。已注册: {', '.join(sorted(self._registry.keys()))}"
-        args = {**(payload or {}), "_tool_context": self._sql_ctx}
-        try:
-            return await fn(**args)
-        except TypeError as e:
-            return f"工具参数不匹配 {name}: {e!s}"
-        except Exception:
-            traceback.print_exc()
-            return f"工具执行异常 {name}"
+# ---------------------------------------------------------------------------
+# 入口：ReAct 循环 + 流式事件
+# ---------------------------------------------------------------------------
 
 
 @dataclass
-class ReactSqlAgent:
+class ReactAgent:
     openai_api_key: str
     openai_base_url: str
     database_url: str
-    config: ReactSqlAgentConfig = field(default_factory=ReactSqlAgentConfig)
+    config: ReactAgentConfig = field(default_factory=ReactAgentConfig)
     extra_tools: Optional[Dict[str, ToolFn]] = None
     plugin_dirs: Optional[List[Union[str, Path]]] = None
 
@@ -484,21 +115,21 @@ class ReactSqlAgent:
         )
 
     def _history_append(
-        self, history: str, step_idx: int, model_xml: str, observation: str
+            self, history: str, step_idx: int, model_xml: str, observation: str
     ) -> str:
         ent = {chr(34): "&quot;", chr(39): "&apos;"}
         m = xml_esc.escape(model_xml, entities=ent)
         o = xml_esc.escape(observation, entities=ent)
         return (
-            history
-            + f'<turn index="{step_idx}">\n'
-            + f"  <model>{m}</model>\n"
-            + f"  <observation>{o}</observation>\n"
-            + f"</turn>\n"
+                history
+                + f'<turn index="{step_idx}">\n'
+                + f"  <model>{m}</model>\n"
+                + f"  <observation>{o}</observation>\n"
+                + f"</turn>\n"
         )
 
     async def _iter_llm_turn_stream(
-        self, llm: ChatOpenAI, system_prompt: str, human_xml: str
+            self, llm: ChatOpenAI, system_prompt: str, human_xml: str
     ) -> AsyncIterator[Dict[str, Any]]:
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=human_xml)]
         buf = ""
@@ -518,9 +149,9 @@ class ReactSqlAgent:
         yield {"event": "llm_turn_done", "raw": buf.strip()}
 
     async def run_streaming(
-        self,
-        task: str,
-        tool_context: Optional[Dict[str, Any]] = None,
+            self,
+            task: str,
+            tool_context: Optional[Dict[str, Any]] = None,
     ) -> AsyncIterator[Dict[str, Any]]:
         if not (self.openai_api_key or "").strip():
             yield {"event": "error", "message": "LLM 未配置 OPENAI_API_KEY"}
@@ -602,8 +233,8 @@ class ReactSqlAgent:
                     continue
 
                 if (
-                    action.strip().lower().replace(" ", "_") == "get_database_schema"
-                    and payload is None
+                        action.strip().lower().replace(" ", "_") == "get_database_schema"
+                        and payload is None
                 ):
                     payload = {}
 
@@ -647,8 +278,8 @@ class ReactSqlAgent:
             trace.append({"step": "final", "raw": raw})
             inner = XmlStepParser.step_inner(raw)
             final = (
-                XmlStepParser.parse_final_answer(inner)
-                or "抱歉，推理步数已用尽，请缩小问题范围后重试。"
+                    XmlStepParser.parse_final_answer(inner)
+                    or "抱歉，推理步数已用尽，请缩小问题范围后重试。"
             )
             meta_finish["final_answer"] = final
             meta_finish["react_steps"] = len(trace)
@@ -663,9 +294,9 @@ class ReactSqlAgent:
                 await pool.close()
 
     async def run(
-        self,
-        task: str,
-        tool_context: Optional[Dict[str, Any]] = None,
+            self,
+            task: str,
+            tool_context: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Optional[str], Dict[str, Any]]:
         last_meta: Dict[str, Any] = {}
         last_answer: Optional[str] = None
@@ -674,3 +305,403 @@ class ReactSqlAgent:
                 last_meta = ev.get("meta") or {}
                 last_answer = last_meta.get("final_answer")
         return last_answer, last_meta
+
+
+# ---------------------------------------------------------------------------
+# 工具分发与注册表
+# ---------------------------------------------------------------------------
+
+
+class ActionDispatcher:
+    def __init__(self, registry: Dict[str, ToolFn], sql_ctx: SqlToolContext) -> None:
+        self._registry = registry
+        self._sql_ctx = sql_ctx
+
+    async def run(self, action_name: str, payload: Optional[Dict[str, Any]]) -> str:
+        name = (action_name or "").strip()
+        fn = self._registry.get(name)
+        if not fn:
+            return f"未知工具「{name}」。已注册: {', '.join(sorted(self._registry.keys()))}"
+        args = {**(payload or {}), "_tool_context": self._sql_ctx}
+        try:
+            return await fn(**args)
+        except TypeError as e:
+            return f"工具参数不匹配 {name}: {e!s}"
+        except Exception:
+            traceback.print_exc()
+            return f"工具执行异常 {name}"
+
+
+def load_tools_from_directory(dir_path: Union[str, Path]) -> Dict[str, ToolFn]:
+    out: Dict[str, ToolFn] = {}
+    p = Path(dir_path)
+    if not p.is_dir():
+        return out
+    for fp in sorted(p.glob("*.py")):
+        if fp.name.startswith("_"):
+            continue
+        spec = importlib.util.spec_from_file_location(fp.stem, fp)
+        if spec is None or spec.loader is None:
+            continue
+        mod = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(mod)
+        except Exception:
+            traceback.print_exc()
+            continue
+        tools = getattr(mod, "REACT_TOOLS", None)
+        if isinstance(tools, dict):
+            for name, fn in tools.items():
+                if callable(fn):
+                    out[str(name)] = fn  # type: ignore[assignment]
+    return out
+
+
+def build_tool_registry(
+        sql_ctx: SqlToolContext,
+        extra: Optional[Dict[str, ToolFn]] = None,
+        plugin_dirs: Optional[List[Union[str, Path]]] = None,
+) -> Dict[str, ToolFn]:
+    async def _schema(**kw: Any) -> str:
+        return await builtin_get_database_schema(sql_ctx, **kw)
+
+    async def _sql(**kw: Any) -> str:
+        return await builtin_execute_sql(sql_ctx, **kw)
+
+    reg: Dict[str, ToolFn] = {
+        "get_database_schema": _schema,
+        "execute_sql": _sql,
+    }
+    if extra:
+        reg.update(extra)
+    if plugin_dirs:
+        for d in plugin_dirs:
+            reg.update(load_tools_from_directory(d))
+    return reg
+
+
+# ---------------------------------------------------------------------------
+# 数据库上下文与内置工具（execute_sql → SQL 校验）
+# ---------------------------------------------------------------------------
+
+
+class SqlToolContext:
+    def __init__(self, pool: asyncpg.Pool, cfg: ReactAgentConfig) -> None:
+        self.pool = pool
+        self.cfg = cfg
+        self.extra: Dict[str, Any] = {}
+
+
+def _normalize_pg_dsn(url: str) -> str:
+    if url.startswith("postgres://"):
+        return "postgresql://" + url[len("postgres://"):]
+    return url
+
+
+def _strip_sql_string_literals(sql: str) -> str:
+    return re.sub(r"'(?:[^']|'')*'", "''", sql)
+
+
+def _is_sensitive_column_name(name: str) -> bool:
+    n = name.lower().strip().strip('"').strip("'")
+    exact = frozenset(
+        {
+            "password",
+            "passwd",
+            "pwd",
+            "salt",
+            "secret",
+            "api_key",
+            "access_token",
+            "refresh_token",
+            "private_key",
+            "credential",
+            "credentials",
+            "hashed_password",
+            "password_hash",
+            "pass_hash",
+            "secret_key",
+            "auth_token",
+            "jwt",
+            "token",
+        }
+    )
+    if n in exact:
+        return True
+    for frag in (
+            "password",
+            "passwd",
+            "secret_key",
+            "api_key",
+            "_token",
+            "private_key",
+            "credential",
+            "pass_hash",
+    ):
+        if frag in n:
+            return True
+    return False
+
+
+def _sql_mentions_sensitive_identifier(sql: str) -> Optional[str]:
+    """去掉字符串字面量后，若仍出现敏感标识符则拒绝执行。"""
+    body = _strip_sql_string_literals(sql).lower()
+    patterns = (
+        r"\bpassword\b",
+        r"\bpasswd\b",
+        r"\bhashed_password\b",
+        r"\bpassword_hash\b",
+        r"\bpass_hash\b",
+        r"\bsecret_key\b",
+        r"\bapi_key\b",
+        r"\baccess_token\b",
+        r"\brefresh_token\b",
+        r"\bprivate_key\b",
+        r"\bauth_token\b",
+        r"\bcredentials?\b",
+        r"\.password\b",
+        r"\.passwd\b",
+    )
+    for pat in patterns:
+        if re.search(pat, body):
+            return (
+                "该 SQL 涉及敏感字段（password/token/密钥等），已禁止执行。"
+                "请向用户说明：无法提供密码或凭据，可引导其使用「忘记密码」或联系管理员重置。"
+            )
+    return None
+
+
+def _validate_execute_sql(sql: str, cfg: ReactAgentConfig) -> Optional[str]:
+    s = sql.strip()
+    if not s:
+        return "SQL 为空"
+    lines = []
+    for line in s.splitlines():
+        c = line.split("--")[0].strip()
+        if c:
+            lines.append(c)
+    s = " ".join(lines).strip()
+    if not s:
+        return "SQL 无有效内容"
+    if ";" in s.rstrip(";"):
+        return "禁止多语句，请只写一条 SQL"
+    s_one = s.rstrip().rstrip(";")
+    up = s_one.upper()
+
+    if cfg.sql_readonly:
+        if not (up.startswith("SELECT") or up.startswith("WITH")):
+            return "只读模式下仅允许 SELECT 或 WITH 查询"
+        forbidden = (
+            "INSERT ",
+            "UPDATE ",
+            "DELETE ",
+            "DROP ",
+            "CREATE ",
+            "ALTER ",
+            "TRUNCATE ",
+            "GRANT ",
+            "REVOKE ",
+            "COPY ",
+            "EXECUTE ",
+            "CALL ",
+        )
+        u2 = " " + up + " "
+        for w in forbidden:
+            if w in u2:
+                return f"禁止关键字: {w.strip()}"
+
+    if cfg.sql_redact_sensitive:
+        no_lit = _strip_sql_string_literals(s_one).upper()
+        if re.search(r"\bSELECT\b\s+(?:DISTINCT\s+)?\*\s+FROM\b", no_lit):
+            return (
+                "禁止使用 SELECT *（无法对敏感列脱敏），请只列出允许展示的非敏感列名。"
+            )
+        sens = _sql_mentions_sensitive_identifier(s_one)
+        if sens:
+            return sens
+
+    return None
+
+
+def _sql_cell_str(v: Any) -> str:
+    if v is None:
+        return "NULL"
+    s = str(v)
+    return s.replace("\t", " ").replace("\n", " ")[:500]
+
+
+async def builtin_get_database_schema(ctx: SqlToolContext, **_kw: Any) -> str:
+    q = """
+        SELECT table_name, column_name, data_type, is_nullable
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        ORDER BY table_name, ordinal_position; \
+        """
+    async with ctx.pool.acquire() as conn:
+        rows = await conn.fetch(q)
+    if not rows:
+        return "未查到 public schema 下的表结构（可能为空库或无权访问 information_schema）。"
+    lines: List[str] = []
+    cur_table = ""
+    redact = ctx.cfg.sql_redact_sensitive
+    for r in rows:
+        t, c, dt, nul = r["table_name"], r["column_name"], r["data_type"], r["is_nullable"]
+        if redact and _is_sensitive_column_name(c):
+            continue
+        if t != cur_table:
+            cur_table = t
+            lines.append(f"\n表 {t}:")
+        lines.append(f"  - {c}  {dt}  nullable={nul}")
+    text = "\n".join(lines)
+    if len(text) > 12000:
+        return text[:12000] + "\n...(已截断)"
+    return text
+
+
+async def builtin_execute_sql(ctx: SqlToolContext, **kw: Any) -> str:
+    sql = (kw.get("sql") or "").strip()
+    err = _validate_execute_sql(sql, ctx.cfg)
+    if err:
+        return f"SQL 校验失败: {err}"
+    try:
+        async with ctx.pool.acquire() as conn:
+            await conn.execute(f"SET statement_timeout = '{ctx.cfg.sql_statement_timeout_sec}s'")
+            rows = await conn.fetch(sql.rstrip(";"))
+    except Exception as e:
+        return f"执行失败: {e!s}"
+    if not rows:
+        return "(查询成功，0 行)"
+    keys = list(rows[0].keys())
+    max_r = ctx.cfg.sql_max_rows
+    slice_rows = rows[:max_r]
+    redact = ctx.cfg.sql_redact_sensitive
+
+    def cell(k: str, v: Any) -> str:
+        if redact and _is_sensitive_column_name(k):
+            return REDACT_PLACEHOLDER
+        return _sql_cell_str(v)
+
+    out_lines = ["\t".join(keys)]
+    for r in slice_rows:
+        out_lines.append("\t".join(cell(k, r[k]) for k in keys))
+    msg = "\n".join(out_lines)
+    if len(rows) > max_r:
+        msg += f"\n...(仅显示前 {max_r} 行，共 {len(rows)} 行)"
+    if len(msg) > 14000:
+        return msg[:14000] + "\n...(结果已截断)"
+    return msg
+
+
+# ---------------------------------------------------------------------------
+# XML 一步解析（与 LLM 原始输出对接）
+# ---------------------------------------------------------------------------
+
+
+class XmlStepParser:
+    @staticmethod
+    def strip_fence(text: str) -> str:
+        s = text.strip()
+        if not s.startswith("```"):
+            return s
+        s = re.sub(r"^```[a-zA-Z0-9]*\s*\n?", "", s)
+        s = re.sub(r"\n?```\s*$", "", s)
+        return s.strip()
+
+    @staticmethod
+    def extract_tag(text: str, tag: str) -> Optional[str]:
+        pat = rf"<{tag}\s*>(.*?)</{tag}\s*>"
+        m = re.search(pat, text, flags=re.DOTALL | re.IGNORECASE)
+        return m.group(1).strip() if m else None
+
+    @classmethod
+    def step_inner(cls, raw: str) -> str:
+        raw = cls.strip_fence(raw)
+        inner = cls.extract_tag(raw, "step")
+        return inner if inner is not None else raw
+
+    @classmethod
+    def parse_final_answer(cls, step_inner: str) -> Optional[str]:
+        fa = cls.extract_tag(step_inner, "final_answer")
+        if not fa or not fa.strip():
+            return None
+        return xml_esc.unescape(fa.strip()) or None
+
+    @classmethod
+    def parse_action(cls, step_inner: str) -> Tuple[Optional[str], Optional[Any]]:
+        act = cls.extract_tag(step_inner, "action")
+        if not act:
+            return None, None
+        name = act.strip()
+        if re.match(r"(?i)^final_answer$", name):
+            return None, None
+        raw_j = cls.extract_tag(step_inner, "action_input")
+        if raw_j is None:
+            return name, None
+        try:
+            return name, json.loads(raw_j.strip())
+        except json.JSONDecodeError:
+            return name, None
+
+
+# ---------------------------------------------------------------------------
+# LLM chunk → 标签内增量（供 astream）
+# ---------------------------------------------------------------------------
+
+
+def _lc_text_content(msg: Any) -> str:
+    c = getattr(msg, "content", msg)
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list):
+        parts: List[str] = []
+        for b in c:
+            if isinstance(b, dict) and b.get("type") == "text":
+                parts.append(str(b.get("text", "")))
+            elif isinstance(b, str):
+                parts.append(b)
+        return "".join(parts)
+    return str(c or "")
+
+
+def _tag_bounds(buf: str, tag: str) -> Tuple[Optional[int], Optional[int], Optional[int]]:
+    open_pat = re.compile(rf"<{tag}\s*>", re.IGNORECASE)
+    close_pat = re.compile(rf"</{tag}\s*>", re.IGNORECASE)
+    mo = open_pat.search(buf)
+    if not mo:
+        return None, None, None
+    start = mo.end()
+    mc = close_pat.search(buf, start)
+    if not mc:
+        return start, None, None
+    return start, mc.start(), mc.end()
+
+
+def _strip_incomplete_close_tag_suffix(tag: str, text: str) -> str:
+    """
+    流式时 `</tag>` 可能尚未收齐（缺 `>`），正则无法判定结束位，尾部会混入 `</tag` 片段。
+    若当前文本以 `</tag` 的任意非空前缀结尾，则从该前缀起截断，避免把闭合标签打进正文增量。
+    """
+    close = f"</{tag}>"
+    if len(text) < 2:
+        return text
+    for k in range(len(close) - 1, 1, -1):
+        suf = close[:k]
+        if len(text) >= k and text[-k:].lower() == suf.lower():
+            return text[:-k]
+    return text
+
+
+def stream_tag_content_deltas(
+        buffer: str, tag: str, emitted_length: int
+) -> Tuple[List[str], int, bool]:
+    start, end, _ = _tag_bounds(buffer, tag)
+    if start is None:
+        return [], emitted_length, False
+    chunk = buffer[start:] if end is None else buffer[start:end]
+    if end is None:
+        chunk = _strip_incomplete_close_tag_suffix(tag, chunk)
+    if len(chunk) <= emitted_length:
+        return [], emitted_length, end is not None
+    new_part = chunk[emitted_length:]
+    new_len = len(chunk)
+    return ([new_part] if new_part else []), new_len, end is not None

@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from apps.utils import response
 from apps.utils.llm_optimizers import get_question_optimizer, get_search_optimizer, optimize_question
 from apps.utils.vector_db_selector import vector_search
-from apps.utils.react_sql_agent import ReactSqlAgent, ReactSqlAgentConfig
+from apps.utils.react_sql_agent import ReactAgent, ReactAgentConfig
 from apps.utils.react_sse import iter_sse_from_agent_streaming, sse_data_line
 from apps.dependencies.auth import get_current_user
 from apps.models.user import User
@@ -37,11 +37,11 @@ async def ask_question_stream(
 ):
     async def generate_stream():
         try:
-            agent = ReactSqlAgent(
+            agent = ReactAgent(
                 openai_api_key=OPENAI_API_KEY,
                 openai_base_url=OPENAI_BASE_URL or "https://api.openai.com/v1/",
                 database_url=DATABASE_URL,
-                config=ReactSqlAgentConfig(),
+                config=ReactAgentConfig(),
                 extra_tools=None,
                 plugin_dirs=_plugin_dirs(),
             )

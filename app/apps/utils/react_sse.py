@@ -16,7 +16,7 @@ async def iter_sse_from_agent_streaming(
     tool_context: Optional[Dict[str, Any]] = None,
 ) -> AsyncIterator[str]:
     """
-    将 ReactSqlAgent.run_streaming() 的事件转为 SSE 行：
+    将 ReactAgent.run_streaming() 的事件转为 SSE 行：
     thought（累积）| content（累积）| status | error | sources | done。
     """
     thought_buf = ""

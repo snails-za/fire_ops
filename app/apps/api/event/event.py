@@ -1,7 +1,6 @@
 """
 事件管理API
 """
-from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -76,7 +75,6 @@ async def get_event_list(
 
     event_ids = [e.id for e in event_rows]
     message_count_map: dict[int, int] = {}
-    unread_count_map: dict[int, int] = {}
     if event_ids:
         total_rows = (
             await EventMessage.filter(event_id__in=event_ids)
@@ -85,20 +83,12 @@ async def get_event_list(
             .values("event_id", "cnt")
         )
         message_count_map = {r["event_id"]: r["cnt"] for r in total_rows}
-        unread_rows = (
-            await EventMessage.filter(event_id__in=event_ids, is_read=False)
-            .annotate(cnt=Count("id"))
-            .group_by("event_id")
-            .values("event_id", "cnt")
-        )
-        unread_count_map = {r["event_id"]: r["cnt"] for r in unread_rows}
 
     data = []
     for event in event_rows:
         event_data = await Event_Pydantic.from_tortoise_orm(event)
         event_dict = event_data.model_dump()
         event_dict["message_count"] = message_count_map.get(event.id, 0)
-        event_dict["unread_count"] = unread_count_map.get(event.id, 0)
 
         device = event.device
         mu = await User.get_or_none(id=device.maintainer_user_id)
@@ -171,7 +161,6 @@ async def get_event_detail(
             'username': msg.username,
             'user_role': msg.user_role,
             'message_type': msg.message_type,
-            'is_read': msg.is_read,
             'created_at': msg.created_at.isoformat() if msg.created_at else None
         }
         if msg.user_id:
@@ -291,6 +280,9 @@ async def send_event_message(
         message_type="user"
     )
 
+    event.status = "processing"
+    await event.save()
+
     message_data = await EventMessage_Pydantic.from_tortoise_orm(message)
     return response(data=message_data.model_dump(), message="消息发送成功")
 
@@ -349,68 +341,11 @@ async def get_event_messages(
     )
 
 
-@router.post("/{event_id}/messages/{message_id}/read", summary="标记消息为已读",
-             dependencies=[Depends(get_current_user)])
-async def mark_message_read(
-        event_id: int,
-        message_id: int,
-        user: User = Depends(get_current_user)
-):
-    """标记消息为已读"""
-    message = await EventMessage.get_or_none(id=message_id, event_id=event_id)
-    if not message:
-        return response(code=404, message="消息不存在")
-
-    if not message.is_read:
-        message.is_read = True
-        message.read_at = datetime.now()
-        await message.save()
-
-    return response(message="消息已标记为已读")
-
-
-@router.post("/{event_id}/messages/read-all", summary="标记所有消息为已读", dependencies=[Depends(get_current_user)])
-async def mark_all_messages_read(
-        event_id: int,
-        user: User = Depends(get_current_user)
-):
-    """标记事件中所有消息为已读"""
-    event = await Event.get_or_none(id=event_id)
-
-    if not event:
-        return response(code=404, message="事件不存在")
-
-    if user.role == "maintainer":
-        await event.fetch_related("device")
-        if (
-                not event.device
-                or (
-                event.device.created_by_user_id != user.id
-                and event.device.maintainer_user_id != user.id
-        )
-        ):
-            return response(code=403, message="无权操作此事件")
-
-    unread_messages = await EventMessage.filter(
-        event_id=event_id,
-        is_read=False,
-    )
-
-    count = 0
-    for message in unread_messages:
-        message.is_read = True
-        message.read_at = datetime.now()
-        await message.save()
-        count += 1
-
-    return response(data={"marked_count": count}, message=f"已标记{count}条消息为已读")
-
-
-@router.get("/communication/list", summary="获取通讯列表（未读和进行中的事件）", dependencies=[Depends(get_current_user)])
+@router.get("/communication/list", summary="获取通讯列表（进行中的事件）", dependencies=[Depends(get_current_user)])
 async def get_communication_list(
         user: User = Depends(get_current_user)
 ):
-    """获取通讯列表：未读和进行中的事件"""
+    """获取通讯列表：待处理/处理中的事件"""
     conditions = Q(status__in=["wait", "processing"])
 
     if user.role == "maintainer":
@@ -423,11 +358,6 @@ async def get_communication_list(
 
     data = []
     for event in events:
-        unread_count = await EventMessage.filter(
-            event_id=event.id,
-            is_read=False,
-        ).count()
-
         latest_message = await EventMessage.filter(event_id=event.id).order_by('-created_at').first()
         latest_message_info = None
         if latest_message:
@@ -444,7 +374,6 @@ async def get_communication_list(
             'id': event.id,
             'title': event.title,
             'status': event.status,
-            'unread_count': unread_count,
             'latest_message': latest_message_info,
             'created_at': event.created_at.isoformat() if event.created_at else None,
             'device': {
@@ -455,8 +384,6 @@ async def get_communication_list(
                 'maintainer_user_id': device.maintainer_user_id,
             },
         }
-
-        if unread_count > 0 or event.status in ["wait", "processing"]:
-            data.append(event_dict)
+        data.append(event_dict)
 
     return response(data=data, message="获取通讯列表成功")

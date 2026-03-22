@@ -49,16 +49,11 @@ class EventMessage(BaseModel):
     content = fields.TextField(description="消息内容")
     message_type = fields.CharField(max_length=20, default="user", description="消息类型：user(用户消息)、system(系统消息)")
     
-    # 已读状态
-    is_read = fields.BooleanField(default=False, description="是否已读")
-    read_at = fields.DatetimeField(null=True, description="已读时间")
-    
     class Meta:
         table = "event_message"
         ordering = ["created_at"]
         indexes = [
             ("event_id", "created_at"),
-            ("user_id", "is_read"),
         ]
         description = "事件消息表"
     

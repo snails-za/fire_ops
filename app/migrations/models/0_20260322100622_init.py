@@ -112,21 +112,16 @@ CREATE TABLE IF NOT EXISTS "event_message" (
     "user_role" VARCHAR(20),
     "content" TEXT NOT NULL,
     "message_type" VARCHAR(20) NOT NULL DEFAULT 'user',
-    "is_read" BOOL NOT NULL DEFAULT False,
-    "read_at" TIMESTAMPTZ,
     "event_id" INT NOT NULL REFERENCES "event" ("id") ON DELETE CASCADE,
     "user_id" INT REFERENCES "user" ("id") ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS "idx_event_messa_event_i_edf7f6" ON "event_message" ("event_id", "created_at");
-CREATE INDEX IF NOT EXISTS "idx_event_messa_user_id_19e76c" ON "event_message" ("user_id", "is_read");
 COMMENT ON COLUMN "event_message"."created_at" IS '创建时间';
 COMMENT ON COLUMN "event_message"."updated_at" IS '更新时间';
 COMMENT ON COLUMN "event_message"."username" IS '用户名（冗余字段）';
 COMMENT ON COLUMN "event_message"."user_role" IS '用户角色（冗余字段）';
 COMMENT ON COLUMN "event_message"."content" IS '消息内容';
 COMMENT ON COLUMN "event_message"."message_type" IS '消息类型：user(用户消息)、system(系统消息)';
-COMMENT ON COLUMN "event_message"."is_read" IS '是否已读';
-COMMENT ON COLUMN "event_message"."read_at" IS '已读时间';
 COMMENT ON COLUMN "event_message"."event_id" IS '所属事件';
 COMMENT ON COLUMN "event_message"."user_id" IS '发送用户（null表示系统消息）';
 COMMENT ON TABLE "event_message" IS '事件消息模型 - 事件会话中的消息';

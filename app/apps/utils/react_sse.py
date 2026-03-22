@@ -16,8 +16,8 @@ async def iter_sse_from_agent_streaming(
     tool_context: Optional[Dict[str, Any]] = None,
 ) -> AsyncIterator[str]:
     """
-    将 ReactAgent.run_streaming() 的事件转为 SSE 行：
-    thought（累积）| content（累积）| status | error | sources | done。
+    将 ReactSqlAgent.run_streaming() 的事件转为 SSE 行：
+    thought（累积）| content（累积）| action（工具调用/结果摘要）| error | sources | done。
     """
     thought_buf = ""
     content_buf = ""
@@ -34,14 +34,14 @@ async def iter_sse_from_agent_streaming(
             content_buf += ev.get("text") or ""
             yield sse_data_line({"type": "content", "content": content_buf})
         elif et == "tool_start":
-            yield sse_data_line({"type": "status", "message": f"🔧 工具: {ev.get('name')}"})
+            yield sse_data_line({"type": "action", "message": f"🔧 工具: {ev.get('name')}"})
         elif et == "tool_end":
             ok = ev.get("ok")
             preview = str(ev.get("preview") or "")
             label = ev.get("name") or "?"
             sym = "✓" if ok else "✗"
             yield sse_data_line(
-                {"type": "status", "message": f"{sym} {label}: {preview[:120]}..."}
+                {"type": "action", "message": f"{sym} {label}: {preview[:120]}..."}
             )
         elif et == "error":
             yield sse_data_line({"type": "error", "message": ev.get("message") or "错误"})

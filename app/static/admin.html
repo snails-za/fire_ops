@@ -4858,6 +4858,7 @@
 
             // 显示相关文档（显示所有搜索结果）
             let sourcesHtml = '';
+            const isReactSqlSources = searchInfo && searchInfo.pattern === 'react_xml_sql';
             if (sources && Array.isArray(sources) && sources.length > 0) {
                 // 显示所有搜索结果，不进行阈值过滤
                 if (sources.length > 0) {
@@ -4878,29 +4879,30 @@
                     });
                     
                     const docList = Object.values(docGroups);
+                    const sourcesTitle = isReactSqlSources ? '📚 可下载文档（SQL 小范围命中）' : '📚 相关文档';
                 sourcesHtml = `
                     <div class="sources delayed-content" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #007bff;">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">📚 相关文档 (${docList.length}个):</div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">${sourcesTitle} (${docList.length}个):</div>
                         ${docList.map(doc => {
                             // 计算该文档的最高相似度
                             const maxSimilarity = Math.max(...doc.chunks.map(chunk => chunk.similarity || 0));
                             const similarityPercent = (maxSimilarity * 100).toFixed(1);
+                            const badgeSql = isReactSqlSources
+                                ? '<span style="font-size: 11px; color: #666; margin-left: 8px;">📎</span>'
+                                : `<span style="font-size: 11px; color: #666; margin-left: 8px;">相似度: ${similarityPercent}%</span>`;
                             
                             return `
                             <div style="margin-bottom: 6px; padding: 4px; background: white; border-radius: 4px; border: 1px solid #e9ecef;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <div style="flex: 1;">
                                         <span style="font-size: 13px; color: #333; font-weight: 500;">📄 ${doc.document_name}</span>
-                                        <span style="font-size: 11px; color: #666; margin-left: 8px;">相似度: ${similarityPercent}%</span>
+                                        ${badgeSql}
                                     </div>
                                     <div style="display: flex; gap: 4px;">
                                         ${doc.document_id ? `
                                             <button class="action-btn download-btn" data-doc-id="${doc.document_id}" data-filename="${doc.original_filename || doc.document_name}" 
                                                     style="padding: 2px 6px; font-size: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" 
                                                     title="下载文档">📥</button>
-                                            <button class="action-btn highlight-btn" data-doc-id="${doc.document_id}" data-chunk-id="${doc.chunks[0].chunk_id || 0}" data-doc-name="${doc.document_name}"
-                                                    style="padding: 2px 6px; font-size: 10px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer;" 
-                                                    title="高亮查看（基于问题关键词）">🔍</button>
                                             ${doc.file_type === 'pdf' ? `
                                             <button class="action-btn preview-btn" data-doc-id="${doc.document_id}" data-doc-name="${doc.document_name}"
                                                     style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;" 

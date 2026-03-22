@@ -37,6 +37,10 @@ ToolFn = Callable[..., Awaitable[str]]
 
 REDACT_PLACEHOLDER = "[已隐藏·敏感字段]"
 
+# ReAct 聊天区「可下载文档」：避免一次 SQL 扫全表列出上百个文件
+REACT_SQL_DOC_SOURCE_MAX = 5
+REACT_SQL_DOC_MAX_DATA_ROWS = 12  # 超过此行数认为是大范围探测，不自动挂下载
+
 
 # ---------------------------------------------------------------------------
 # 配置与系统提示
@@ -82,7 +86,11 @@ SYSTEM_PROMPT = """你是数据分析助手，必须用 ReAct：思考 →（如
 
 【禁止】
 - 不要自己编造 <observation>，系统会在你输出后追加。
-- 不要臆造查询结果；以 Observation 为准。"""
+- 不要臆造查询结果；以 Observation 为准。
+
+【文档下载（界面会列出可下载文件）】
+- 仅当你用 execute_sql 查询 **document** 表且一次返回 **很少行**（建议 ≤10 行）时，系统才会在回答下方显示下载入口。
+- 若用户只要某一文件，请用 WHERE 条件限定 id 或文件名，不要 SELECT 全表。"""
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +200,7 @@ class ReactAgent:
                 "pattern": "react_xml_sql",
                 "react_trace": trace,
             }
+            last_react_doc_sources: List[Dict[str, Any]] = []
 
             for step in range(self.config.max_iterations):
                 inst = (
@@ -216,6 +225,7 @@ class ReactAgent:
                 if final is not None:
                     meta_finish["final_answer"] = final
                     meta_finish["react_steps"] = len(trace)
+                    meta_finish["sources"] = last_react_doc_sources
                     yield {"event": "done", "meta": meta_finish}
                     return
 
@@ -256,6 +266,12 @@ class ReactAgent:
                 observation = await dispatcher.run(action, payload)
                 trace[-1]["observation"] = observation[:800]
                 history_xml = self._history_append(history_xml, step + 1, raw, observation)
+                an = action.strip().lower().replace(" ", "_")
+                if an == "execute_sql" and isinstance(payload, dict):
+                    sql_q = str(payload.get("sql") or "")
+                    batch = extract_react_document_sources_from_sql(observation, sql_q)
+                    if batch:
+                        last_react_doc_sources = batch
                 yield {
                     "event": "tool_end",
                     "name": action,
@@ -283,6 +299,7 @@ class ReactAgent:
             )
             meta_finish["final_answer"] = final
             meta_finish["react_steps"] = len(trace)
+            meta_finish["sources"] = last_react_doc_sources
             yield {"event": "done", "meta": meta_finish}
 
         except Exception as e:
@@ -590,6 +607,104 @@ async def builtin_execute_sql(ctx: SqlToolContext, **kw: Any) -> str:
     if len(msg) > 14000:
         return msg[:14000] + "\n...(结果已截断)"
     return msg
+
+
+def _sql_targets_document_table(sql: str) -> bool:
+    """仅当 SQL 显式查询 document 表时才尝试挂下载，避免 JOIN 其它大表误匹配。"""
+    body = _strip_sql_string_literals((sql or "").strip()).lower()
+    body = re.sub(r"--[^\n]*", " ", body)
+    return bool(
+        re.search(r"\bfrom\s+(?:public\.)?(?:\"document\"|document)\b", body)
+    ) or bool(
+        re.search(r"\bjoin\s+(?:public\.)?(?:\"document\"|document)\b", body)
+    )
+
+
+def extract_react_document_sources_from_sql(
+    observation: str, sql: str
+) -> List[Dict[str, Any]]:
+    """
+    从 execute_sql 的 TSV 结果解析可下载文档，供聊天 sources 使用。
+    条件：SQL 须针对 document 表；数据行数不超过 REACT_SQL_DOC_MAX_DATA_ROWS；
+    最多返回 REACT_SQL_DOC_SOURCE_MAX 条（按出现顺序去重 id）。
+    """
+    if not _sql_targets_document_table(sql):
+        return []
+    text = (observation or "").strip()
+    if not text or text.startswith(("SQL 校验失败", "执行失败", "(查询成功，0 行)")):
+        return []
+    lines = [
+        ln
+        for ln in text.split("\n")
+        if ln.strip() and not ln.strip().startswith("...(")
+    ]
+    if len(lines) < 2:
+        return []
+    data_lines = lines[1:]
+    if len(data_lines) > REACT_SQL_DOC_MAX_DATA_ROWS:
+        return []
+
+    header_cells = lines[0].split("\t")
+    h = [c.strip().strip('"').lower() for c in header_cells]
+
+    def col(name: str) -> Optional[int]:
+        try:
+            return h.index(name)
+        except ValueError:
+            return None
+
+    i_id = col("id")
+    i_orig = col("original_filename")
+    if i_id is None or i_orig is None:
+        return []
+    if (
+        col("filename") is None
+        and col("file_type") is None
+        and col("file_path") is None
+    ):
+        return []
+
+    i_fn = col("filename")
+    i_ft = col("file_type")
+    out: List[Dict[str, Any]] = []
+    seen: set[int] = set()
+    for line in data_lines:
+        if len(out) >= REACT_SQL_DOC_SOURCE_MAX:
+            break
+        cells = line.split("\t")
+        idxs = [i_id, i_orig]
+        if i_fn is not None:
+            idxs.append(i_fn)
+        if i_ft is not None:
+            idxs.append(i_ft)
+        need = max(idxs) + 1
+        if len(cells) < need:
+            continue
+        try:
+            doc_id = int(str(cells[i_id]).strip())
+        except ValueError:
+            continue
+        if doc_id in seen:
+            continue
+        orig = cells[i_orig].strip() if i_orig < len(cells) else ""
+        if not orig:
+            continue
+        seen.add(doc_id)
+        ft = "pdf"
+        if i_ft is not None and i_ft < len(cells):
+            ft = (cells[i_ft].strip() or "pdf").lower() or "pdf"
+        out.append(
+            {
+                "document_id": doc_id,
+                "document_name": orig,
+                "original_filename": orig,
+                "file_type": ft,
+                "similarity": 1.0,
+                "chunk_id": 0,
+                "from_sql_react": True,
+            }
+        )
+    return out
 
 
 # ---------------------------------------------------------------------------

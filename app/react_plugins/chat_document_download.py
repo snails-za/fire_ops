@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 from apps.utils.react_agent import PLUGIN_STATE_META_SOURCES_EXTRA_KEY
 
 # 工具写入 sql_ctx.extra 的桶；REACT_PLUGIN_STATE 告知 Agent 从哪个 extra 键同步到 meta["sources"]
-_SOURCES_EXTRA_BUCKET = "_react_chat_document_sources"
+_SOURCES_EXTRA_BUCKET = "_react_sources"
 
 REACT_PLUGIN_STATE = {
     PLUGIN_STATE_META_SOURCES_EXTRA_KEY: _SOURCES_EXTRA_BUCKET,

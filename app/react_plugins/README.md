@@ -10,4 +10,6 @@
 
 若 `sql_ctx.plugin_state` 中含有键 **`meta_sources_extra_key`**（与 `apps.utils.react_agent.PLUGIN_STATE_META_SOURCES_EXTRA_KEY` 相同），值为 **字符串**，则每轮工具执行后 Agent 会从 `sql_ctx.extra[该字符串]` 读取 **list**（若有），用于更新本轮结束时的 `meta["sources"]`（SSE 聊天下游可用）。其它业务可自行约定更多 `REACT_PLUGIN_STATE` 键并在工具里读写 `sql_ctx.extra` / 扩展消费逻辑。
 
-示例见 `chat_document_download.py`。
+建议多个插件共享同一个 extra 桶（例如 `_react_sources`），这样检索插件、下载插件可共同维护同一份 `meta["sources"]`。
+
+示例见 `chat_document_download.py`、`vector_document_search.py`。

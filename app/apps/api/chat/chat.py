@@ -12,7 +12,7 @@ from apps.utils.react_agent import ReactAgent, ReactAgentConfig
 from apps.utils.react_sse import iter_sse_from_agent_streaming, sse_data_line
 from apps.dependencies.auth import get_current_user
 from apps.models.user import User
-from mcp_tools.mcp_bridge import mcp_server_app
+from apps.utils.mcp_tools.mcp_bridge import mcp_server_app
 from config import OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD
 
 router = APIRouter(prefix="/chat", tags=["智能问答"])

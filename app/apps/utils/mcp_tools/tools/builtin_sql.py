@@ -4,7 +4,7 @@ from typing import Optional
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
-from mcp_tools.pg_utils import (
+from apps.utils.mcp_tools.pg_utils import (
     SqlToolConfig,
     SqlToolContext,
     builtin_execute_sql,

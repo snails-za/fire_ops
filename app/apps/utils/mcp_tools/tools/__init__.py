@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from mcp_tools.mcp_bridge import mcp_chat_host
+from apps.utils.mcp_tools.mcp_bridge import mcp_chat_host
 
 from .builtin_sql import SqlToolsModule
 from .chat_document_download import ChatDocumentToolsModule

@@ -5,7 +5,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from apps.utils.vector_db_selector import vector_search
-from mcp_tools.mcp_bridge import ChatTaskExtra, chat_task_extra
+from apps.utils.mcp_tools.mcp_bridge import ChatTaskExtra, chat_task_extra
 
 _MAX_TOP_K = 8
 _MAX_SNIPPET = 1200

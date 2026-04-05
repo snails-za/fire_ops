@@ -14,8 +14,8 @@ from langchain_openai import ChatOpenAI
 from mcp.server.fastmcp import FastMCP
 
 from apps.utils.xml_react import XmlReactSession
-from mcp_tools.mcp_bridge import SOURCES_EXTRA_KEY, chat_task_extra, langchain_mcp_bridge
-from mcp_tools.tools import TOOL_PROMPTS
+from apps.utils.mcp_tools.mcp_bridge import SOURCES_EXTRA_KEY, chat_task_extra, langchain_mcp_bridge
+from apps.utils.mcp_tools.tools import TOOL_PROMPTS
 
 
 @dataclass

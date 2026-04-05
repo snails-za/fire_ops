@@ -6,7 +6,6 @@ from fastapi import APIRouter, UploadFile, File, Depends
 from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
-from datetime import datetime
 from apps.dependencies.auth import get_current_user
 from apps.form.device.device import DeviceOut, DeviceIn, DeviceUpdate
 from apps.models.device import Device
@@ -187,7 +186,7 @@ async def update_device(device_id: int, device: DeviceUpdate, user: User = Depen
                 user=None,
                 username="系统",
                 user_role="system",
-                content=f"设备状态已恢复为正常，事件已关闭",
+                content="设备状态已恢复为正常，事件已关闭",
                 message_type="system"
             )
     

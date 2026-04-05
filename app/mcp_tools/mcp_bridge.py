@@ -56,6 +56,21 @@ def tools_to_openai(tools: List[MCPTool]) -> List[Dict[str, Any]]:
     return out
 
 
+# 工具列表在进程内不变，避免每条问答重复 list_tools + 转 OpenAI schema
+_openai_tools_cache: Dict[int, tuple[List[Dict[str, Any]], List[str]]] = {}
+
+
+async def openai_tools_bundle(app: FastMCP) -> tuple[List[Dict[str, Any]], List[str]]:
+    aid = id(app)
+    hit = _openai_tools_cache.get(aid)
+    if hit is not None:
+        return hit
+    listed = await app.list_tools()
+    bundle = (tools_to_openai(listed), sorted(t.name for t in listed))
+    _openai_tools_cache[aid] = bundle
+    return bundle
+
+
 def _tool_result_to_str(result: Any) -> str:
     if result is None:
         return ""
@@ -87,11 +102,15 @@ async def run_tool(
     except ToolError as e:
         err = str(e)
         if err.startswith("Unknown tool:"):
-            try:
-                listed = await app.list_tools()
-                err = f"{err}。已注册: {', '.join(sorted(t.name for t in listed))}"
-            except Exception:
-                pass
+            hit = _openai_tools_cache.get(id(app))
+            if hit:
+                err = f"{err}。已注册: {', '.join(hit[1])}"
+            else:
+                try:
+                    listed = await app.list_tools()
+                    err = f"{err}。已注册: {', '.join(sorted(t.name for t in listed))}"
+                except Exception:
+                    pass
         return err
     except Exception:
         traceback.print_exc()

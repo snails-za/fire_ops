@@ -11,7 +11,6 @@ from apps.models.event import Event
 from apps.models.user import User
 from apps.utils.device_helper import format_device_context, get_all_devices_by_permission
 from apps.utils.vector_db_selector import vector_search
-from config import SIMILARITY_THRESHOLD
 
 MAX_TOOL_CHARS = 12000
 

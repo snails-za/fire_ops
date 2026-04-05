@@ -24,3 +24,5 @@ def collect_tool_prompts() -> str:
         if isinstance(frag, str) and frag.strip():
             parts.append("\n\n" + frag.strip())
     return "".join(parts)
+
+TOOL_PROMPTS = collect_tool_prompts()

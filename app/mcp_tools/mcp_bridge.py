@@ -17,7 +17,8 @@ plugin_mcp = FastMCP("fire-ops-chat-tools")
 
 SOURCES_EXTRA_KEY = "_react_sources"
 _task_extras: Dict[int, Dict[str, Any]] = {}
-
+# 工具列表在进程内不变，避免每条问答重复 list_tools + 转 OpenAI schema
+_openai_tools_cache: Dict[int, tuple[List[Dict[str, Any]], List[str]]] = {}
 
 def chat_extra_set(initial: Dict[str, Any]) -> int:
     task = asyncio.current_task()
@@ -54,10 +55,6 @@ def tools_to_openai(tools: List[MCPTool]) -> List[Dict[str, Any]]:
             }
         )
     return out
-
-
-# 工具列表在进程内不变，避免每条问答重复 list_tools + 转 OpenAI schema
-_openai_tools_cache: Dict[int, tuple[List[Dict[str, Any]], List[str]]] = {}
 
 
 async def openai_tools_bundle(app: FastMCP) -> tuple[List[Dict[str, Any]], List[str]]:

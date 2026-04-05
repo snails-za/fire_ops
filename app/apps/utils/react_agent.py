@@ -43,6 +43,11 @@ SYSTEM_PROMPT = """你是数据分析助手，必须用 ReAct：思考 →（如
   <final_answer>给用户的完整中文回答；特殊字符请用 &amp; &lt; &gt;</final_answer>
 </step>
 
+【对用户可见内容】仅指 <final_answer> 及其中的文字（业务用户会看到）：
+- 不要写出真实数据库表名、视图名、字段/列名、索引名、约束名等技术标识（含英文蛇形命名、information_schema 等）；用业务语义概括，例如「近一周告警数量」「某类设备台账」。
+- 不要逐字复述 SQL、工具返回里的表头行；结论用自然语言与数字/日期即可。
+- <thought>、<action>、<action_input> 及 SQL 仍须使用真实库表与列名以便工具执行，但勿在 <final_answer> 中原样粘贴。
+
 【工具调用】使用 <action> 与 <action_input>（单行 JSON）。能力说明见下文「工具说明」；名称必须与「当前已注册工具名」列表一致。
 
 【安全（必须遵守）】

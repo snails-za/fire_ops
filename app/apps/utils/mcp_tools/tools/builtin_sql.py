@@ -20,6 +20,7 @@ class SqlToolsModule:
 【数据库查询】涉及库表与指标时：
 - 先调用 get_database_schema 了解 public 表结构，再按需 execute_sql。
 - 只读：单条 SELECT/WITH，禁止多语句与 DML；勿使用 SELECT *。
+- 向用户作最终说明时勿暴露上述真实表名、列名；用业务用语总结查询结果即可。
 """
 
     def __init__(self, cfg: Optional[SqlToolConfig] = None) -> None:

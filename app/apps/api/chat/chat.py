@@ -1,7 +1,6 @@
 """智能问答 API（流式问答 + 搜索/分析/配置）。"""
 
 import traceback
-from pathlib import Path
 
 from fastapi import APIRouter, Query, Form, Depends
 from fastapi.responses import StreamingResponse
@@ -13,23 +12,14 @@ from apps.utils.react_agent import ReactAgent, ReactAgentConfig
 from apps.utils.react_sse import iter_sse_from_agent_streaming, sse_data_line
 from apps.dependencies.auth import get_current_user
 from apps.models.user import User
-from config import (
-    DATABASE_URL,
-    OPENAI_API_KEY,
-    OPENAI_BASE_URL,
-    REACT_PLUGINS_DIR,
-    SIMILARITY_THRESHOLD,
-)
+import mcp_tools.tools  # noqa: F401
+from mcp_tools.mcp_bridge import plugin_mcp
+from config import OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD
 
 router = APIRouter(prefix="/chat", tags=["智能问答"])
 
 
-def _plugin_dirs() -> list:
-    p = Path(REACT_PLUGINS_DIR)
-    return [p] if p.is_dir() else []
-
-
-@router.post("/ask/stream", summary="流式智能问答", description="XML ReAct + 数据库 schema/SQL（仅流式）",
+@router.post("/ask/stream", summary="流式智能问答", description="流式问答",
              dependencies=[Depends(get_current_user)])
 async def ask_question_stream(
         question: str = Form(..., description="用户问题 / 任务"),
@@ -40,10 +30,8 @@ async def ask_question_stream(
             agent = ReactAgent(
                 openai_api_key=OPENAI_API_KEY,
                 openai_base_url=OPENAI_BASE_URL or "https://api.openai.com/v1/",
-                database_url=DATABASE_URL,
+                tool_mcp=plugin_mcp,
                 config=ReactAgentConfig(),
-                extra_tools=None,
-                plugin_dirs=_plugin_dirs(),
             )
             tool_context = {"user_id": user.id, "role": getattr(user, "role", None)}
             async for line in iter_sse_from_agent_streaming(

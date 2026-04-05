@@ -1,34 +1,25 @@
 # -*- coding: utf-8 -*-
-"""
-ReAct 向量检索插件：用于把非结构化文档证据纳入 ReAct 推理链路。
-
-工具会把本轮检索命中的来源写入 sql_ctx.extra，共享给 Agent 的 meta["sources"]。
-"""
-from __future__ import annotations
-
 from typing import Any, Dict, List
 
-from apps.utils.react_agent import PLUGIN_STATE_META_SOURCES_EXTRA_KEY
-from apps.utils.vector_db_selector import vector_search
+from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
-_SOURCES_EXTRA_BUCKET = "_react_sources"
+from apps.utils.vector_db_selector import vector_search
+from mcp_tools.mcp_bridge import SOURCES_EXTRA_KEY, chat_extra
+
 _MAX_TOP_K = 8
 _MAX_SNIPPET = 1200
 
-REACT_PLUGIN_STATE = {
-    PLUGIN_STATE_META_SOURCES_EXTRA_KEY: _SOURCES_EXTRA_BUCKET,
-}
-
-REACT_SYSTEM_PROMPT_APPEND = """
+TOOL_PROMPT_APPEND = """
 【文档语义检索（高优先级）】
 当问题涉及制度说明、操作步骤、原因解释、总结建议等非结构化知识时，优先调用：
 - search_uploaded_documents
 
 调用规范：
-1. action_input 使用 JSON：{"query":"检索语句","top_k":5}
+1. 使用工具参数：{"query":"检索语句","top_k":5}
 2. top_k 建议 3~6；上限 8。
 3. 若首轮无结果，可换关键词再检索一次；不要编造不存在的文档内容。
-4. 最终回答应基于 Observation 的文档片段给出结论。
+4. 最终回答应基于工具返回的文档片段给出结论。
 """
 
 
@@ -54,7 +45,9 @@ def _build_sources(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "original_filename": document.original_filename,
                 "file_type": document.file_type,
                 "chunk_text": chunk_text,
-                "content_preview": (chunk_text[:200] + "...") if len(chunk_text) > 200 else chunk_text,
+                "content_preview": (chunk_text[:200] + "...")
+                if len(chunk_text) > 200
+                else chunk_text,
                 "similarity": round(float(item.get("similarity", 0.0)), 4),
                 "document_id": document.id,
                 "chunk_id": chunk.id,
@@ -66,27 +59,23 @@ def _build_sources(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
-async def search_uploaded_documents(**kw: Any) -> str:
-    ctx = kw.get("_tool_context")
-    if ctx is None:
-        return "错误：缺少工具上下文。"
+async def _search_impl(query: str, top_k: int) -> str:
+    q = (query or "").strip()
+    if not q:
+        return "缺少 query：请提供工具参数 {\"query\":\"检索语句\"}。"
 
-    query = (kw.get("query") or kw.get("q") or "").strip()
-    if not query:
-        return "缺少 query：请在 action_input 中提供 {\"query\":\"检索语句\"}。"
-
-    top_k = _normalize_top_k(kw.get("top_k", 5))
     results = await vector_search.search_similar_documents(
-        query=query,
+        query=q,
         top_k=top_k,
         use_threshold=True,
     )
+    extra = chat_extra()
     if not results:
-        ctx.extra[_SOURCES_EXTRA_BUCKET] = []
+        extra[SOURCES_EXTRA_KEY] = []
         return "未检索到相关文档片段（可能未上传相关文档或相似度不足）。"
 
     sources = _build_sources(results)
-    ctx.extra[_SOURCES_EXTRA_BUCKET] = sources
+    extra[SOURCES_EXTRA_KEY] = sources
 
     lines: List[str] = []
     for i, s in enumerate(sources, 1):
@@ -104,6 +93,8 @@ async def search_uploaded_documents(**kw: Any) -> str:
     return joined
 
 
-REACT_TOOLS = {
-    "search_uploaded_documents": search_uploaded_documents,
-}
+def register_vector_tools(app: FastMCP) -> None:
+    @app.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
+    async def search_uploaded_documents(query: str, top_k: int = 5) -> str:
+        """在已上传知识库文档中做语义检索，获取与问题相关的片段。"""
+        return await _search_impl(query, _normalize_top_k(top_k))

@@ -17,9 +17,7 @@ fire_ops/
 └─ docker/     # 容器化相关文件
 ```
 
-后端代码与文档主要在 `app/`，如需查看插件机制请看：
-
-- `app/react_plugins/README.md`
+后端代码与文档主要在 `app/`。
 
 ---
 
@@ -28,7 +26,7 @@ fire_ops/
 - **业务管理**：设备、事件、公告、用户与权限
 - **文档知识库**：上传后分块入库并写入向量库
 - **智能问答（流式）**：
-  - ReAct 循环（XML step）
+  - ReAct 循环（function calling）
   - SQL 工具（库结构查看、只读查询）
   - 可插拔工具（如向量检索、文档下载来源注册）
 - **统一来源输出**：问答结束输出 `meta["sources"]`，便于 Web/移动端展示证据和下载入口
@@ -84,7 +82,7 @@ export QDRANT_HOST=localhost
 export QDRANT_PORT=16333
 export QDRANT_COLLECTION_NAME=documents
 
-export REACT_PLUGINS_DIR=$(pwd)/react_plugins
+# 工具在 import mcp_tools.tools 时注册；问答需配置 DATABASE_URL（SQL 插件懒加载连接池）
 ```
 
 ### 4.3 初始化/迁移数据库
@@ -157,17 +155,14 @@ SSE 事件类型（`data` 的 `type`）：
 - `get_database_schema`
 - `execute_sql`（只读校验）
 
-插件工具（按 `REACT_PLUGINS_DIR` 动态加载）：
+插件工具（`import mcp_tools.tools` 注册到 `plugin_mcp`）：
 
 - 例如 `search_uploaded_documents`（向量检索）
 - 例如 `register_chat_document_sources`（注册下载来源）
 
-来源聚合约定：
+来源聚合：文档/下载类工具写入 `chat_extra()[SOURCES_EXTRA_KEY]`（`mcp_tools.mcp_bridge`），Agent 同步到 `meta["sources"]`。
 
-- 插件通过 `REACT_PLUGIN_STATE` 声明 `meta_sources_extra_key`
-- Agent 从 `sql_ctx.extra[该key]` 读取列表并写入 `meta["sources"]`
-
-详细见 `app/react_plugins/README.md`。
+数据库访问（连接池、SQL 方言、换库）集中在 `mcp_tools` 插件内实现；`react_agent` 只负责 LLM 与工具调用协议，换数据库或复用到其他项目时核心推理逻辑可保持不变。
 
 ---
 
@@ -195,14 +190,14 @@ SSE 事件类型（`data` 的 `type`）：
 - Redis 与 PostgreSQL 独立部署并启用监控
 - 向量库（Qdrant/Chroma）持久化卷独立管理
 - 将 `OPENAI_API_KEY`、数据库密码等放入密钥管理系统
-- 为 `REACT_PLUGINS_DIR` 建立变更审核（插件即执行代码）
+- 为 `mcp_tools/tools/` 变更建立审核（插件即执行代码）
 
 ---
 
 ## 8. 常见问题
 
 - **问：SSE 没有返回 `sources`？**  
-  先确认插件目录生效、插件是否写入 `sql_ctx.extra` 指定桶、模型是否实际调用了对应工具。
+  确认插件是否写入 `chat_extra()[SOURCES_EXTRA_KEY]`，以及模型是否调用了对应工具。
 
 - **问：向量检索效果不稳定？**  
   调整 `SIMILARITY_THRESHOLD`、分块策略（`CHUNK_SIZE/CHUNK_OVERLAP`）、以及检索 `top_k`。
@@ -218,5 +213,6 @@ SSE 事件类型（`data` 的 `type`）：
 - 全局配置：`app/config.py`
 - ReAct 核心：`app/apps/utils/react_agent.py`
 - SSE 转换：`app/apps/utils/react_sse.py`
-- 插件目录：`app/react_plugins/`
+- MCP 与 LangChain 衔接：`app/mcp_tools/mcp_bridge.py`；SQL 插件：`app/mcp_tools/sql_plugin.py`
+- 工具实现：`app/mcp_tools/tools/`（`tools/__init__.py` 注册到 `plugin_mcp`）
 

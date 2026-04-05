@@ -13,7 +13,7 @@ from apps.utils.react_sse import iter_sse_from_agent_streaming, sse_data_line
 from apps.dependencies.auth import get_current_user
 from apps.models.user import User
 import mcp_tools.tools  # noqa: F401
-from mcp_tools.mcp_bridge import plugin_mcp
+from mcp_tools.mcp_bridge import mcp_chat_host
 from config import OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD
 
 router = APIRouter(prefix="/chat", tags=["智能问答"])
@@ -30,7 +30,7 @@ async def ask_question_stream(
             agent = ReactAgent(
                 openai_api_key=OPENAI_API_KEY,
                 openai_base_url=OPENAI_BASE_URL or "https://api.openai.com/v1/",
-                tool_mcp=plugin_mcp,
+                mcp_server_app=mcp_chat_host.app,
                 config=ReactAgentConfig(),
             )
             tool_context = {"user_id": user.id, "role": getattr(user, "role", None)}

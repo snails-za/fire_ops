@@ -9,12 +9,9 @@ from langchain_openai import ChatOpenAI
 from mcp.server.fastmcp import FastMCP
 
 from mcp_tools.mcp_bridge import (
+    chat_task_extra,
+    langchain_mcp_bridge,
     SOURCES_EXTRA_KEY,
-    chat_extra,
-    chat_extra_reset,
-    chat_extra_set,
-    openai_tools_bundle,
-    run_tool,
 )
 from mcp_tools.tools import TOOL_PROMPTS
 
@@ -49,7 +46,7 @@ def _chunk_text_for_sse(text: str, size: int = 160) -> List[str]:
 class ReactAgent:
     openai_api_key: str
     openai_base_url: str
-    tool_mcp: FastMCP
+    mcp_server_app: FastMCP
     config: ReactAgentConfig = field(default_factory=ReactAgentConfig)
 
     def _tool_names_line(self, names: List[str]) -> str:
@@ -68,9 +65,11 @@ class ReactAgent:
             }
             return
 
-        tok = chat_extra_set(dict(tool_context or {}))
+        tid = chat_task_extra.set(dict(tool_context or {}))
         try:
-            openai_tools, names_sorted = await openai_tools_bundle(self.tool_mcp)
+            openai_tools, names_sorted = await langchain_mcp_bridge.openai_tools_bundle(
+                self.mcp_server_app
+            )
 
             llm = ChatOpenAI(
                 api_key=self.openai_api_key,
@@ -101,7 +100,7 @@ class ReactAgent:
 
             def _sync_sources() -> None:
                 nonlocal last_react_doc_sources
-                bucket = chat_extra().get(SOURCES_EXTRA_KEY)
+                bucket = chat_task_extra.current().get(SOURCES_EXTRA_KEY)
                 if isinstance(bucket, list) and bucket:
                     last_react_doc_sources = list(bucket)
 
@@ -143,7 +142,9 @@ class ReactAgent:
                     if name.lower().replace(" ", "_") == "get_database_schema" and not payload:
                         payload = {}
                     yield {"event": "tool_start", "name": name or None}
-                    observation = await run_tool(self.tool_mcp, name, payload)
+                    observation = await langchain_mcp_bridge.run_tool(
+                        self.mcp_server_app, name, payload
+                    )
                     trace[-1].setdefault("observations", []).append(
                         {name: (observation[:800] if observation else "")}
                     )
@@ -181,4 +182,4 @@ class ReactAgent:
             yield {"event": "error", "message": str(e)}
             yield {"event": "done", "meta": {"error": str(e), "agent_used": False}}
         finally:
-            chat_extra_reset(tok)
+            chat_task_extra.reset(tid)

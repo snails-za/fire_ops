@@ -8,49 +8,62 @@ from typing import Any, List, Optional
 
 import asyncpg
 
-_pool: Optional[asyncpg.Pool] = None
-_pool_lock = asyncio.Lock()
-
 REDACT_PLACEHOLDER = "[已隐藏·敏感字段]"
 
 
-def normalize_pg_dsn(url: str) -> str:
-    if url.startswith("postgres://"):
-        return "postgresql://" + url[len("postgres://"):]
-    return url
+class SqlConnectionPlugin:
+    """全进程一个 asyncpg 连接池；每次 SQL 只从池里 borrow，不会重复 create_pool。"""
 
+    def __init__(self) -> None:
+        self._pool: Optional[asyncpg.Pool] = None
+        self._pool_lock = asyncio.Lock()
 
-def _resolve_database_url() -> str:
-    url = (os.environ.get("DATABASE_URL") or "").strip()
-    if url:
+    @staticmethod
+    def normalize_pg_dsn(url: str) -> str:
+        if url.startswith("postgres://"):
+            return "postgresql://" + url[len("postgres://") :]
         return url
-    try:
-        from config import DATABASE_URL as cfg_dsn
 
-        return (cfg_dsn or "").strip()
-    except ImportError:
-        return ""
+    @staticmethod
+    def _resolve_database_url() -> str:
+        url = (os.environ.get("DATABASE_URL") or "").strip()
+        if url:
+            return url
+        try:
+            from config import DATABASE_URL as cfg_dsn
+
+            return (cfg_dsn or "").strip()
+        except ImportError:
+            return ""
+
+    async def get_pool(self) -> asyncpg.Pool:
+        if self._pool is not None:
+            return self._pool
+        async with self._pool_lock:
+            if self._pool is None:
+                url = self._resolve_database_url()
+                if not url:
+                    raise RuntimeError(
+                        "缺少数据库连接：请设置环境变量 DATABASE_URL，或在 .env 中配置 POSTGRES_*（见 config.py）。"
+                    )
+                self._pool = await asyncpg.create_pool(
+                    dsn=self.normalize_pg_dsn(url),
+                    min_size=1,
+                    max_size=3,
+                    statement_cache_size=0,
+                )
+            return self._pool
+
+
+sql_connection = SqlConnectionPlugin()
 
 
 async def get_sql_pool() -> asyncpg.Pool:
-    """全进程一个 asyncpg 连接池；每次 SQL 只从池里 borrow 连接，不会重复 create_pool。"""
-    global _pool
-    if _pool is not None:
-        return _pool
-    async with _pool_lock:
-        if _pool is None:
-            url = _resolve_database_url()
-            if not url:
-                raise RuntimeError(
-                    "缺少数据库连接：请设置环境变量 DATABASE_URL，或在 .env 中配置 POSTGRES_*（见 config.py）。"
-                )
-            _pool = await asyncpg.create_pool(
-                dsn=normalize_pg_dsn(url),
-                min_size=1,
-                max_size=3,
-                statement_cache_size=0,
-            )
-        return _pool
+    return await sql_connection.get_pool()
+
+
+def normalize_pg_dsn(url: str) -> str:
+    return SqlConnectionPlugin.normalize_pg_dsn(url)
 
 
 @dataclass

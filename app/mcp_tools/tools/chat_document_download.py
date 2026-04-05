@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from mcp.server.fastmcp import FastMCP
 
 from mcp_tools.mcp_bridge import ChatTaskExtra, chat_task_extra
-from mcp_tools.sql_plugin import get_sql_pool
+from mcp_tools.pg_utils import get_sql_pool
 
 MAX_DOCUMENT_IDS = 10
 

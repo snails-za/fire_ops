@@ -48,7 +48,7 @@ async def iter_sse_from_agent_streaming(
         elif et == "done":
             meta = ev.get("meta") or {}
             search_info = {
-                "pattern": meta.get("pattern", "react_mcp_tools"),
+                "pattern": meta.get("pattern", "react_xml_sql"),
                 "react_steps": meta.get("react_steps"),
             }
             yield sse_data_line(

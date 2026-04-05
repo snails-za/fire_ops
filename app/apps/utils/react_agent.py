@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
-"""ReAct：LangChain tool_calls；工具来自传入的 FastMCP 实例。"""
+"""XML ReAct + FastMCP 工具执行（`langchain_mcp_bridge.run_tool`）。
+
+XML 拼装与解析见 `xml_react.XmlReactSession`。
+"""
+
+from __future__ import annotations
+
 import traceback
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from mcp.server.fastmcp import FastMCP
 
-from mcp_tools.mcp_bridge import (
-    chat_task_extra,
-    langchain_mcp_bridge,
-    SOURCES_EXTRA_KEY,
-)
+from apps.utils.xml_react import XmlReactSession
+from mcp_tools.mcp_bridge import SOURCES_EXTRA_KEY, chat_task_extra, langchain_mcp_bridge
 from mcp_tools.tools import TOOL_PROMPTS
 
 
@@ -24,22 +26,36 @@ class ReactAgentConfig:
     max_tokens: int = 2500
 
 
-SYSTEM_PROMPT = """你是数据分析与运维助手。在需要事实数据时调用工具（function calling），根据工具返回结果推理；信息足够后直接用自然语言回复用户，勿再调用工具。
+SYSTEM_PROMPT = """你是数据分析助手，必须用 ReAct：思考 →（如需）行动 → 观察 → 再思考，直到能回答用户。
 
-【流程建议】
-- 工具返回即「观察结果」，不得臆造；若工具报错应如实说明并调整策略。
+【XML 输出规则】每一轮只输出一个根元素 <step>，根外不要任何文字、不要用 markdown 代码块。
+
+结构一（需要工具）：
+<step>
+  <thought>中文推理：为什么要调用工具、期望得到什么</thought>
+  <action>工具名称（须与下列注册名完全一致）</action>
+  <action_input>单行 JSON，作为工具参数对象</action_input>
+</step>
+
+结构二（可以作答）：
+<step>
+  <thought>中文：如何根据已有 Observation 得出结论</thought>
+  <final_answer>给用户的完整中文回答；特殊字符请用 &amp; &lt; &gt;</final_answer>
+</step>
+
+【工具调用】使用 <action> 与 <action_input>（单行 JSON）。能力说明见下文「工具说明」；名称必须与「当前已注册工具名」列表一致。
 
 【安全（必须遵守）】
-- 不得帮用户查询或推断密码、口令、token、密钥、盐值等凭据；用户索要密码时须明确拒绝并说明原因。
+- 不得帮用户查询或推断密码、口令、token、密钥、盐值等凭据；用户索要密码时须在 final_answer 中明确拒绝并说明原因。
 - 不要尝试查询含 password 等敏感列；系统会拦截，你应尊重拦截结果。
 
-【输出】最终回答使用简洁、准确的中文；勿输出 XML 或虚构的工具返回。"""
+【禁止】
+- 不要自己编造 <observation>，系统会在你输出后追加。
+- 不要臆造查询结果；以 Observation 为准。"""
 
 
-def _chunk_text_for_sse(text: str, size: int = 160) -> List[str]:
-    if not text:
-        return []
-    return [text[i : i + size] for i in range(0, len(text), size)]
+def _tool_names_line(names_sorted: List[str]) -> str:
+    return f"当前已注册工具名: {', '.join(names_sorted)}"
 
 
 @dataclass
@@ -49,13 +65,10 @@ class ReactAgent:
     mcp_server_app: FastMCP
     config: ReactAgentConfig = field(default_factory=ReactAgentConfig)
 
-    def _tool_names_line(self, names: List[str]) -> str:
-        return f"当前已注册工具名: {', '.join(names)}"
-
     async def run_streaming(
-            self,
-            task: str,
-            tool_context: Optional[Dict[str, Any]] = None,
+        self,
+        task: str,
+        tool_context: Optional[Dict[str, Any]] = None,
     ) -> AsyncIterator[Dict[str, Any]]:
         if not (self.openai_api_key or "").strip():
             yield {"event": "error", "message": "LLM 未配置 OPENAI_API_KEY"}
@@ -65,35 +78,29 @@ class ReactAgent:
             }
             return
 
-        tid = chat_task_extra.set(dict(tool_context or {}))
+        extra_token = chat_task_extra.set(dict(tool_context or {}))
         try:
-            openai_tools, names_sorted = await langchain_mcp_bridge.openai_tools_bundle(
-                self.mcp_server_app
-            )
+            _, names_sorted = await langchain_mcp_bridge.openai_tools_bundle(self.mcp_server_app)
 
             llm = ChatOpenAI(
                 api_key=self.openai_api_key,
-                model=self.config.model,
                 base_url=self.openai_base_url,
+                model=self.config.model,
                 temperature=self.config.temperature,
                 max_tokens=self.config.max_tokens,
             )
-            llm_tools = llm.bind_tools(openai_tools, tool_choice="auto")
             system_prompt = (
                 SYSTEM_PROMPT
                 + TOOL_PROMPTS
                 + "\n\n"
-                + self._tool_names_line(names_sorted)
+                + _tool_names_line(names_sorted)
             )
 
-            messages: List[BaseMessage] = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=task.strip()),
-            ]
+            history_xml = ""
             trace: List[Dict[str, Any]] = []
             meta_finish: Dict[str, Any] = {
                 "agent_used": True,
-                "pattern": "react_mcp_tools",
+                "pattern": "react_xml_sql",
                 "react_trace": trace,
             }
             last_react_doc_sources: List[Dict[str, Any]] = []
@@ -105,74 +112,94 @@ class ReactAgent:
                     last_react_doc_sources = list(bucket)
 
             for step in range(self.config.max_iterations):
-                yield {"event": "turn_start", "step": step + 1}
-                ai_msg = await llm_tools.ainvoke(messages)
-                if not isinstance(ai_msg, AIMessage):
-                    ai_msg = AIMessage(content=str(ai_msg))
-
-                messages.append(ai_msg)
-                assistant_text = (ai_msg.content if isinstance(ai_msg.content, str) else "").strip()
-                tcs = list(ai_msg.tool_calls or [])
-                trace.append(
-                    {
-                        "step": step + 1,
-                        "assistant": assistant_text,
-                        "tool_calls": tcs,
-                    }
+                inst = (
+                    "根据 <task> 与 <history> 输出下一轮：仅一个 <step>。"
+                    "若需外部信息，按系统提示中的工具说明与「当前已注册工具名」选择调用；"
+                    "信息足够则输出 final_answer。"
                 )
+                human = XmlReactSession.build_human_xml(task, history_xml, inst)
+                raw = ""
+                yield {"event": "turn_start", "step": step + 1}
+                async for ev in XmlReactSession.stream_llm_turn(llm, system_prompt, human):
+                    if ev.get("event") == "llm_turn_done":
+                        raw = ev.get("raw") or ""
+                    else:
+                        yield ev
 
-                if assistant_text:
-                    ev = "thought_delta" if tcs else "final_answer_delta"
-                    for piece in _chunk_text_for_sse(assistant_text):
-                        yield {"event": ev, "text": piece}
+                trace.append({"step": step + 1, "raw": raw})
+                inner = XmlReactSession.step_inner(raw)
+                trace[-1]["step_inner"] = inner
 
-                if not tcs:
-                    final = assistant_text or "抱歉，未能生成有效回答。"
+                final = XmlReactSession.parse_final_answer(inner)
+                if final is not None:
                     meta_finish["final_answer"] = final
                     meta_finish["react_steps"] = len(trace)
                     meta_finish["sources"] = last_react_doc_sources
                     yield {"event": "done", "meta": meta_finish}
                     return
 
-                for tc in tcs:
-                    name = (tc.get("name") or "").strip()
-                    tid = tc.get("id") or ""
-                    args = tc.get("args")
-                    payload: Dict[str, Any] = args if isinstance(args, dict) else {}
-                    if name.lower().replace(" ", "_") == "get_database_schema" and not payload:
-                        payload = {}
-                    yield {"event": "tool_start", "name": name or None}
-                    observation = await langchain_mcp_bridge.run_tool(
-                        self.mcp_server_app, name, payload
-                    )
-                    trace[-1].setdefault("observations", []).append(
-                        {name: (observation[:800] if observation else "")}
-                    )
-                    messages.append(ToolMessage(content=observation, tool_call_id=tid))
-                    _sync_sources()
+                action, payload = XmlReactSession.parse_action(inner)
+                if not action:
+                    obs = "解析失败：需要 <action> 与 <action_input>（单行 JSON），或 <final_answer>。"
+                    history_xml = XmlReactSession.append_history(history_xml, step + 1, raw, obs)
+                    trace[-1]["observation"] = obs
                     yield {
                         "event": "tool_end",
-                        "name": name or None,
-                        "ok": True,
-                        "preview": (observation or "")[:300],
+                        "name": None,
+                        "ok": False,
+                        "preview": obs[:200],
                     }
+                    continue
 
-            yield {"event": "turn_start", "step": "final"}
-            messages.append(
-                HumanMessage(
-                    content="（系统提示）推理步数已达上限，请仅根据当前对话中的工具结果，"
-                    "用中文直接给出最终结论，不要再调用任何工具。"
+                if payload is None:
+                    obs = "解析失败：<action_input> 须为合法 JSON。"
+                    history_xml = XmlReactSession.append_history(history_xml, step + 1, raw, obs)
+                    trace[-1]["observation"] = obs
+                    yield {
+                        "event": "tool_end",
+                        "name": action,
+                        "ok": False,
+                        "preview": obs[:200],
+                    }
+                    continue
+
+                trace[-1]["action"] = action
+                trace[-1]["action_input"] = payload
+                yield {"event": "tool_start", "name": action}
+                observation = await langchain_mcp_bridge.run_tool(
+                    self.mcp_server_app, action, payload
                 )
+                trace[-1]["observation"] = observation[:800]
+                history_xml = XmlReactSession.append_history(
+                    history_xml, step + 1, raw, observation
+                )
+                _sync_sources()
+                yield {
+                    "event": "tool_end",
+                    "name": action,
+                    "ok": True,
+                    "preview": observation[:300],
+                }
+
+            inst = (
+                "步数已达上限，请只输出 <step><thought>...</thought><final_answer>...</final_answer></step>，"
+                "不要调用工具。"
             )
-            final_ai = await llm.ainvoke(messages)
-            fc = getattr(final_ai, "content", final_ai)
-            final_text = (fc if isinstance(fc, str) else "").strip()
-            if not final_text:
-                final_text = "抱歉，推理步数已用尽，请缩小问题范围后重试。"
-            for piece in _chunk_text_for_sse(final_text):
-                yield {"event": "final_answer_delta", "text": piece}
-            trace.append({"step": "final", "assistant": final_text, "tool_calls": []})
-            meta_finish["final_answer"] = final_text
+            human = XmlReactSession.build_human_xml(task, history_xml, inst)
+            raw = ""
+            yield {"event": "turn_start", "step": "final"}
+            async for ev in XmlReactSession.stream_llm_turn(llm, system_prompt, human):
+                if ev.get("event") == "llm_turn_done":
+                    raw = ev.get("raw") or ""
+                else:
+                    yield ev
+            trace.append({"step": "final", "raw": raw})
+            inner = XmlReactSession.step_inner(raw)
+            final = (
+                XmlReactSession.parse_final_answer(inner)
+                or "抱歉，推理步数已用尽，请缩小问题范围后重试。"
+            )
+            meta_finish["final_answer"] = final
             meta_finish["react_steps"] = len(trace)
             meta_finish["sources"] = last_react_doc_sources
             yield {"event": "done", "meta": meta_finish}
@@ -182,4 +209,17 @@ class ReactAgent:
             yield {"event": "error", "message": str(e)}
             yield {"event": "done", "meta": {"error": str(e), "agent_used": False}}
         finally:
-            chat_task_extra.reset(tid)
+            chat_task_extra.reset(extra_token)
+
+    async def run(
+        self,
+        task: str,
+        tool_context: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[Optional[str], Dict[str, Any]]:
+        last_meta: Dict[str, Any] = {}
+        last_answer: Optional[str] = None
+        async for ev in self.run_streaming(task, tool_context):
+            if ev.get("event") == "done":
+                last_meta = ev.get("meta") or {}
+                last_answer = last_meta.get("final_answer")
+        return last_answer, last_meta

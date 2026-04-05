@@ -33,7 +33,10 @@ def _resolve_database_url() -> str:
 
 
 async def get_sql_pool() -> asyncpg.Pool:
+    """全进程一个 asyncpg 连接池；每次 SQL 只从池里 borrow 连接，不会重复 create_pool。"""
     global _pool
+    if _pool is not None:
+        return _pool
     async with _pool_lock:
         if _pool is None:
             url = _resolve_database_url()

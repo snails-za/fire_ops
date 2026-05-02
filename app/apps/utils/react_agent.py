@@ -81,6 +81,7 @@ class ReactAgent:
         self,
         task: str,
         tool_context: Optional[Dict[str, Any]] = None,
+        conversation_history: str = "",
     ) -> AsyncIterator[Dict[str, Any]]:
         if not (self.openai_api_key or "").strip():
             yield {"event": "error", "message": "LLM 未配置 OPENAI_API_KEY"}
@@ -108,7 +109,7 @@ class ReactAgent:
                 + _tool_names_line(names_sorted)
             )
 
-            history_xml = ""
+            history_xml = conversation_history.strip()
             trace: List[Dict[str, Any]] = []
             meta_finish: Dict[str, Any] = {
                 "agent_used": True,
@@ -243,10 +244,11 @@ class ReactAgent:
         self,
         task: str,
         tool_context: Optional[Dict[str, Any]] = None,
+        conversation_history: str = "",
     ) -> Tuple[Optional[str], Dict[str, Any]]:
         last_meta: Dict[str, Any] = {}
         last_answer: Optional[str] = None
-        async for ev in self.run_streaming(task, tool_context):
+        async for ev in self.run_streaming(task, tool_context, conversation_history):
             if ev.get("event") == "done":
                 last_meta = ev.get("meta") or {}
                 last_answer = last_meta.get("final_answer")

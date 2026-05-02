@@ -3,17 +3,29 @@
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator, Dict, Optional
+from datetime import date, datetime
+from typing import Any, Awaitable, Callable, AsyncIterator, Dict, Optional
+
+from fastapi.encoders import jsonable_encoder
 
 
 def sse_data_line(payload: Dict[str, Any]) -> str:
-    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+    encoded = jsonable_encoder(
+        payload,
+        custom_encoder={
+            datetime: lambda dt: dt.strftime("%Y-%m-%d %H:%M:%S"),
+            date: lambda d: d.strftime("%Y-%m-%d"),
+        },
+    )
+    return f"data: {json.dumps(encoded, ensure_ascii=False)}\n\n"
 
 
 async def iter_sse_from_agent_streaming(
     agent: Any,
     task: str,
     tool_context: Optional[Dict[str, Any]] = None,
+    conversation_history: str = "",
+    on_done: Optional[Callable[[Dict[str, Any]], Awaitable[None]]] = None,
 ) -> AsyncIterator[str]:
     """
     将 ReactAgent.run_streaming() 的事件转为 SSE 行：
@@ -21,7 +33,7 @@ async def iter_sse_from_agent_streaming(
     """
     thought_buf = ""
     content_buf = ""
-    async for ev in agent.run_streaming(task, tool_context):
+    async for ev in agent.run_streaming(task, tool_context, conversation_history):
         et = ev.get("event")
         if et == "turn_start":
             thought_buf = ""
@@ -47,6 +59,8 @@ async def iter_sse_from_agent_streaming(
             yield sse_data_line({"type": "error", "message": ev.get("message") or "错误"})
         elif et == "done":
             meta = ev.get("meta") or {}
+            if on_done:
+                await on_done(meta)
             search_info = {
                 "pattern": meta.get("pattern", "react_xml_sql"),
                 "react_steps": meta.get("react_steps"),
@@ -66,4 +80,3 @@ async def iter_sse_from_agent_streaming(
                     "error": meta.get("error"),
                 }
             )
-

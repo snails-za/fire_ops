@@ -1,8 +1,7 @@
 """智能问答 API（流式问答 + 搜索/分析/配置）。"""
 
 import traceback
-import xml.sax.saxutils as xml_esc
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Query, Form, Depends
 from fastapi.responses import StreamingResponse
@@ -15,87 +14,18 @@ from apps.utils.react_sse import iter_sse_from_agent_streaming, sse_data_line
 from apps.dependencies.auth import get_current_user
 from apps.models.document import ChatMessage, ChatSession
 from apps.models.user import User
+from apps.utils.chat_session import (
+    DEFAULT_SESSION_TITLE,
+    get_or_create_session,
+    load_conversation_history,
+    message_to_dict,
+    save_chat_turn,
+    session_to_dict,
+)
 from apps.utils.mcp_tools.mcp_bridge import mcp_server_app
 from config import OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD
 
 router = APIRouter(prefix="/chat", tags=["智能问答"])
-MAX_HISTORY_MESSAGES = 10
-
-
-def _session_title(question: str) -> str:
-    title = (question or "").strip().replace("\n", " ")
-    return title[:30] or "新的对话"
-
-
-def _escape_xml_text(text: str) -> str:
-    return xml_esc.escape(text or "", entities={'"': "&quot;", "'": "&apos;"})
-
-
-def _format_chat_history(messages: List[ChatMessage]) -> str:
-    lines: List[str] = []
-    for idx, message in enumerate(messages, 1):
-        role = "user" if message.role == "user" else "assistant"
-        content = _escape_xml_text(message.content)
-        lines.append(f'<message index="{idx}" role="{role}">{content}</message>')
-    return "\n".join(lines)
-
-
-async def _get_or_create_session(
-        user: User,
-        question: str,
-        session_id: Optional[int],
-) -> ChatSession:
-    if session_id:
-        session = await ChatSession.get_or_none(id=session_id, user_id=user.id)
-        if not session:
-            raise ValueError("会话不存在或无权访问")
-        return session
-    return await ChatSession.create(user=user, session_name=_session_title(question))
-
-
-async def _load_conversation_history(session: ChatSession) -> str:
-    messages = await ChatMessage.filter(session=session).order_by("-timestamp").limit(MAX_HISTORY_MESSAGES)
-    return _format_chat_history(list(reversed(messages)))
-
-
-def _message_to_dict(message: ChatMessage) -> Dict[str, Any]:
-    return {
-        "id": message.id,
-        "role": message.role,
-        "content": message.content,
-        "metadata": message.metadata,
-        "timestamp": message.timestamp,
-    }
-
-
-def _session_to_dict(session: ChatSession) -> Dict[str, Any]:
-    return {
-        "id": session.id,
-        "session_name": session.session_name,
-        "created_time": session.created_time,
-        "last_active": session.last_active,
-    }
-
-
-async def _save_chat_turn(
-        session: ChatSession,
-        question: str,
-        answer: str,
-        meta: Dict[str, Any],
-) -> None:
-    await ChatMessage.create(session=session, role="user", content=question)
-    await ChatMessage.create(
-        session=session,
-        role="assistant",
-        content=answer,
-        metadata={
-            "sources": meta.get("sources") or [],
-            "react_steps": meta.get("react_steps"),
-            "pattern": meta.get("pattern"),
-            "error": meta.get("error"),
-        },
-    )
-    await session.save()
 
 
 @router.post("/ask/stream", summary="流式智能问答", description="XML ReAct + FastMCP 工具（流式）",
@@ -108,8 +38,8 @@ async def ask_question_stream(
     async def generate_stream():
         try:
             q = question.strip()
-            session = await _get_or_create_session(user, q, session_id)
-            conversation_history = await _load_conversation_history(session)
+            session = await get_or_create_session(user, q, session_id)
+            conversation_history = await load_conversation_history(session)
             agent = ReactAgent(
                 openai_api_key=OPENAI_API_KEY,
                 openai_base_url=OPENAI_BASE_URL or "https://api.openai.com/v1/",
@@ -121,10 +51,14 @@ async def ask_question_stream(
                 "role": getattr(user, "role", None),
                 "session_id": session.id,
             }
-            yield sse_data_line({"type": "session", "session": _session_to_dict(session)})
+            yield sse_data_line({"type": "session", "session": session_to_dict(session)})
 
             async def save_turn(meta: Dict[str, Any]) -> None:
-                await _save_chat_turn(session, q, meta.get("final_answer") or "", meta)
+                try:
+                    await save_chat_turn(session, q, meta.get("final_answer") or "", meta)
+                except Exception as save_error:
+                    print(f"保存聊天记录失败: {save_error}")
+                    traceback.print_exc()
 
             async for line in iter_sse_from_agent_streaming(
                     agent,
@@ -146,11 +80,11 @@ async def ask_question_stream(
 @router.post("/sessions", summary="创建聊天会话", description="创建一个空的聊天会话",
              dependencies=[Depends(get_current_user)])
 async def create_chat_session(
-        session_name: str = Form("新的对话", description="会话名称"),
+        session_name: str = Form(DEFAULT_SESSION_TITLE, description="会话名称"),
         user: User = Depends(get_current_user),
 ):
-    session = await ChatSession.create(user=user, session_name=(session_name or "新的对话")[:100])
-    return response(data=_session_to_dict(session), message="会话创建成功")
+    session = await ChatSession.create(user=user, session_name=(session_name or DEFAULT_SESSION_TITLE)[:100])
+    return response(data=session_to_dict(session), message="会话创建成功")
 
 
 @router.get("/sessions", summary="聊天会话列表", description="获取当前用户的聊天会话列表",
@@ -165,7 +99,7 @@ async def list_chat_sessions(
     sessions = await query.offset((page - 1) * page_size).limit(page_size)
     return response(
         data={
-            "items": [_session_to_dict(session) for session in sessions],
+            "items": [session_to_dict(session) for session in sessions],
             "total": total,
             "page": page,
             "page_size": page_size,
@@ -190,8 +124,8 @@ async def list_chat_messages(
     messages = await query.offset((page - 1) * page_size).limit(page_size)
     return response(
         data={
-            "session": _session_to_dict(session),
-            "items": [_message_to_dict(message) for message in messages],
+            "session": session_to_dict(session),
+            "items": [message_to_dict(message) for message in messages],
             "total": total,
             "page": page,
             "page_size": page_size,

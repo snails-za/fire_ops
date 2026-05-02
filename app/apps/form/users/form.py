@@ -21,7 +21,7 @@ class UserCreate(UserBase):
 
 class UserUpdate(UserBase):
     password: Optional[str] = Field(None, min_length=8, max_length=100, title="密码", description="密码长度在8到20之间，不修改密码时不传此字段")
-    role: Optional[str] = Field(default="user", title="用户角色", description="用户角色: user, admin")
+    role: Optional[str] = Field(default=None, title="用户角色", description="用户角色: user, admin, leader, maintainer")
 
 
 class ProcessApplyRequest(BaseModel):

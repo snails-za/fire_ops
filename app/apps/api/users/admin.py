@@ -77,6 +77,8 @@ async def update_user(user_id: int, user: UserUpdate):
         "pinyin": get_pinyin(user.username),
         "email": user.email,
     }
+    if user.role:
+        update_data["role"] = user.role
 
     # 更新头像（如果提供）
     if user.head:
@@ -210,4 +212,3 @@ async def can_add_contact(id: int, user: User = Depends(get_current_user)):
     if user.id == id:
         return response(data=False, message="不能添加自己")
     return response(data=True, message="可以添加")
-

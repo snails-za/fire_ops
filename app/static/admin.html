@@ -7,10 +7,10 @@
     <style>
         :root {
             /* 固定后台主题 */
-            --primary-color: #007bff;
-            --primary-hover: #0056b3;
-            --sidebar-bg: #0056b3;
-            --sidebar-active: #007bff;
+            --primary-color: #374151;
+            --primary-hover: #111827;
+            --sidebar-bg: #111827;
+            --sidebar-active: #6b7280;
             --card-bg: white;
             --text-color: #333;
             --border-color: #e9ecef;
@@ -368,6 +368,99 @@
             align-items: center;
         }
 
+        .inline-filters {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .inline-filters select,
+        .inline-filters input,
+        .form-control {
+            height: 38px;
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #111827;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            height: auto;
+            min-height: 38px;
+        }
+
+        textarea.form-control {
+            min-height: 76px;
+            resize: vertical;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 16px;
+        }
+
+        .form-grid .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 14px 20px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .device-thumb-list {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .device-thumb {
+            width: 34px;
+            height: 34px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+
+        .device-thumb-more,
+        .device-thumb-empty {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .device-image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .device-detail-image {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: #f9fafb;
+        }
+
         /* 模态框样式 */
         .modal {
             display: none;
@@ -454,8 +547,8 @@
 
         .filter-controls select:focus {
             outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+            border-color: #9ca3af;
+            box-shadow: 0 0 0 2px rgba(156, 163, 175, 0.2);
         }
 
         @media (max-width: 768px) {
@@ -490,7 +583,7 @@
 
         .btn {
             padding: 10px 20px;
-            border: none;
+            border: 1px solid transparent;
             border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
@@ -498,21 +591,32 @@
         }
 
         .btn-primary {
-            background: var(--primary-color, #667eea);
+            background: #374151;
             color: white;
         }
 
         .btn-primary:hover {
-            background: var(--primary-hover, #5568d3);
+            background: #111827;
         }
 
         .btn-success {
-            background: #28a745;
-            color: white;
+            background: #ffffff;
+            color: #374151;
+            border: 1px solid #d1d5db;
         }
 
         .btn-success:hover {
-            background: #218838;
+            background: #f9fafb;
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #f9fafb;
         }
 
         .btn:disabled {
@@ -741,13 +845,13 @@
             padding: 15px;
             background: #f8f9fa;
             border-radius: 10px;
-            border-left: 4px solid #007bff;
+            border-left: 4px solid #9ca3af;
             transition: all 0.3s ease;
         }
 
         .quick-stat-item:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+            box-shadow: none;
         }
 
         .quick-stat-icon {
@@ -763,7 +867,7 @@
         .quick-stat-number {
             font-size: 24px;
             font-weight: 700;
-            color: #007bff;
+            color: #111827;
             margin-bottom: 5px;
         }
 
@@ -1258,49 +1362,55 @@
         }
 
         .action-btn {
-            padding: 4px 12px;
-            border: none;
-            border-radius: 15px;
+            padding: 4px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 12px;
             margin-right: 5px;
-            transition: all 0.3s;
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+            background: #ffffff;
+            color: #374151;
         }
 
         .delete-btn {
-            background: #dc3545;
-            color: white;
+            background: #fff1f2;
+            border-color: #fecdd3;
+            color: #be123c;
         }
 
         .delete-btn:hover {
-            background: #c82333;
+            background: #ffe4e6;
         }
 
         .reprocess-btn {
-            background: #ffc107;
-            color: #212529;
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #334155;
         }
 
         .reprocess-btn:hover {
-            background: #e0a800;
+            background: #f1f5f9;
         }
 
         .download-btn {
-            background: #17a2b8;
-            color: white;
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #334155;
         }
 
         .download-btn:hover {
-            background: #138496;
+            background: #f8fafc;
         }
 
         .view-btn {
-            background: #6f42c1;
-            color: white;
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #334155;
         }
 
         .view-btn:hover {
-            background: #5a32a3;
+            background: #f8fafc;
         }
 
         .hint {
@@ -1321,18 +1431,18 @@
         }
 
         .upload-section:hover {
-            border-color: #007bff;
-            background: #f0f8ff;
+            border-color: #9ca3af;
+            background: #f9fafb;
         }
 
         .upload-section.dragover {
-            border-color: #007bff;
-            background: #e3f2fd;
+            border-color: #6b7280;
+            background: #f3f4f6;
         }
 
         .upload-icon {
             font-size: 48px;
-            color: #007bff;
+            color: #6b7280;
             margin-bottom: 20px;
         }
 
@@ -1349,7 +1459,7 @@
         .file-input-btn {
             display: inline-block;
             padding: 12px 30px;
-            background: #007bff;
+            background: #374151;
             color: white;
             border-radius: 25px;
             cursor: pointer;
@@ -1358,7 +1468,7 @@
         }
 
         .file-input-btn:hover {
-            background: #0056b3;
+            background: #111827;
         }
 
         .upload-btn {
@@ -1530,7 +1640,7 @@
 
         .progress-bar-fill {
             height: 100%;
-            background: #007bff;
+            background: #6b7280;
             border-radius: 3px;
             transition: width 0.3s ease;
         }
@@ -1635,7 +1745,7 @@
         }
 
         .filename-cell:hover {
-            color: #007bff;
+            color: #111827;
             text-decoration: underline;
         }
 
@@ -2147,10 +2257,10 @@
 
         /* 专业后台视觉覆盖：降低装饰性，统一为运维系统风格 */
         :root {
-            --primary-color: #2563eb;
-            --primary-hover: #1d4ed8;
+            --primary-color: #374151;
+            --primary-hover: #111827;
             --sidebar-bg: #111827;
-            --sidebar-active: #3b82f6;
+            --sidebar-active: #6b7280;
             --card-bg: #ffffff;
             --text-color: #111827;
             --border-color: #e5e7eb;
@@ -2293,7 +2403,9 @@
         }
 
         .btn-success {
-            background: #047857;
+            background: #ffffff;
+            color: #374151;
+            border: 1px solid #d1d5db;
         }
 
         .logout-btn {
@@ -2322,7 +2434,7 @@
         .quick-stat-item {
             background: #ffffff;
             border: 1px solid var(--border-color);
-            border-left: 3px solid #2563eb;
+            border-left: 3px solid #9ca3af;
             border-radius: 6px;
             box-shadow: none;
         }
@@ -2462,12 +2574,12 @@
         .send-btn {
             height: 42px;
             padding: 0 18px;
-            background: #2563eb;
+            background: #374151;
             font-size: 14px;
         }
 
         .send-btn:hover {
-            background: #1d4ed8;
+            background: #111827;
         }
 
         .send-btn:disabled {
@@ -2526,7 +2638,7 @@
 
         .source-panel {
             background: #f9fafb;
-            border-left: 3px solid #2563eb;
+            border-left: 3px solid #9ca3af;
         }
 
         .source-title {
@@ -2575,20 +2687,21 @@
 
         .source-actions .action-btn {
             padding: 3px 8px;
-            border: 1px solid transparent;
+            border: 1px solid #d1d5db;
             border-radius: 4px;
-            color: #ffffff;
+            color: #374151;
             cursor: pointer;
             font-size: 12px;
             line-height: 1.4;
+            background: #ffffff;
         }
 
         .source-actions .download-btn {
-            background: #047857;
+            background: #ffffff;
         }
 
         .source-actions .preview-btn {
-            background: #0369a1;
+            background: #ffffff;
         }
 
         .search-info {
@@ -2602,8 +2715,8 @@
         }
 
         .search-info-high {
-            background: #eff6ff;
-            border-left-color: #2563eb;
+            background: #f8fafc;
+            border-left-color: #9ca3af;
         }
 
         .search-info-low {
@@ -2643,54 +2756,7 @@
 
         #announcements .card-body {
             background: #ffffff;
-        }
-
-        #announcements .filter-bar {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            padding: 14px 20px;
-            background: #f9fafb;
-            border-bottom: 1px solid var(--border-color);
-            gap: 12px;
-        }
-
-        #announcements .filter-controls,
-        #announcements .filter-actions {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        #announcements .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        #announcements .filter-group label {
-            color: #4b5563;
-            font-size: 13px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        #announcements .filter-group select,
-        #announcements .filter-group input {
-            min-width: 160px;
-            height: 36px;
-            padding: 0 10px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            box-shadow: none;
-        }
-
-        #announcements .filter-group select:focus,
-        #announcements .filter-group input:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+            padding: 20px;
         }
 
         .loading-state {
@@ -2705,7 +2771,7 @@
             height: 16px;
             margin-right: 8px;
             border: 2px solid #e5e7eb;
-            border-top-color: #2563eb;
+            border-top-color: #6b7280;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             vertical-align: -3px;
@@ -2759,9 +2825,7 @@
             gap: 6px;
         }
 
-        #announcements .action-buttons .btn,
-        #announcements .filter-actions .btn,
-        #announcements .filter-controls .btn {
+        #announcements .action-buttons .btn {
             height: 32px;
             padding: 0 10px;
             border-radius: 6px;
@@ -2774,41 +2838,25 @@
             transition: background-color 0.15s ease, border-color 0.15s ease;
         }
 
-        #announcements .action-buttons .btn::before {
-            display: none;
-        }
-
-        #announcements .action-buttons .btn:hover,
-        #announcements .filter-actions .btn:hover,
-        #announcements .filter-controls .btn:hover {
-            transform: none;
-            box-shadow: none;
-        }
-
-        #announcements .btn-primary,
-        #announcements .filter-actions .btn-primary {
-            background: #2563eb;
-            color: #ffffff;
-        }
-
-        #announcements .btn-primary:hover,
-        #announcements .filter-actions .btn-primary:hover {
-            background: #1d4ed8;
-        }
-
-        #announcements .btn-secondary {
+        #announcements .action-buttons .btn {
             background: #ffffff;
             color: #374151;
             border-color: #d1d5db;
         }
 
-        #announcements .btn-secondary:hover {
-            background: #f9fafb;
+        #announcements .action-buttons .btn::before {
+            display: none;
+        }
+
+        #announcements .action-buttons .btn:hover {
+            transform: none;
+            box-shadow: none;
         }
 
         #announcements .btn-success {
-            background: #047857;
-            color: #ffffff;
+            background: #ffffff;
+            color: #374151;
+            border-color: #d1d5db;
         }
 
         #announcements .btn-warning {
@@ -3081,7 +3129,9 @@
                                 <input type="text" id="userSearchInput" placeholder="搜索用户名...">
                                 <button class="btn btn-primary" onclick="searchUsers()">搜索</button>
                             </div>
-                            <button class="btn btn-success" onclick="refreshUsers()">刷新</button>
+                            <div class="controls-right">
+                                <button class="btn btn-primary" onclick="showUserForm()">新增用户</button>
+                            </div>
                         </div>
                         <div class="table-container">
                             <table id="usersTable">
@@ -3091,11 +3141,13 @@
                                         <th>头像</th>
                                         <th>用户名</th>
                                         <th>邮箱</th>
+                                        <th>角色</th>
                                         <th>创建时间</th>
+                                        <th>操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="usersTableBody">
-                                    <tr><td colspan="5" class="loading"></td></tr>
+                                    <tr><td colspan="7" class="loading"></td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3107,12 +3159,20 @@
                 <div id="devices" class="page">
                     <div class="card">
                         <div class="table-controls">
-                            <div class="search-box">
+                            <div class="search-box inline-filters">
                                 <input type="text" id="deviceSearchInput" placeholder="搜索设备名称...">
+                                <select id="deviceStatusFilter" onchange="filterDevices()">
+                                    <option value="">全部状态</option>
+                                    <option value="正常">正常</option>
+                                    <option value="告警">告警</option>
+                                    <option value="异常">异常</option>
+                                    <option value="离线">离线</option>
+                                </select>
                                 <button class="btn btn-primary" onclick="searchDevices()">搜索</button>
+                                <button class="btn btn-secondary" onclick="resetDeviceFilters()">重置</button>
                             </div>
                             <div class="controls-right">
-                                <button class="btn btn-primary" onclick="refreshDevices()">刷新</button>
+                                <button class="btn btn-primary" onclick="showDeviceForm()">新增设备</button>
                             </div>
                         </div>
                         <div class="table-container">
@@ -3120,16 +3180,18 @@
                                 <thead>
                                     <tr>
                                         <th>ID</th>
+                                        <th>图片</th>
                                         <th>设备名称</th>
                                         <th>地址</th>
                                         <th>状态</th>
                                         <th>联系方式</th>
                                         <th>安装日期</th>
+                                        <th>负责人ID</th>
                                         <th>操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="devicesTableBody">
-                                    <tr><td colspan="7" class="loading"></td></tr>
+                                    <tr><td colspan="9" class="loading"></td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3148,7 +3210,6 @@
                             </div>
                             <div class="controls-right">
                                 <button class="btn btn-primary" onclick="showUploadDialog()">上传文档</button>
-                                <button class="btn btn-success" onclick="refreshDocuments()">刷新</button>
                             </div>
                         </div>
                         
@@ -3211,25 +3272,18 @@
                             <h2>公告管理</h2>
                         </div>
                         <div class="card-body">
-                            <!-- 筛选器 -->
-                            <div class="filter-bar">
-                                <div class="filter-controls">
-                                    <div class="filter-group">
-                                        <label>状态：</label>
-                                        <select id="announcementStatusFilter" onchange="filterAnnouncements()">
-                                            <option value="">全部</option>
-                                            <option value="draft">草稿</option>
-                                            <option value="published">已发布</option>
-                                            <option value="archived">已归档</option>
-                                        </select>
-                                    </div>
-                                    <div class="filter-group">
-                                        <label>关键词：</label>
-                                        <input type="text" id="announcementKeywordFilter" placeholder="搜索标题或内容" onkeyup="filterAnnouncements()">
-                                    </div>
+                            <div class="table-controls">
+                                <div class="search-box inline-filters">
+                                    <input type="text" id="announcementKeywordFilter" placeholder="搜索标题或内容" onkeyup="filterAnnouncements()">
+                                    <select id="announcementStatusFilter" onchange="filterAnnouncements()">
+                                        <option value="">全部状态</option>
+                                        <option value="draft">草稿</option>
+                                        <option value="published">已发布</option>
+                                        <option value="archived">已归档</option>
+                                    </select>
                                     <button class="btn btn-secondary" onclick="resetAnnouncementFilters()">重置</button>
                                 </div>
-                                <div class="filter-actions">
+                                <div class="controls-right">
                                     <button class="btn btn-primary" onclick="showAnnouncementForm()">新建公告</button>
                                 </div>
                             </div>
@@ -3283,6 +3337,114 @@
             </div>
             <div class="modal-body" id="deviceDetailModalBody">
                 <!-- 设备详情表格将在这里显示 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户编辑模态框 -->
+    <div id="userFormModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="userFormTitle">新增用户</h3>
+                <span class="close" onclick="closeUserForm()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userFormId">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="userFormUsername">用户名 *</label>
+                            <input type="text" id="userFormUsername" class="form-control" required minlength="2" maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label for="userFormRole">角色 *</label>
+                            <select id="userFormRole" class="form-control">
+                                <option value="user">普通用户</option>
+                                <option value="maintainer">维护人员</option>
+                                <option value="leader">班长</option>
+                                <option value="admin">管理员</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="userFormEmail">邮箱</label>
+                            <input type="email" id="userFormEmail" class="form-control">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="userFormPassword">密码</label>
+                            <input type="password" id="userFormPassword" class="form-control" minlength="8" placeholder="新增用户必填；编辑时留空表示不修改">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeUserForm()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveUserForm()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设备编辑模态框 -->
+    <div id="deviceFormModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 760px;">
+            <div class="modal-header">
+                <h3 id="deviceFormTitle">新增设备</h3>
+                <span class="close" onclick="closeDeviceForm()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="deviceForm">
+                    <input type="hidden" id="deviceFormId">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="deviceFormName">设备名称 *</label>
+                            <input type="text" id="deviceFormName" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="deviceFormStatus">状态</label>
+                            <select id="deviceFormStatus" class="form-control">
+                                <option value="正常">正常</option>
+                                <option value="告警">告警</option>
+                                <option value="异常">异常</option>
+                                <option value="离线">离线</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="deviceFormAddress">地址</label>
+                            <input type="text" id="deviceFormAddress" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="deviceFormLng">经度</label>
+                            <input type="number" step="any" id="deviceFormLng" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="deviceFormLat">纬度</label>
+                            <input type="number" step="any" id="deviceFormLat" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="deviceFormInstaller">安装人</label>
+                            <input type="text" id="deviceFormInstaller" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="deviceFormContact">联系方式</label>
+                            <input type="tel" id="deviceFormContact" class="form-control" placeholder="11位手机号">
+                        </div>
+                        <div class="form-group">
+                            <label for="deviceFormInstallDate">安装日期</label>
+                            <input type="date" id="deviceFormInstallDate" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="deviceFormMaintainer">负责人用户ID</label>
+                            <input type="number" id="deviceFormMaintainer" class="form-control" min="1">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="deviceFormRemark">备注</label>
+                            <textarea id="deviceFormRemark" class="form-control"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeDeviceForm()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveDeviceForm()">保存</button>
             </div>
         </div>
     </div>
@@ -3411,6 +3573,8 @@
         window.onclick = function(event) {
             const uploadModal = document.getElementById('uploadDialog');
             const deviceDetailModal = document.getElementById('deviceDetailModal');
+            const userFormModal = document.getElementById('userFormModal');
+            const deviceFormModal = document.getElementById('deviceFormModal');
             const deleteConfirmModal = document.getElementById('deleteConfirmModal');
             
             if (event.target === uploadModal) {
@@ -3418,6 +3582,12 @@
             }
             if (event.target === deviceDetailModal) {
                 closeDeviceDetailModal();
+            }
+            if (event.target === userFormModal) {
+                closeUserForm();
+            }
+            if (event.target === deviceFormModal) {
+                closeDeviceForm();
             }
             if (event.target === deleteConfirmModal) {
                 closeDeleteConfirmModal();
@@ -3827,6 +3997,32 @@
             }
         }
 
+        const ADMIN_AES_KEY = 'awkfjwhkgowkslg3';
+
+        function bytesToBase64(bytes) {
+            let binary = '';
+            bytes.forEach((byte) => {
+                binary += String.fromCharCode(byte);
+            });
+            return btoa(binary);
+        }
+
+        async function encryptAdminPassword(content) {
+            if (!content) return '';
+            if (!window.crypto || !window.crypto.subtle) {
+                throw new Error('当前浏览器不支持本地密码加密');
+            }
+            const encoder = new TextEncoder();
+            const keyBytes = encoder.encode(ADMIN_AES_KEY);
+            const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['encrypt']);
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-CBC', iv: keyBytes },
+                cryptoKey,
+                encoder.encode(content)
+            );
+            return bytesToBase64(new Uint8Array(encrypted));
+        }
+
         // 加载仪表盘数据
         async function loadDashboardData() {
             // 加载用户统计
@@ -3921,7 +4117,7 @@
         // ==================== 用户管理 ====================
         async function loadUsers(page = 1, username = '') {
             const tbody = document.getElementById('usersTableBody');
-            tbody.innerHTML = '<tr><td colspan="5" class="loading"></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="loading"></td></tr>';
 
             try {
                 let url = `/api/v1/admin/list?page=${page}&page_size=10`;
@@ -3943,21 +4139,130 @@
                         tbody.innerHTML = users.map(user => `
                             <tr>
                                 <td>${user.id}</td>
-                                <td><img src="${user.head || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiNmMGYwZjAiLz4KPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSI4IiB5PSI4Ij4KPHBhdGggZD0iTTggOEM5LjEwNDU3IDggMTAgNy4xMDQ1NyAxMCA2QzEwIDQuODk1NDMgOS4xMDQ1NyA0IDggNEM2Ljg5NTQzIDQgNiA0Ljg5NTQzIDYgNkM2IDcuMTA0NTcgNi44OTU0MyA4IDggOFoiIGZpbGw9IiM5OTk5OTkiLz4KPHBhdGggZD0iTTggMTBDNS43OTA4NiAxMCA0IDExLjc5MDkgNCAxNEgxMkMxMiAxMS43OTA5IDEwLjIwOTEgMTAgOCAxMFoiIGZpbGw9IiM5OTk5OTkiLz4KPC9zdmc+Cjwvc3ZnPgo='}" class="avatar-small" alt="头像"></td>
-                                <td>${user.username}</td>
-                                <td>${user.email || '-'}</td>
+                                <td><img src="${escapeHtml(user.head || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiNmMGYwZjAiLz48L3N2Zz4=')}" class="avatar-small" alt="头像"></td>
+                                <td>${escapeHtml(user.username)}</td>
+                                <td>${escapeHtml(user.email || '-')}</td>
+                                <td>${getUserRoleText(user.role)}</td>
                                 <td>${user.created_at ? new Date(user.created_at).toLocaleString('zh-CN') : '-'}</td>
+                                <td>
+                                    <div class="table-actions">
+                                        <button class="action-btn view-btn" onclick="showUserForm(${user.id})">编辑</button>
+                                        <button class="action-btn delete-btn" onclick="deleteUser(${user.id})">删除</button>
+                                    </div>
+                                </td>
                             </tr>
                         `).join('');
                     } else {
-                        tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="icon">📭</div><p>暂无用户数据</p></td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>暂无用户数据</p></td></tr>';
                     }
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>加载失败</p></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>加载失败</p></td></tr>';
                 }
             } catch (error) {
                 console.error('加载用户列表失败:', error);
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>加载失败</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>加载失败</p></td></tr>';
+            }
+        }
+
+        function getUserRoleText(role) {
+            const roleMap = {
+                admin: '管理员',
+                leader: '班长',
+                maintainer: '维护人员',
+                user: '普通用户'
+            };
+            return roleMap[role] || role || '-';
+        }
+
+        async function showUserForm(userId = null) {
+            document.getElementById('userForm').reset();
+            document.getElementById('userFormId').value = userId || '';
+            document.getElementById('userFormTitle').textContent = userId ? '编辑用户' : '新增用户';
+            document.getElementById('userFormPassword').required = !userId;
+
+            if (userId) {
+                try {
+                    const response = await fetchWithAuth(`/api/v1/admin/detail/${userId}`);
+                    const result = await response.json();
+                    if (result.code !== 200) {
+                        showToast(result.message || '用户详情加载失败', 'error');
+                        return;
+                    }
+                    const user = result.data;
+                    document.getElementById('userFormUsername').value = user.username || '';
+                    document.getElementById('userFormEmail').value = user.email || '';
+                    document.getElementById('userFormRole').value = user.role || 'user';
+                } catch (error) {
+                    console.error('加载用户详情失败:', error);
+                    showToast('用户详情加载失败', 'error');
+                    return;
+                }
+            }
+
+            document.getElementById('userFormModal').style.display = 'block';
+        }
+
+        function closeUserForm() {
+            document.getElementById('userFormModal').style.display = 'none';
+        }
+
+        async function saveUserForm() {
+            const id = document.getElementById('userFormId').value;
+            const username = document.getElementById('userFormUsername').value.trim();
+            const email = document.getElementById('userFormEmail').value.trim();
+            const role = document.getElementById('userFormRole').value;
+            const password = document.getElementById('userFormPassword').value;
+
+            if (!username) {
+                showToast('请填写用户名', 'error');
+                return;
+            }
+            if (!id && password.length < 8) {
+                showToast('新增用户密码不能少于8位', 'error');
+                return;
+            }
+
+            try {
+                const payload = { username, email: email || null, role };
+                if (password) {
+                    payload.password = await encryptAdminPassword(password);
+                }
+
+                const response = await fetchWithAuth(id ? `/api/v1/admin/update/${id}` : '/api/v1/admin/register', {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.code === 200) {
+                    showToast(id ? '用户更新成功' : '用户创建成功', 'success');
+                    closeUserForm();
+                    loadUsers(usersPage, document.getElementById('userSearchInput').value.trim());
+                    loadDashboardData();
+                } else {
+                    showToast(result.message || '保存失败', 'error');
+                }
+            } catch (error) {
+                console.error('保存用户失败:', error);
+                showToast('保存用户失败', 'error');
+            }
+        }
+
+        async function deleteUser(userId) {
+            if (!confirm('确定要删除这个用户吗？此操作不可恢复。')) return;
+            try {
+                const response = await fetchWithAuth(`/api/v1/admin/delete/${userId}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.code === 200) {
+                    showToast('用户删除成功', 'success');
+                    loadUsers(usersPage, document.getElementById('userSearchInput').value.trim());
+                    loadDashboardData();
+                } else {
+                    showToast(result.message || '删除失败', 'error');
+                }
+            } catch (error) {
+                console.error('删除用户失败:', error);
+                showToast('删除用户失败', 'error');
             }
         }
 
@@ -3972,14 +4277,17 @@
         }
 
         // ==================== 设备管理 ====================
-        async function loadDevices(page = 1, deviceName = '') {
+        async function loadDevices(page = 1, deviceName = '', status = '') {
             const tbody = document.getElementById('devicesTableBody');
-            tbody.innerHTML = '<tr><td colspan="7" class="loading"></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="loading"></td></tr>';
 
             try {
                 let url = `/api/v1/device/list?page=${page}&page_size=10`;
                 if (deviceName) {
                     url += `&device_name=${encodeURIComponent(deviceName)}`;
+                }
+                if (status) {
+                    url += `&status=${encodeURIComponent(status)}`;
                 }
 
                 const response = await fetchWithAuth(url);
@@ -3988,33 +4296,37 @@
                 if (result.code === 200) {
                     const devices = result.data?.devices || result.data || [];
                     const total = result.total || devices.length;
+                    updatePagination('devices', page, total, 10);
                     
                     if (devices && devices.length > 0) {
                         tbody.innerHTML = devices.map(device => `
                             <tr>
                                 <td>${device.id}</td>
-                                <td>${device.name || '-'}</td>
-                                <td>${device.address || '-'}</td>
-                                <td><span class="badge ${getDeviceStatusBadge(device.status)}">${device.status || '未知'}</span></td>
-                                <td>${device.contact || '-'}</td>
+                                <td>${renderDeviceThumbs(device.images)}</td>
+                                <td>${escapeHtml(device.name || '-')}</td>
+                                <td>${escapeHtml(device.address || '-')}</td>
+                                <td><span class="badge ${getDeviceStatusBadge(device.status)}">${escapeHtml(device.status || '未知')}</span></td>
+                                <td>${escapeHtml(device.contact || '-')}</td>
                                 <td>${device.install_date || '-'}</td>
+                                <td>${device.maintainer_user_id || '-'}</td>
                                 <td>
-                                    <button class="action-btn view-btn" onclick="viewDevice(${device.id})">查看详情</button>
-                                    <button class="action-btn delete-btn" onclick="deleteDevice(${device.id})">删除</button>
+                                    <div class="table-actions">
+                                        <button class="action-btn view-btn" onclick="viewDevice(${device.id})">详情</button>
+                                        <button class="action-btn reprocess-btn" onclick="showDeviceForm(${device.id})">编辑</button>
+                                        <button class="action-btn delete-btn" onclick="deleteDevice(${device.id})">删除</button>
+                                    </div>
                                 </td>
                             </tr>
                         `).join('');
-                        
-                        updatePagination('devices', page, total, 10);
                     } else {
-                        tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="icon">📭</div><p>暂无设备数据</p></td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>暂无设备数据</p></td></tr>';
                     }
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>加载失败</p></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>加载失败</p></td></tr>';
                 }
             } catch (error) {
                 console.error('加载设备列表失败:', error);
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>加载失败</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>加载失败</p></td></tr>';
             }
         }
 
@@ -4022,19 +4334,159 @@
             const statusMap = {
                 '正常': 'badge-success',
                 '异常': 'badge-danger',
+                '告警': 'badge-danger',
                 '离线': 'badge-warning'
             };
             return statusMap[status] || 'badge-warning';
         }
 
+        function normalizeDeviceImages(images) {
+            if (!images) return [];
+            if (Array.isArray(images)) return images.filter(Boolean);
+            if (typeof images === 'string') {
+                try {
+                    const parsed = JSON.parse(images);
+                    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+                } catch (_) {
+                    return images ? [images] : [];
+                }
+            }
+            return [];
+        }
+
+        function renderDeviceThumbs(images) {
+            const list = normalizeDeviceImages(images);
+            if (!list.length) {
+                return '<span class="device-thumb-empty">无</span>';
+            }
+            const visible = list.slice(0, 2).map((src) => (
+                `<img class="device-thumb" src="${escapeHtml(src)}" alt="设备图片" loading="lazy">`
+            )).join('');
+            const more = list.length > 2 ? `<span class="device-thumb-more">+${list.length - 2}</span>` : '';
+            return `<div class="device-thumb-list">${visible}${more}</div>`;
+        }
+
         function searchDevices() {
             const deviceName = document.getElementById('deviceSearchInput').value;
-            loadDevices(1, deviceName);
+            const status = document.getElementById('deviceStatusFilter').value;
+            loadDevices(1, deviceName, status);
+        }
+
+        function filterDevices() {
+            searchDevices();
+        }
+
+        function resetDeviceFilters() {
+            document.getElementById('deviceSearchInput').value = '';
+            document.getElementById('deviceStatusFilter').value = '';
+            loadDevices(1);
         }
 
         function refreshDevices() {
             document.getElementById('deviceSearchInput').value = '';
+            document.getElementById('deviceStatusFilter').value = '';
             loadDevices(1);
+        }
+
+        async function showDeviceForm(deviceId = null) {
+            document.getElementById('deviceForm').reset();
+            document.getElementById('deviceFormId').value = deviceId || '';
+            document.getElementById('deviceFormTitle').textContent = deviceId ? '编辑设备' : '新增设备';
+            document.getElementById('deviceFormStatus').value = '正常';
+
+            if (deviceId) {
+                try {
+                    const response = await fetchWithAuth(`/api/v1/device/detail/${deviceId}`);
+                    const result = await response.json();
+                    if (result.code !== 200) {
+                        showToast(result.message || '设备详情加载失败', 'error');
+                        return;
+                    }
+                    const device = result.data;
+                    document.getElementById('deviceFormName').value = device.name || '';
+                    document.getElementById('deviceFormStatus').value = device.status || '正常';
+                    document.getElementById('deviceFormAddress').value = device.address || '';
+                    document.getElementById('deviceFormInstaller').value = device.installer || '';
+                    document.getElementById('deviceFormContact').value = device.contact || '';
+                    document.getElementById('deviceFormInstallDate').value = device.install_date || '';
+                    document.getElementById('deviceFormMaintainer').value = device.maintainer_user_id || '';
+                    document.getElementById('deviceFormRemark').value = device.remark || '';
+                    if (Array.isArray(device.location) && device.location.length >= 2) {
+                        document.getElementById('deviceFormLng').value = device.location[0] ?? '';
+                        document.getElementById('deviceFormLat').value = device.location[1] ?? '';
+                    }
+                } catch (error) {
+                    console.error('加载设备详情失败:', error);
+                    showToast('设备详情加载失败', 'error');
+                    return;
+                }
+            }
+
+            document.getElementById('deviceFormModal').style.display = 'block';
+        }
+
+        function closeDeviceForm() {
+            document.getElementById('deviceFormModal').style.display = 'none';
+        }
+
+        function buildDevicePayload(isCreate = false) {
+            const name = document.getElementById('deviceFormName').value.trim();
+            const lng = document.getElementById('deviceFormLng').value;
+            const lat = document.getElementById('deviceFormLat').value;
+            const maintainer = document.getElementById('deviceFormMaintainer').value;
+            const payload = {
+                name,
+                address: document.getElementById('deviceFormAddress').value.trim() || null,
+                status: document.getElementById('deviceFormStatus').value || '正常',
+                installer: document.getElementById('deviceFormInstaller').value.trim() || null,
+                contact: document.getElementById('deviceFormContact').value.trim() || null,
+                install_date: document.getElementById('deviceFormInstallDate').value || null,
+                remark: document.getElementById('deviceFormRemark').value.trim() || null,
+            };
+            if (lng !== '' && lat !== '') {
+                payload.location = [Number(lng), Number(lat)];
+            }
+            if (maintainer) {
+                payload.maintainer_user_id = Number(maintainer);
+            }
+            if (isCreate) {
+                payload.images = [];
+            }
+            return payload;
+        }
+
+        async function saveDeviceForm() {
+            const id = document.getElementById('deviceFormId').value;
+            const name = document.getElementById('deviceFormName').value.trim();
+            if (!name) {
+                showToast('请填写设备名称', 'error');
+                return;
+            }
+
+            try {
+                const payload = buildDevicePayload(!id);
+                const response = await fetchWithAuth(id ? `/api/v1/device/update/${id}` : '/api/v1/device/create', {
+                    method: id ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.code === 200) {
+                    showToast(id ? '设备更新成功' : '设备创建成功', 'success');
+                    closeDeviceForm();
+                    loadDevices(
+                        devicesPage,
+                        document.getElementById('deviceSearchInput').value.trim(),
+                        document.getElementById('deviceStatusFilter').value
+                    );
+                    loadDashboardData();
+                } else {
+                    showToast(result.message || '保存失败', 'error');
+                }
+            } catch (error) {
+                console.error('保存设备失败:', error);
+                showToast('保存设备失败，请检查表单内容', 'error');
+            }
         }
 
         // 查看设备详情
@@ -4067,9 +4519,11 @@
                 ? `${device.location[0]}, ${device.location[1]}` 
                 : '无';
             
-            const imagesStr = device.images && device.images.length > 0 
-                ? `${device.images.length}张` 
-                : '无';
+            const imageList = normalizeDeviceImages(device.images);
+            const imagesStr = imageList.length ? `${imageList.length}张` : '无';
+            const imageGrid = imageList.length
+                ? `<div class="device-image-grid">${imageList.map((src) => `<a href="${escapeHtml(src)}" target="_blank"><img class="device-detail-image" src="${escapeHtml(src)}" alt="设备图片" loading="lazy"></a>`).join('')}</div>`
+                : '<span class="device-thumb-empty">无</span>';
             
             modalBody.innerHTML = `
                 <table style="width: 100%; border-collapse: collapse;">
@@ -4108,6 +4562,10 @@
                     <tr style="border-bottom: 1px solid #e9ecef;">
                         <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">图片数量</td>
                         <td style="padding: 12px; color: #6c757d;">${imagesStr}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">设备图片</td>
+                        <td style="padding: 12px; color: #6c757d;">${imageGrid}</td>
                     </tr>
                     <tr style="border-bottom: 1px solid #e9ecef;">
                         <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">创建用户ID</td>
@@ -5174,7 +5632,8 @@
             } else if (type === 'devices') {
                 devicesPage = page;
                 const deviceName = document.getElementById('deviceSearchInput').value;
-                loadDevices(page, deviceName);
+                const status = document.getElementById('deviceStatusFilter').value;
+                loadDevices(page, deviceName, status);
             } else if (type === 'documents') {
                 documentsPage = page;
                 const keyword = document.getElementById('documentSearchInput').value.trim();

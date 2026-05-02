@@ -4,8 +4,9 @@
 """
 
 import os
-from starlette.config import Config
+
 from pydantic import Secret
+from starlette.config import Config
 
 # 配置对象
 config = Config()
@@ -125,6 +126,8 @@ CHUNK_OVERLAP = config("CHUNK_OVERLAP", cast=int, default=200)
 # 搜索配置
 SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.7)
 DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
+RERANK_ENABLED = config("RERANK_ENABLED", cast=bool, default=True)
+RERANK_MODEL = config("RERANK_MODEL", default="BAAI/bge-reranker-base")
 
 # 设备数据配置
 # 传递给LLM的设备详细列表的最大数量（用于控制上下文大小）

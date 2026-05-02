@@ -7,11 +7,12 @@ XML 拼装与解析见 `xml_react.XmlReactSession`。
 from __future__ import annotations
 
 import traceback
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 
 from langchain_openai import ChatOpenAI
 from mcp.server.fastmcp import FastMCP
+from pydantic import SecretStr
 
 from apps.utils.xml_react import XmlReactSession
 from apps.utils.mcp_tools.mcp_bridge import SOURCES_EXTRA_KEY, chat_task_extra, langchain_mcp_bridge
@@ -63,12 +64,18 @@ def _tool_names_line(names_sorted: List[str]) -> str:
     return f"当前已注册工具名: {', '.join(names_sorted)}"
 
 
-@dataclass
 class ReactAgent:
-    openai_api_key: str
-    openai_base_url: str
-    mcp_server_app: FastMCP
-    config: ReactAgentConfig = field(default_factory=ReactAgentConfig)
+    def __init__(
+        self,
+        openai_api_key: str,
+        openai_base_url: str,
+        mcp_server_app: FastMCP,
+        config: Optional[ReactAgentConfig] = None,
+    ) -> None:
+        self.openai_api_key = openai_api_key
+        self.openai_base_url = openai_base_url
+        self.mcp_server_app = mcp_server_app
+        self.config = config or ReactAgentConfig()
 
     async def run_streaming(
         self,
@@ -88,7 +95,7 @@ class ReactAgent:
             _, names_sorted = await langchain_mcp_bridge.openai_tools_bundle(self.mcp_server_app)
 
             llm = ChatOpenAI(
-                api_key=self.openai_api_key,
+                api_key=SecretStr(self.openai_api_key),
                 base_url=self.openai_base_url,
                 model=self.config.model,
                 temperature=self.config.temperature,
@@ -123,60 +130,66 @@ class ReactAgent:
                     "信息足够则输出 final_answer。"
                 )
                 human = XmlReactSession.build_human_xml(task, history_xml, inst)
-                raw = ""
                 yield {"event": "turn_start", "step": step + 1}
-                async for ev in XmlReactSession.stream_llm_turn(llm, system_prompt, human):
-                    if ev.get("event") == "llm_turn_done":
-                        raw = ev.get("raw") or ""
+                parsed_step = None
+                async for ev in XmlReactSession.stream_react_step(llm, system_prompt, human):
+                    if ev.get("event") == "react_step_done":
+                        parsed_step = ev["step"]
                     else:
                         yield ev
 
-                trace.append({"step": step + 1, "raw": raw})
-                inner = XmlReactSession.step_inner(raw)
-                trace[-1]["step_inner"] = inner
+                if parsed_step is None:
+                    raise RuntimeError("LLM 输出解析失败：缺少 react_step_done")
 
-                final = XmlReactSession.parse_final_answer(inner)
-                if final is not None:
-                    meta_finish["final_answer"] = final
+                trace.append({
+                    "step": step + 1,
+                    "raw": parsed_step.raw_xml,
+                    "step_inner": parsed_step.body_xml,
+                    "thought": parsed_step.thought,
+                })
+
+                if parsed_step.is_final:
+                    meta_finish["final_answer"] = parsed_step.final_answer
                     meta_finish["react_steps"] = len(trace)
                     meta_finish["sources"] = last_react_doc_sources
                     yield {"event": "done", "meta": meta_finish}
                     return
 
-                action, payload = XmlReactSession.parse_action(inner)
-                if not action:
-                    obs = "解析失败：需要 <action> 与 <action_input>（单行 JSON），或 <final_answer>。"
-                    history_xml = XmlReactSession.append_history(history_xml, step + 1, raw, obs)
+                if parsed_step.parse_error:
+                    obs = parsed_step.parse_error
+                    history_xml = XmlReactSession.append_history(history_xml, step + 1, parsed_step.raw_xml, obs)
                     trace[-1]["observation"] = obs
                     yield {
                         "event": "tool_end",
-                        "name": None,
+                        "name": parsed_step.action,
                         "ok": False,
                         "preview": obs[:200],
                     }
                     continue
 
-                if payload is None:
-                    obs = "解析失败：<action_input> 须为合法 JSON。"
-                    history_xml = XmlReactSession.append_history(history_xml, step + 1, raw, obs)
+                if not parsed_step.needs_tool:
+                    obs = "解析失败：未得到可执行的工具调用。"
+                    history_xml = XmlReactSession.append_history(history_xml, step + 1, parsed_step.raw_xml, obs)
                     trace[-1]["observation"] = obs
                     yield {
                         "event": "tool_end",
-                        "name": action,
+                        "name": parsed_step.action,
                         "ok": False,
                         "preview": obs[:200],
                     }
                     continue
 
+                action = parsed_step.action
+                action_input = parsed_step.action_input
                 trace[-1]["action"] = action
-                trace[-1]["action_input"] = payload
+                trace[-1]["action_input"] = action_input
                 yield {"event": "tool_start", "name": action}
                 observation = await langchain_mcp_bridge.run_tool(
-                    self.mcp_server_app, action, payload
+                    self.mcp_server_app, action, action_input
                 )
                 trace[-1]["observation"] = observation[:800]
                 history_xml = XmlReactSession.append_history(
-                    history_xml, step + 1, raw, observation
+                    history_xml, step + 1, parsed_step.raw_xml, observation
                 )
                 _sync_sources()
                 yield {
@@ -191,20 +204,30 @@ class ReactAgent:
                 "不要调用工具。"
             )
             human = XmlReactSession.build_human_xml(task, history_xml, inst)
-            raw = ""
             yield {"event": "turn_start", "step": "final"}
-            async for ev in XmlReactSession.stream_llm_turn(llm, system_prompt, human):
-                if ev.get("event") == "llm_turn_done":
-                    raw = ev.get("raw") or ""
+            parsed_step = None
+            async for ev in XmlReactSession.stream_react_step(llm, system_prompt, human):
+                if ev.get("event") == "react_step_done":
+                    parsed_step = ev["step"]
                 else:
                     yield ev
-            trace.append({"step": "final", "raw": raw})
-            inner = XmlReactSession.step_inner(raw)
-            final = (
-                XmlReactSession.parse_final_answer(inner)
+
+            if parsed_step is None:
+                raise RuntimeError("LLM 输出解析失败：缺少 react_step_done")
+
+            trace.append({
+                "step": "final",
+                "raw": parsed_step.raw_xml,
+                "step_inner": parsed_step.body_xml,
+                "thought": parsed_step.thought,
+            })
+            final_answer = (
+                parsed_step.final_answer
                 or "抱歉，推理步数已用尽，请缩小问题范围后重试。"
             )
-            meta_finish["final_answer"] = final
+            if not parsed_step.final_answer:
+                yield {"event": "final_answer_delta", "text": final_answer}
+            meta_finish["final_answer"] = final_answer
             meta_finish["react_steps"] = len(trace)
             meta_finish["sources"] = last_react_doc_sources
             yield {"event": "done", "meta": meta_finish}

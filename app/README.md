@@ -200,7 +200,8 @@ SSE 事件类型（`data` 的 `type`）：
   确认插件是否写入 `chat_extra()[SOURCES_EXTRA_KEY]`，以及模型是否调用了对应工具。
 
 - **问：向量检索效果不稳定？**  
-  调整 `SIMILARITY_THRESHOLD`、分块策略（`CHUNK_SIZE/CHUNK_OVERLAP`）、以及检索 `top_k`。
+  调整 `SIMILARITY_THRESHOLD`、分块策略（`CHUNK_SIZE/CHUNK_OVERLAP`）、检索 `top_k`，或启用重排配置
+  `RERANK_ENABLED`、`RERANK_MODEL`。本地没有重排模型时会尝试在线下载到 `HF_HOME`。
 
 - **问：数据库迁移报错？**  
   先确认连接参数与权限，再执行 `aerich upgrade`；跨版本变更建议在测试库先验证。
@@ -215,4 +216,3 @@ SSE 事件类型（`data` 的 `type`）：
 - SSE 转换：`app/apps/utils/react_sse.py`
 - MCP 与 LangChain 衔接：`app/mcp_tools/mcp_bridge.py`；SQL 插件：`app/mcp_tools/sql_plugin.py`
 - 工具实现：`app/mcp_tools/tools/`（`tools/__init__.py` 注册到 `plugin_mcp`）
-

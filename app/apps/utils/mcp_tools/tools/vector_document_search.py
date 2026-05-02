@@ -6,6 +6,7 @@ from mcp.types import ToolAnnotations
 
 from apps.utils.vector_db_selector import vector_search
 from apps.utils.mcp_tools.mcp_bridge import ChatTaskExtra, chat_task_extra
+from apps.utils.mcp_tools.source_utils import dedupe_sources
 
 _MAX_TOP_K = 8
 _MAX_SNIPPET = 1200
@@ -56,6 +57,8 @@ class VectorSearchToolsModule:
                     if len(chunk_text) > 200
                     else chunk_text,
                     "similarity": round(float(item.get("similarity", 0.0)), 4),
+                    "rerank_score": round(float(item["rerank_score"]), 4) if "rerank_score" in item else None,
+                    "reranked": bool(item.get("reranked", False)),
                     "document_id": document.id,
                     "chunk_id": chunk.id,
                     "chunk_index": chunk.chunk_index,
@@ -80,18 +83,20 @@ class VectorSearchToolsModule:
             bucket[ChatTaskExtra.SOURCES_EXTRA_KEY] = []
             return "未检索到相关文档片段（可能未上传相关文档或相似度不足）。"
 
-        sources = self._build_sources(results)
+        sources = dedupe_sources(self._build_sources(results))
         bucket[ChatTaskExtra.SOURCES_EXTRA_KEY] = sources
 
         lines: List[str] = []
         for i, s in enumerate(sources, 1):
             sim = s.get("similarity", 0.0)
+            rerank_score = s.get("rerank_score")
             flag = "高相关" if s.get("above_threshold", True) else "低相关"
+            rank_text = f" 重排分≈{float(rerank_score):.3f}" if rerank_score is not None else ""
             snippet = (s.get("chunk_text") or "")[:_MAX_SNIPPET]
             lines.append(
                 f"[{i}] 《{s.get('document_name') or '未知文档'}》"
                 f" doc_id={s.get('document_id')} chunk_id={s.get('chunk_id')} "
-                f"相似度≈{float(sim):.3f}（{flag}）\n{snippet}"
+                f"相似度≈{float(sim):.3f}{rank_text}（{flag}）\n{snippet}"
             )
         joined = "\n\n".join(lines)
         if len(joined) > 12000:

@@ -5,6 +5,7 @@ from mcp.server.fastmcp import FastMCP
 
 from apps.utils.mcp_tools.mcp_bridge import ChatTaskExtra, chat_task_extra
 from apps.utils.mcp_tools.pg_utils import get_sql_pool
+from apps.utils.mcp_tools.source_utils import dedupe_sources
 
 MAX_DOCUMENT_IDS = 10
 
@@ -30,7 +31,6 @@ class ChatDocumentToolsModule:
     ) -> str:
         pool = await get_sql_pool()
         bucket = self._extra.current()
-
         raw = document_ids if document_ids is not None else ids
         if raw is None:
             return "请提供 document_ids 或 ids（JSON 整数数组）。"
@@ -87,6 +87,7 @@ class ChatDocumentToolsModule:
                 }
             )
 
+        sources = dedupe_sources(sources)
         bucket[ChatTaskExtra.SOURCES_EXTRA_KEY] = sources
         preview = ", ".join(s["original_filename"] for s in sources[:5])
         tail = f" 等共 {len(sources)} 个" if len(sources) > 5 else ""

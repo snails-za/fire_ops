@@ -15,13 +15,15 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from qdrant_client.http.models import VectorParams
 from qdrant_client.models import Distance
+from sentence_transformers import CrossEncoder
 
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from apps.utils.common import get_local_model_path
 from config import CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, SIMILARITY_THRESHOLD
 from config import (
     EMBEDDING_MODEL, HF_HOME, HF_OFFLINE,
-    QDRANT_HOST, QDRANT_PORT, QDRANT_COLLECTION_NAME
+    QDRANT_HOST, QDRANT_PORT, QDRANT_COLLECTION_NAME,
+    RERANK_ENABLED, RERANK_MODEL,
 )
 from config import VECTOR_DB_TYPE
 
@@ -34,6 +36,8 @@ class VectorDBSelector:
         self.vectorstore = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.embeddings = self._get_embedding_model()
+        self.reranker = None
+        self.reranker_available = None
         self._init_database()
 
     def _init_database(self):
@@ -62,6 +66,72 @@ class VectorDBSelector:
                 encode_kwargs={'normalize_embeddings': True}
             )
         return embeddings
+
+    def _get_reranker_model(self):
+        """获取重排模型，懒加载并允许失败降级。"""
+        if not RERANK_ENABLED:
+            return None
+        if self.reranker_available is False:
+            return None
+        if self.reranker is not None:
+            return self.reranker
+
+        try:
+            local_model_path = get_local_model_path(RERANK_MODEL, HF_HOME)
+            if local_model_path and HF_OFFLINE:
+                self.reranker = CrossEncoder(
+                    local_model_path,
+                    device=self.device,
+                    max_length=512,
+                )
+                model_name = local_model_path
+            else:
+                self.reranker = CrossEncoder(
+                    RERANK_MODEL,
+                    device=self.device,
+                    max_length=512,
+                    cache_dir=HF_HOME,
+                )
+                model_name = RERANK_MODEL
+
+            self.reranker_available = True
+            print(f"✅ 使用重排模型: {model_name}")
+            return self.reranker
+        except Exception as e:
+            print(f"⚠️ 重排模型初始化失败，已降级为向量排序: {e}")
+            self.reranker_available = False
+            return None
+
+    def _rerank_results(self, query: str, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """使用 CrossEncoder 对召回结果重排。"""
+        reranker = self._get_reranker_model()
+        if not reranker or not results:
+            results.sort(key=lambda x: x["similarity"], reverse=True)
+            return results
+
+        try:
+            pairs = []
+            for item in results:
+                chunk = item.get("chunk")
+                pairs.append([query, (chunk.content if chunk else "") or ""])
+
+            scores = reranker.predict(pairs, convert_to_numpy=True)
+            for item, score in zip(results, scores):
+                item["rerank_score"] = float(score)
+                item["reranked"] = True
+
+            results.sort(
+                key=lambda x: (
+                    x.get("rerank_score", float("-inf")),
+                    x.get("similarity", 0.0),
+                ),
+                reverse=True,
+            )
+            print(f"✅ 已完成重排: {len(results)} 条候选")
+        except Exception as e:
+            print(f"⚠️ 重排失败，保留向量排序: {e}")
+            results.sort(key=lambda x: x["similarity"], reverse=True)
+        return results
 
     def _init_chroma(self):
         """初始化ChromaDB"""
@@ -136,13 +206,17 @@ class VectorDBSelector:
             traceback.print_exc()
             raise Exception(f"添加文档到向量存储失败: {e}")
 
-    async def search_similar_documents(self, query: str, top_k: int = 5, use_threshold: bool = True) -> List[
-        Dict[str, Any]]:
+    async def search_similar_documents(
+            self,
+            query: str,
+            top_k: int = 5,
+            use_threshold: bool = True,
+    ) -> List[Dict[str, Any]]:
         """搜索相似文档"""
         try:
             # 执行搜索
             print(f"🔍 执行向量搜索: 查询='{query}', top_k={top_k}, 数据库类型={self.db_type}")
-            results = self.vectorstore.similarity_search_with_score(query, k=20)
+            results = self.vectorstore.similarity_search_with_score(query, k=top_k)
             print(f"📊 搜索结果数量: {len(results)}")
 
             # 转换为标准格式
@@ -167,11 +241,11 @@ class VectorDBSelector:
                         # 获取数据库中的文档和块信息
                         document = await DocumentModel.get_or_none(id=document_id)
                         if not document:
-                            await vector_search.delete_document(document_id)
+                            await self.delete_document(document_id)
                             continue
                         chunk = await DocumentChunk.get_or_none(id=chunk_id)
                         if not chunk:
-                            await vector_search.delete_document(document_id)
+                            await self.delete_document(document_id)
                             continue
 
                         if document and chunk:
@@ -196,13 +270,14 @@ class VectorDBSelector:
             print(f"📋 过滤前结果: {len(all_results)}, 过滤后结果: {len(filtered_results)}")
 
             if filtered_results:
-                filtered_results.sort(key=lambda x: x['similarity'], reverse=True)
+                filtered_results = self._rerank_results(query, filtered_results)
                 print(f"✅ 返回过滤后的结果: {len(filtered_results)}")
                 return filtered_results[:top_k]
             elif all_results:
-                all_results.sort(key=lambda x: x['similarity'], reverse=True)
+                all_results = self._rerank_results(query, all_results)
                 print(f"⚠️ 返回所有结果: {len(all_results)}")
-                return all_results[:min(top_k, 3)]
+                fallback_k = min(top_k, 3) if use_threshold else top_k
+                return all_results[:fallback_k]
             else:
                 print("❌ 没有找到任何结果")
                 return []

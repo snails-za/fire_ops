@@ -51,7 +51,6 @@ async def ask_question_stream(
 async def search_documents(
         query: str,
         top_k: int = Query(5, ge=1, le=20, description="返回结果数量"),
-        user: User = Depends(get_current_user)
 ):
     """搜索相关文档 - 集成LLM查询优化"""
     try:
@@ -78,7 +77,6 @@ async def search_documents(
             query=search_query,
             top_k=top_k,
             use_threshold=False,  # 不使用阈值过滤，返回所有找到的结果
-            lambda_param=0.7
         )
 
         # 如果优化查询无结果，尝试原查询
@@ -87,7 +85,6 @@ async def search_documents(
                 query=original_query,
                 top_k=top_k,
                 use_threshold=False,  # 不使用阈值过滤，返回所有找到的结果
-                lambda_param=0.7
             )
 
         results = []
@@ -101,6 +98,8 @@ async def search_documents(
                 "document_name": document.filename if document else "未知文档",
                 "chunk_content": chunk.content if chunk else "",
                 "similarity": round(result.get("similarity", 0), 4),
+                "rerank_score": round(result["rerank_score"], 4) if "rerank_score" in result else None,
+                "reranked": bool(result.get("reranked", False)),
                 "chunk_index": chunk.chunk_index if chunk else 0
             })
 
@@ -137,10 +136,7 @@ async def get_config():
 
 @router.post("/analyze", summary="问题分析", description="使用LLM分析问题意图和关键词",
              dependencies=[Depends(get_current_user)])
-async def analyze_question(
-        question: str = Form(..., description="用户问题"),
-        user: User = Depends(get_current_user)
-):
+async def analyze_question(question: str = Form(..., description="用户问题")):
     """问题分析 - 展示LLM的问题理解能力"""
     try:
         # 使用新的优化器模块

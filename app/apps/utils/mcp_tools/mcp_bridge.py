@@ -140,4 +140,3 @@ langchain_mcp_bridge = LangChainMcpBridge()
 
 mcp_chat_host = McpChatHost()
 mcp_server_app = mcp_chat_host.app
-

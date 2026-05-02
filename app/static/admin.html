@@ -6,7 +6,7 @@
     <title>后台管理 - 消安云管</title>
     <style>
         :root {
-            /* 默认主题变量 - 蓝色主题 */
+            /* 固定后台主题 */
             --primary-color: #007bff;
             --primary-hover: #0056b3;
             --sidebar-bg: #0056b3;
@@ -931,295 +931,6 @@
             cursor: pointer;
         }
 
-        /* 聊天界面 */
-        .chat-box {
-            background: white;
-            border-radius: 0;
-            height: calc(100vh - 120px);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            box-shadow: none;
-            border: none;
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE and Edge */
-        }
-
-        .chat-box::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Opera */
-        }
-
-        /* 主题选择器样式 */
-        .theme-options {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .theme-option {
-            display: flex;
-            align-items: center;
-            padding: 20px;
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: white;
-        }
-
-        .theme-option:hover {
-            border-color: #007bff;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
-        }
-
-        .theme-option.active {
-            border-color: #007bff;
-            background: #f8f9fa;
-        }
-
-        .theme-preview {
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
-            margin-right: 15px;
-            border: 2px solid #e9ecef;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .default-theme {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-        }
-
-        .dark-theme {
-            background: linear-gradient(135deg, #263238 0%, #37474f 100%);
-        }
-
-
-        .purple-theme {
-            background: linear-gradient(135deg, #4a148c 0%, #9c27b0 100%);
-        }
-
-        .yellow-theme {
-            background: linear-gradient(135deg, #e65100 0%, #ff9800 100%);
-        }
-
-        .theme-preview::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 20px;
-            background: white;
-            border-top: 1px solid #e9ecef;
-        }
-
-        .theme-info h4 {
-            margin: 0 0 5px 0;
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .theme-info p {
-            margin: 0;
-            font-size: 14px;
-            color: #6c757d;
-        }
-
-        /* 主题样式 */
-        
-        /* 默认蓝色主题 */
-        [data-theme="default"] .sidebar {
-            background: var(--sidebar-bg, #0056b3) !important;
-            color: white !important;
-        }
-
-        [data-theme="default"] .sidebar-header {
-            color: white !important;
-        }
-
-        [data-theme="default"] .menu-item {
-            color: white !important;
-        }
-
-        [data-theme="default"] .menu-item:hover {
-            background: rgba(0, 123, 255, 0.2) !important;
-        }
-
-        [data-theme="default"] .menu-item.active {
-            background: rgba(0, 123, 255, 0.3) !important;
-            border-left-color: var(--sidebar-active) !important;
-        }
-
-        [data-theme="default"] .btn-primary {
-            background: var(--primary-color);
-        }
-
-        [data-theme="default"] .btn-primary:hover {
-            background: var(--primary-hover);
-        }
-
-        /* 深色主题 - 重新设计 */
-        [data-theme="dark"] {
-            --primary-color: #4fc3f7;
-            --primary-hover: #29b6f6;
-            --sidebar-bg: #263238;
-            --sidebar-active: #4fc3f7;
-            --card-bg: #37474f;
-            --text-color: #eceff1;
-            --border-color: #546e7a;
-            --bg-color: #263238;
-        }
-
-        [data-theme="dark"] body {
-            background: var(--bg-color);
-            color: var(--text-color);
-        }
-
-        [data-theme="dark"] .sidebar {
-            background: var(--sidebar-bg) !important;
-            color: #eceff1 !important;
-        }
-
-        [data-theme="dark"] .sidebar-header {
-            color: #eceff1 !important;
-        }
-
-        [data-theme="dark"] .menu-item {
-            color: #eceff1 !important;
-        }
-
-        [data-theme="dark"] .menu-item:hover {
-            background: rgba(79, 195, 247, 0.1) !important;
-        }
-
-        [data-theme="dark"] .menu-item.active {
-            background: rgba(79, 195, 247, 0.2) !important;
-            border-left-color: var(--sidebar-active) !important;
-        }
-
-        [data-theme="dark"] .card {
-            background: var(--card-bg);
-            border-color: var(--border-color);
-            color: var(--text-color);
-        }
-
-        [data-theme="dark"] .card-title {
-            color: var(--text-color);
-        }
-
-        [data-theme="dark"] .btn-primary {
-            background: var(--primary-color);
-            color: #263238;
-            font-weight: 600;
-        }
-
-        [data-theme="dark"] .btn-primary:hover {
-            background: var(--primary-hover);
-        }
-
-        [data-theme="dark"] .header {
-            background: var(--card-bg);
-            border-bottom: 1px solid var(--border-color);
-        }
-
-
-        /* 紫色主题 - 保持现有设计 */
-        [data-theme="purple"] {
-            --primary-color: #9c27b0;
-            --primary-hover: #8e24aa;
-            --sidebar-bg: #4a148c;
-            --sidebar-active: #ba68c8;
-            --card-bg: white;
-            --text-color: #333;
-            --border-color: #f3e5f5;
-            --bg-color: #fce4ec;
-        }
-
-        [data-theme="purple"] body {
-            background: var(--bg-color);
-        }
-
-        [data-theme="purple"] .sidebar {
-            background: var(--sidebar-bg) !important;
-            color: white !important;
-        }
-
-        [data-theme="purple"] .sidebar-header {
-            color: white !important;
-        }
-
-        [data-theme="purple"] .menu-item {
-            color: white !important;
-        }
-
-        [data-theme="purple"] .menu-item:hover {
-            background: rgba(186, 104, 200, 0.2) !important;
-        }
-
-        [data-theme="purple"] .menu-item.active {
-            background: rgba(186, 104, 200, 0.3) !important;
-            border-left-color: var(--sidebar-active) !important;
-        }
-
-        [data-theme="purple"] .btn-primary {
-            background: var(--primary-color);
-        }
-
-        [data-theme="purple"] .btn-primary:hover {
-            background: var(--primary-hover);
-        }
-
-        /* 黄色主题 - 新增 */
-        [data-theme="yellow"] {
-            --primary-color: #ff9800;
-            --primary-hover: #f57c00;
-            --sidebar-bg: #e65100;
-            --sidebar-active: #ffb74d;
-            --card-bg: white;
-            --text-color: #333;
-            --border-color: #fff3e0;
-            --bg-color: #fff8e1;
-        }
-
-        [data-theme="yellow"] body {
-            background: var(--bg-color);
-        }
-
-        [data-theme="yellow"] .sidebar {
-            background: var(--sidebar-bg) !important;
-            color: white !important;
-        }
-
-        [data-theme="yellow"] .sidebar-header {
-            color: white !important;
-        }
-
-        [data-theme="yellow"] .menu-item {
-            color: white !important;
-        }
-
-        [data-theme="yellow"] .menu-item:hover {
-            background: rgba(255, 183, 77, 0.2) !important;
-        }
-
-        [data-theme="yellow"] .menu-item.active {
-            background: rgba(255, 183, 77, 0.3) !important;
-            border-left-color: var(--sidebar-active) !important;
-        }
-
-        [data-theme="yellow"] .btn-primary {
-            background: var(--primary-color);
-        }
-
-        [data-theme="yellow"] .btn-primary:hover {
-            background: var(--primary-hover);
-        }
-
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -1414,6 +1125,45 @@
         }
 
         .chat-input:focus {
+            border-color: var(--primary-color, #667eea);
+        }
+
+        .chat-session-bar {
+            max-width: 768px;
+            margin: 0 auto 12px auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 0 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .chat-session-select {
+            flex: 1;
+            min-width: 0;
+            height: 36px;
+            padding: 0 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: white;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .chat-session-btn {
+            height: 36px;
+            padding: 0 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: #fff;
+            color: #374151;
+            cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .chat-session-btn:hover {
+            background: #f9fafb;
             border-color: var(--primary-color, #667eea);
         }
 
@@ -2136,28 +1886,6 @@
             100% { background-color: #ffeb3b; }
         }
 
-        /* 流式输出动画效果 */
-        .streaming-content {
-            position: relative;
-        }
-
-        .streaming-content::after {
-            content: '▋';
-            color: #007bff;
-            animation: blink 1s infinite;
-            margin-left: 2px;
-        }
-
-        /* 回答完成后隐藏光标 */
-        .streaming-content.completed::after {
-            display: none;
-        }
-
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0; }
-        }
-
         /* 延迟显示动画 */
         .delayed-content {
             opacity: 0;
@@ -2417,368 +2145,570 @@
             display: block;
         }
 
-        /* 公告管理页面特殊样式 */
-        #announcements .card {
-            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-            border-radius: 16px;
-            border: none;
+        /* 专业后台视觉覆盖：降低装饰性，统一为运维系统风格 */
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --sidebar-bg: #111827;
+            --sidebar-active: #3b82f6;
+            --card-bg: #ffffff;
+            --text-color: #111827;
+            --border-color: #e5e7eb;
+            --bg-color: #f3f4f6;
+            --muted-text: #6b7280;
+        }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .sidebar {
+            background: var(--sidebar-bg) !important;
+            border-right: 1px solid #0f172a;
+            box-shadow: none;
+        }
+
+        .sidebar-header {
+            padding: 22px 20px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .system-logo {
+            width: 40px;
+            height: 40px;
+            margin: 0 0 12px 0;
+            box-shadow: none;
+        }
+
+        .system-logo:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .sidebar-header h1 {
+            font-size: 18px;
+            letter-spacing: 0;
+        }
+
+        .sidebar-header p {
+            color: #9ca3af;
+            opacity: 1;
+        }
+
+        .sidebar-menu {
+            padding: 12px 10px;
+        }
+
+        .menu-item {
+            padding: 11px 14px;
+            border-radius: 6px;
+            gap: 10px;
+            color: #d1d5db !important;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.06) !important;
+            padding-left: 14px;
+        }
+
+        .menu-item.active {
+            background: #1f2937 !important;
+            border-left: 3px solid var(--sidebar-active);
+            padding-left: 11px;
+            color: #ffffff !important;
+        }
+
+        .menu-item .icon,
+        .dropdown-item .icon {
+            width: 22px;
+            font-size: 12px;
+            color: #9ca3af;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .topbar {
+            box-shadow: none;
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 24px;
+        }
+
+        .topbar-left h2 {
+            font-size: 18px;
+            color: var(--text-color);
+        }
+
+        .content {
+            padding: 18px 20px;
+        }
+
+        .card {
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            box-shadow: none;
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            color: var(--text-color);
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: #ffffff !important;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: none;
+            padding: 18px;
+        }
+
+        .stat-card h3,
+        .stat-card .change {
+            color: var(--muted-text);
+            opacity: 1;
+        }
+
+        .stat-card .value {
+            color: var(--text-color);
+            font-size: 30px;
+        }
+
+        .btn,
+        .send-btn,
+        .chat-session-btn {
+            border-radius: 6px;
+            box-shadow: none;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .btn:hover,
+        .send-btn:hover,
+        .chat-session-btn:hover {
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-success {
+            background: #047857;
+        }
+
+        .logout-btn {
+            border-radius: 6px;
+        }
+
+        .user-info {
+            border-radius: 6px;
+        }
+
+        .user-avatar {
+            border: 1px solid var(--border-color);
+        }
+
+        .dropdown-header {
+            background: #f9fafb;
+            color: var(--text-color);
+        }
+
+        .dropdown-header .user-email {
+            color: var(--muted-text);
+        }
+
+        .status-item,
+        .status-item-compact,
+        .quick-stat-item {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-left: 3px solid #2563eb;
+            border-radius: 6px;
+            box-shadow: none;
+        }
+
+        .status-item:hover,
+        .status-item-compact:hover,
+        .quick-stat-item:hover,
+        .clickable:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status-icon,
+        .quick-stat-icon,
+        .action-icon,
+        .upload-icon,
+        .delete-confirm-icon,
+        .empty-state .icon {
+            display: none !important;
+        }
+
+        .empty-state {
+            background: #ffffff !important;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 28px;
+        }
+
+        .empty-state::before {
+            display: none !important;
+        }
+
+        .empty-state h3,
+        .empty-state p {
+            color: var(--muted-text);
+        }
+
+        .chat-panel {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            height: calc(100vh - 150px);
+            min-height: 520px;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
-            background: white;
-            position: relative;
+            background: #ffffff;
+        }
+
+        .chat-session-bar {
+            max-width: none;
+            margin: 0;
+            padding: 10px 12px;
+            background: #f9fafb;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .chat-session-label {
+            color: var(--muted-text);
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .chat-session-select {
+            height: 34px;
+            border-radius: 6px;
+            border-color: #d1d5db;
+        }
+
+        .chat-session-btn {
+            height: 34px;
+            border-radius: 6px;
+        }
+
+        .chat-messages {
+            max-width: none;
+            padding: 0 18px;
+            background: #ffffff;
+        }
+
+        .message {
+            padding: 16px 0;
+            border-bottom: 1px solid #eef2f7;
+            gap: 12px;
+        }
+
+        .message.user .message-content {
+            text-align: left;
+        }
+
+        .message.user::before {
+            content: "提问";
+            flex: 0 0 54px;
+            color: var(--muted-text);
+            font-size: 12px;
+            padding-top: 2px;
+        }
+
+        .message.assistant::before {
+            content: "回答";
+            flex: 0 0 54px;
+            color: var(--muted-text);
+            font-size: 12px;
+            padding-top: 2px;
+        }
+
+        .message-content {
+            color: #111827;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message-time {
+            margin-top: 8px;
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        .streaming-content {
+            font-size: 14px;
+        }
+
+        .chat-input-area {
+            max-width: none;
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            background: #f9fafb;
+        }
+
+        .chat-input {
+            border-radius: 6px;
+            box-shadow: none;
+            min-height: 42px;
+            font-size: 14px;
+        }
+
+        .send-btn {
+            height: 42px;
+            padding: 0 18px;
+            background: #2563eb;
+            font-size: 14px;
+        }
+
+        .send-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .send-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .sources.delayed-content,
+        .search-info.delayed-content,
+        .react-tool-log,
+        .react-thought {
+            border-radius: 6px !important;
+            box-shadow: none !important;
+        }
+
+        .chat-messages .streaming-content blockquote,
+        .chat-messages .react-thought,
+        .chat-messages .react-tool-log {
+            border-left: 0 !important;
+        }
+
+        .chat-messages .streaming-content blockquote {
+            margin: 6px 0;
+            padding: 0;
+            background: transparent;
+            color: #64748b;
+        }
+
+        .chat-messages .streaming-content blockquote:empty,
+        .chat-messages .streaming-content p:empty {
+            display: none;
+        }
+
+        .chat-messages .react-thought {
+            margin-bottom: 8px !important;
+            padding: 0 !important;
+            color: #64748b !important;
+            background: transparent !important;
+        }
+
+        .chat-messages .react-tool-log {
+            padding: 10px 12px !important;
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #475569 !important;
+        }
+
+        .source-panel,
+        .search-info {
+            margin-top: 10px;
+            padding: 10px;
+            color: #4b5563;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+
+        .source-panel {
+            background: #f9fafb;
+            border-left: 3px solid #2563eb;
+        }
+
+        .source-title {
+            margin-bottom: 8px;
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        .source-item {
+            margin-bottom: 6px;
+            padding: 8px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+
+        .source-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .source-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .source-name {
+            color: #111827;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .source-meta {
+            margin-left: 8px;
+            color: #6b7280;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .source-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .source-actions .action-btn {
+            padding: 3px 8px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .source-actions .download-btn {
+            background: #047857;
+        }
+
+        .source-actions .preview-btn {
+            background: #0369a1;
+        }
+
+        .search-info {
+            background: #f9fafb;
+            border-left: 3px solid #9ca3af;
+        }
+
+        .search-info-react {
+            background: #ecfeff;
+            border-left-color: #06b6d4;
+        }
+
+        .search-info-high {
+            background: #eff6ff;
+            border-left-color: #2563eb;
+        }
+
+        .search-info-low {
+            background: #fffbeb;
+            border-left-color: #d97706;
+        }
+
+        .search-info-none {
+            background: #fef2f2;
+            border-left-color: #dc2626;
+        }
+
+        #announcements .card {
+            padding: 0;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: none;
         }
 
         #announcements .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #f5576c);
-            background-size: 300% 100%;
-            animation: gradientShift 3s ease infinite;
-        }
-
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+            display: none;
         }
 
         #announcements .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 24px 32px;
-            border-bottom: none;
+            padding: 16px 20px;
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-color);
         }
 
         #announcements .card-header h2 {
-            color: white;
-            font-size: 24px;
-            font-weight: 600;
+            color: #111827;
+            font-size: 18px;
+            font-weight: 700;
             margin: 0;
         }
 
-        #announcements .card-actions .btn {
-            background: rgba(255,255,255,0.25);
-            border: 2px solid rgba(255,255,255,0.4);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            z-index: 1;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        #announcements .card-body {
+            background: #ffffff;
         }
 
-        #announcements .card-actions .btn:hover {
-            background: rgba(255,255,255,0.4);
-            transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-            border-color: rgba(255,255,255,0.6);
-        }
-
-        #announcements .card-actions .btn:active {
-            transform: translateY(-1px) scale(1.02);
-        }
-
-        /* 筛选器样式 */
-        .filter-bar {
-            background: #f8f9fa;
-            padding: 24px 32px;
-            border-bottom: 1px solid #e9ecef;
+        #announcements .filter-bar {
             display: flex;
-            gap: 24px;
             align-items: center;
             flex-wrap: wrap;
             justify-content: space-between;
+            padding: 14px 20px;
+            background: #f9fafb;
+            border-bottom: 1px solid var(--border-color);
+            gap: 12px;
         }
 
-        .filter-controls {
+        #announcements .filter-controls,
+        #announcements .filter-actions {
             display: flex;
-            gap: 20px;
             align-items: center;
             flex-wrap: wrap;
+            gap: 10px;
         }
 
-        .filter-actions {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .filter-actions .btn-primary {
-            background: #667eea;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 14px;
-            border: none;
-            transition: all 0.3s ease;
-        }
-
-        .filter-actions .btn-primary:hover {
-            background: #5a6fd8;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-
-        .filter-group {
+        #announcements .filter-group {
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .filter-group label {
-            font-weight: 500;
-            color: #495057;
+        #announcements .filter-group label {
+            color: #4b5563;
+            font-size: 13px;
+            font-weight: 600;
             white-space: nowrap;
-            font-size: 14px;
         }
 
-        .filter-group select,
-        .filter-group input {
-            padding: 8px 12px;
-            border: 1px solid #ced4da;
+        #announcements .filter-group select,
+        #announcements .filter-group input {
+            min-width: 160px;
+            height: 36px;
+            padding: 0 10px;
+            border: 1px solid #d1d5db;
             border-radius: 6px;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            min-width: 120px;
-            background: white;
+            box-shadow: none;
         }
 
-        .filter-group select:focus,
-        .filter-group input:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-            outline: none;
+        #announcements .filter-group select:focus,
+        #announcements .filter-group input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
         }
 
-        .filter-group select {
-            cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 8px center;
-            background-repeat: no-repeat;
-            background-size: 16px;
-            padding-right: 40px;
-        }
-
-        /* 表格样式优化 */
-        #announcements .data-table {
-            margin: 0;
-            border-collapse: separate;
-            border-spacing: 0;
-            width: 100%;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        }
-
-        #announcements .data-table thead th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: 700;
-            padding: 20px 24px;
-            border-bottom: none;
-            text-align: left;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            position: relative;
-        }
-
-        #announcements .data-table thead th:first-child {
-            border-radius: 12px 0 0 0;
-        }
-
-        #announcements .data-table thead th:last-child {
-            border-radius: 0 12px 0 0;
-        }
-
-        #announcements .data-table tbody td {
-            padding: 20px 24px;
-            border-bottom: 1px solid #f1f3f4;
-            vertical-align: middle;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        #announcements .data-table tbody tr {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-        }
-
-        #announcements .data-table tbody tr:hover {
-            background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
-        }
-
-        #announcements .data-table tbody tr:hover td {
-            border-color: transparent;
-        }
-
-        #announcements .data-table tbody tr:last-child td:first-child {
-            border-radius: 0 0 0 12px;
-        }
-
-        #announcements .data-table tbody tr:last-child td:last-child {
-            border-radius: 0 0 12px 0;
-        }
-
-        /* 操作按钮样式 */
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .action-buttons .btn {
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: none;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .action-buttons .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .action-buttons .btn:hover::before {
-            left: 100%;
-        }
-
-        .action-buttons .btn-primary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .action-buttons .btn-success {
-            background: linear-gradient(135deg, #56ab2f, #a8e6cf);
-            color: white;
-            box-shadow: 0 4px 15px rgba(86, 171, 47, 0.3);
-        }
-
-        .action-buttons .btn-warning {
-            background: linear-gradient(135deg, #f093fb, #f5576c);
-            color: white;
-            box-shadow: 0 4px 15px rgba(240, 147, 251, 0.3);
-        }
-
-        .action-buttons .btn-danger {
-            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-            color: white;
-            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-        }
-
-        .action-buttons .btn:hover {
-            transform: translateY(-2px) scale(1.05);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-        }
-
-        .action-buttons .btn:active {
-            transform: translateY(0) scale(1.02);
-        }
-
-        /* 空状态样式 */
-        .empty-state {
-            text-align: center;
-            padding: 80px 40px;
-            color: #6c757d;
-            background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
-            border-radius: 16px;
-            margin: 20px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .empty-state::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(102, 126, 234, 0.05) 0%, transparent 70%);
-            animation: float 8s ease-in-out infinite;
-        }
-
-        .empty-state .icon {
-            font-size: 64px;
-            margin-bottom: 24px;
-            opacity: 0.7;
-            animation: bounce 3s infinite;
-            position: relative;
-            z-index: 1;
-        }
-
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {
-                transform: translateY(0) rotate(0deg);
-            }
-            40% {
-                transform: translateY(-15px) rotate(5deg);
-            }
-            60% {
-                transform: translateY(-8px) rotate(-3deg);
-            }
-        }
-
-        .empty-state p {
-            font-size: 20px;
-            margin: 0 0 12px 0;
-            font-weight: 600;
-            color: #495057;
-            position: relative;
-            z-index: 1;
-        }
-
-        .empty-state small {
-            color: #6c757d;
-            font-size: 16px;
-            position: relative;
-            z-index: 1;
-        }
-
-        /* 加载状态 */
         .loading-state {
+            padding: 32px 20px;
+            color: #6b7280;
             text-align: center;
-            padding: 40px 20px;
-            color: #6c757d;
         }
 
         .loading-spinner {
             display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            border: 2px solid #e5e7eb;
+            border-top-color: #2563eb;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-right: 10px;
+            vertical-align: -3px;
         }
 
         @keyframes spin {
@@ -2786,108 +2716,179 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* 模态框样式优化 */
+        #announcements .data-table {
+            border-radius: 0;
+            box-shadow: none;
+            border-collapse: collapse;
+        }
+
+        #announcements .data-table thead th {
+            padding: 12px 16px;
+            background: #f3f4f6;
+            color: #374151;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+
+        #announcements .data-table tbody td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #eef2f7;
+            color: #374151;
+        }
+
+        #announcements .data-table tbody tr {
+            transition: background-color 0.15s ease;
+        }
+
+        #announcements .data-table tbody tr:hover {
+            background: #f9fafb;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #announcements .announcement-title {
+            color: #111827;
+            font-weight: 600;
+        }
+
+        #announcements .action-buttons {
+            justify-content: flex-start;
+            gap: 6px;
+        }
+
+        #announcements .action-buttons .btn,
+        #announcements .filter-actions .btn,
+        #announcements .filter-controls .btn {
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            box-shadow: none;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0;
+            text-transform: none;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+
+        #announcements .action-buttons .btn::before {
+            display: none;
+        }
+
+        #announcements .action-buttons .btn:hover,
+        #announcements .filter-actions .btn:hover,
+        #announcements .filter-controls .btn:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        #announcements .btn-primary,
+        #announcements .filter-actions .btn-primary {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        #announcements .btn-primary:hover,
+        #announcements .filter-actions .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        #announcements .btn-secondary {
+            background: #ffffff;
+            color: #374151;
+            border-color: #d1d5db;
+        }
+
+        #announcements .btn-secondary:hover {
+            background: #f9fafb;
+        }
+
+        #announcements .btn-success {
+            background: #047857;
+            color: #ffffff;
+        }
+
+        #announcements .btn-warning {
+            background: #f59e0b;
+            color: #111827;
+        }
+
+        #announcements .btn-danger {
+            background: #dc2626;
+            color: #ffffff;
+        }
+
+        #announcements .status-badge {
+            border-radius: 999px;
+            padding: 3px 8px;
+            background: #f3f4f6;
+            color: #374151;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        #announcements .status-badge.status-published {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        #announcements .status-badge.status-draft {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+
+        #announcements .status-badge.status-archived {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
         #announcementModal .modal-content {
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-            border: none;
-            overflow: hidden;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 20px 25px rgba(15, 23, 42, 0.12);
         }
 
         #announcementModal .modal-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 24px;
-            border-radius: 12px 12px 0 0;
+            background: #ffffff;
+            color: #111827;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            border-radius: 8px 8px 0 0;
         }
 
         #announcementModal .modal-header h3 {
-            color: white;
-            margin: 0;
-            font-weight: 600;
-            font-size: 20px;
+            color: #111827;
+            font-size: 18px;
         }
 
         #announcementModal .close {
-            color: white;
-            opacity: 0.8;
-            font-size: 24px;
-            transition: all 0.3s ease;
-        }
-
-        #announcementModal .close:hover {
-            opacity: 1;
+            color: #6b7280;
         }
 
         #announcementModal .modal-body {
-            padding: 24px;
-            background: white;
-        }
-
-        #announcementModal .form-group {
-            margin-bottom: 20px;
-        }
-
-        #announcementModal .form-group label {
-            font-weight: 500;
-            color: #495057;
-            margin-bottom: 8px;
-            display: block;
-            font-size: 14px;
-        }
-
-        #announcementModal input,
-        #announcementModal textarea,
-        #announcementModal select {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            background: white;
-        }
-
-        #announcementModal input:focus,
-        #announcementModal textarea:focus,
-        #announcementModal select:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-            outline: none;
+            padding: 20px;
         }
 
         #announcementModal .modal-footer {
-            padding: 20px 24px;
-            background: #f8f9fa;
-            border-radius: 0 0 12px 12px;
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
+            padding: 14px 20px;
+            background: #f9fafb;
+            border-top: 1px solid var(--border-color);
+            border-radius: 0 0 8px 8px;
         }
 
         #announcementModal .modal-footer .btn {
-            padding: 10px 20px;
+            height: 36px;
+            padding: 0 14px;
             border-radius: 6px;
-            font-weight: 500;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-        }
-
-        #announcementModal .modal-footer .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-
-        #announcementModal .modal-footer .btn-primary {
-            background: #667eea;
-            color: white;
+            box-shadow: none;
         }
 
         #announcementModal .modal-footer .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: none;
+            box-shadow: none;
         }
 
     </style>
@@ -2899,31 +2900,31 @@
             <div class="sidebar-header">
                 <img src="/static/images/system_logo.png" alt="系统Logo" class="system-logo">
                 <h1>消安云管</h1>
-                <p>智能管理系统</p>
+                <p>消防设备运维平台</p>
             </div>
             <div class="sidebar-menu">
                 <div class="menu-item active" onclick="showPage('dashboard')">
-                    <span class="icon">📊</span>
+                    <span class="icon">OV</span>
                     <span>仪表盘</span>
                 </div>
                 <div class="menu-item" onclick="showPage('users')">
-                    <span class="icon">👥</span>
+                    <span class="icon">US</span>
                     <span>用户管理</span>
                 </div>
                 <div class="menu-item" onclick="showPage('devices')">
-                    <span class="icon">📱</span>
+                    <span class="icon">DV</span>
                     <span>设备管理</span>
                 </div>
                 <div class="menu-item" onclick="showPage('documents')">
-                    <span class="icon">📄</span>
+                    <span class="icon">DC</span>
                     <span>文档管理</span>
                 </div>
                 <div class="menu-item" onclick="showPage('chat')">
-                    <span class="icon">💬</span>
-                    <span>智能问答</span>
+                    <span class="icon">QA</span>
+                    <span>数据问答</span>
                 </div>
                 <div class="menu-item" onclick="showPage('announcements')">
-                    <span class="icon">📢</span>
+                    <span class="icon">AN</span>
                     <span>公告管理</span>
                 </div>
             </div>
@@ -2948,15 +2949,11 @@
                                 <div class="user-email" id="dropdownUserEmail">-</div>
                             </div>
                             <a href="/static/profile.html" class="dropdown-item">
-                                <span class="icon">👤</span>
+                                <span class="icon">PF</span>
                                 <span>个人中心</span>
                             </a>
-                            <div class="dropdown-item" onclick="showThemeSelector()">
-                                <span class="icon">🎨</span>
-                                <span>主题设置</span>
-                            </div>
                             <div class="dropdown-item" onclick="logout()">
-                                <span class="icon">🚪</span>
+                                <span class="icon">EX</span>
                                 <span>退出登录</span>
                             </div>
                         </div>
@@ -2969,17 +2966,17 @@
                 <!-- 仪表盘 -->
                 <div id="dashboard" class="page active">
                     <div class="stats-grid">
-                        <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="stat-card">
                             <h3>总用户数</h3>
                             <div class="value" id="totalUsers">-</div>
                             <div class="change">系统注册用户</div>
                         </div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <div class="stat-card">
                             <h3>设备数量</h3>
                             <div class="value" id="totalDevices">-</div>
                             <div class="change">在线设备统计</div>
                         </div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <div class="stat-card">
                             <h3>文档数量</h3>
                             <div class="value" id="totalDocuments">-</div>
                             <div class="change">已上传文档</div>
@@ -2988,25 +2985,21 @@
 
                     <!-- 系统状态监控 - 紧凑版 -->
                     <div class="card">
-                        <div class="card-title">⚡ 系统状态监控</div>
+                        <div class="card-title">系统状态监控</div>
                         <div class="status-compact">
                             <div class="status-item-compact" id="systemHealth">
-                                <div class="status-icon">💚</div>
                                 <span class="status-label">系统:</span>
                                 <span class="status-value" id="systemStatus">正常</span>
                             </div>
                             <div class="status-item-compact" id="apiHealth">
-                                <div class="status-icon">🔗</div>
                                 <span class="status-label">API:</span>
                                 <span class="status-value" id="apiStatus">正常</span>
                             </div>
                             <div class="status-item-compact" id="dbHealth">
-                                <div class="status-icon">🗄️</div>
                                 <span class="status-label">数据库:</span>
                                 <span class="status-value" id="dbStatus">正常</span>
                             </div>
                             <div class="status-item-compact" id="celeryHealth">
-                                <div class="status-icon">⚙️</div>
                                 <span class="status-label">队列:</span>
                                 <span class="status-value" id="celeryStatus">正常</span>
                             </div>
@@ -3015,31 +3008,27 @@
 
                     <!-- 文档解析统计 -->
                     <div class="card">
-                        <div class="card-title">📊 文档解析统计</div>
+                        <div class="card-title">文档解析统计</div>
                         <div class="quick-stats-grid">
                             <div class="quick-stat-item">
-                                <div class="quick-stat-icon">✅</div>
                                 <div class="quick-stat-content">
                                     <div class="quick-stat-number" id="completedDocs">0</div>
                                     <div class="quick-stat-label">已完成解析</div>
                         </div>
                                 </div>
                             <div class="quick-stat-item">
-                                <div class="quick-stat-icon">⚙️</div>
                                 <div class="quick-stat-content">
                                     <div class="quick-stat-number" id="processingDocs">0</div>
                                     <div class="quick-stat-label">正在处理</div>
                                 </div>
                             </div>
                             <div class="quick-stat-item">
-                                <div class="quick-stat-icon">⏳</div>
                                 <div class="quick-stat-content">
                                     <div class="quick-stat-number" id="queuedDocs">0</div>
                                     <div class="quick-stat-label">等待处理</div>
                                 </div>
                                 </div>
                             <div class="quick-stat-item">
-                                <div class="quick-stat-icon">❌</div>
                                 <div class="quick-stat-content">
                                     <div class="quick-stat-number" id="failedDocs">0</div>
                                     <div class="quick-stat-label">解析失败</div>
@@ -3051,7 +3040,7 @@
 
                     <!-- 系统资源使用情况 -->
                     <div class="card">
-                        <div class="card-title">💾 系统资源</div>
+                        <div class="card-title">系统资源</div>
                         <div class="resource-grid">
                             <div class="resource-item">
                                 <div class="resource-label">存储使用率</div>
@@ -3079,7 +3068,7 @@
 
                     <div class="card" style="padding: 15px;">
                         <p style="color: #6c757d; line-height: 1.5; margin: 0; font-size: 14px;">
-                            欢迎使用消安云管智能管理系统 - 集成用户管理、设备监控、文档处理和智能问答的综合管理平台。
+                            消安云管后台提供用户、设备、文档、公告与数据问答的一体化管理能力。
                         </p>
                     </div>
                 </div>
@@ -3158,7 +3147,7 @@
                                 <button class="batch-reprocess-btn" onclick="batchReprocessDocuments()" disabled>批量重新解析</button>
                             </div>
                             <div class="controls-right">
-                                <button class="btn btn-primary" onclick="showUploadDialog()">📄 上传文档</button>
+                                <button class="btn btn-primary" onclick="showUploadDialog()">上传文档</button>
                                 <button class="btn btn-success" onclick="refreshDocuments()">刷新</button>
                             </div>
                         </div>
@@ -3167,7 +3156,7 @@
                         <div class="search-filter-controls">
                             <div class="search-box">
                                 <input type="text" id="documentSearchInput" placeholder="搜索文档名称或内容..." onkeypress="handleDocumentSearchKeypress(event)">
-                                <button class="btn btn-primary" onclick="searchDocuments()">🔍 搜索</button>
+                                <button class="btn btn-primary" onclick="searchDocuments()">搜索</button>
                             </div>
                             <div class="filter-controls">
                                 <select id="statusFilter" onchange="filterDocuments()">
@@ -3189,21 +3178,27 @@
                     </div>
                 </div>
 
-                <!-- 智能问答 -->
+                <!-- 数据问答 -->
                 <div id="chat" class="page">
-                    <div class="card">
-                        <div class="chat-box">
-                            <div class="chat-messages" id="chatMessages">
-                                <div class="empty-state">
-                                    <div class="icon">💬</div>
-                                    <p>开始与AI对话吧！</p>
-                                </div>
+                    <div class="chat-panel">
+                        <div class="chat-session-bar">
+                            <label class="chat-session-label" for="chatSessionSelect">会话</label>
+                            <select class="chat-session-select" id="chatSessionSelect" onchange="selectChatSessionFromDropdown()">
+                                <option value="">新的对话</option>
+                            </select>
+                            <button class="chat-session-btn" onclick="startNewChatSession()">新建</button>
+                            <button class="chat-session-btn" onclick="loadChatSessions()">刷新</button>
+                        </div>
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="empty-state">
+                                <p>暂无问答记录</p>
+                                <small>输入问题后，系统会基于业务数据和文档返回结果。</small>
                             </div>
-                            <div class="chat-input-area">
-                                <div class="chat-input-container">
-                                    <textarea class="chat-input" id="chatInput" rows="1" placeholder="输入您的问题..."></textarea>
-                                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
-                                </div>
+                        </div>
+                        <div class="chat-input-area">
+                            <div class="chat-input-container">
+                                <textarea class="chat-input" id="chatInput" rows="1" placeholder="输入数据查询或文档检索问题"></textarea>
+                                <button class="send-btn" id="sendBtn" onclick="sendMessage()">提交</button>
                             </div>
                         </div>
                     </div>
@@ -3235,10 +3230,7 @@
                                     <button class="btn btn-secondary" onclick="resetAnnouncementFilters()">重置</button>
                                 </div>
                                 <div class="filter-actions">
-                                    <button class="btn btn-primary" onclick="showAnnouncementForm()">
-                                        <span class="icon">➕</span>
-                                        新建公告
-                                    </button>
+                                    <button class="btn btn-primary" onclick="showAnnouncementForm()">新建公告</button>
                                 </div>
                             </div>
                             
@@ -3299,7 +3291,7 @@
     <div id="deleteConfirmModal" class="delete-confirm-modal">
         <div class="delete-confirm-content">
             <div class="delete-confirm-header">
-                <div class="delete-confirm-icon">⚠️</div>
+                <div class="delete-confirm-icon"></div>
                 <div class="delete-confirm-title">确认删除</div>
                 <div class="delete-confirm-message">确定要删除这个设备吗？此操作不可恢复，请谨慎操作。</div>
             </div>
@@ -3319,7 +3311,7 @@
             </div>
             <div class="modal-body">
                 <div class="upload-section">
-                    <div class="upload-icon">📄</div>
+                    <div class="upload-icon"></div>
                     <p>支持 PDF、DOCX、DOC、XLSX、XLS、TXT 格式，单文件最大 50MB</p>
                     
                     <div class="file-input-wrapper">
@@ -3718,7 +3710,6 @@
 
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
-            initTheme(); // 初始化主题
             checkAuth();
             setupFileInput();
             setupDragAndDrop();
@@ -3906,7 +3897,7 @@
                 'users': '用户管理',
                 'devices': '设备管理',
                 'documents': '文档管理',
-                'chat': '智能问答',
+                'chat': '数据问答',
                 'announcements': '公告管理'
             };
             document.getElementById('pageTitle').textContent = titles[pageName];
@@ -3920,6 +3911,8 @@
                 loadDevices();
             } else if (pageName === 'documents') {
                 loadDocuments();
+            } else if (pageName === 'chat') {
+                loadChatSessions();
             } else if (pageName === 'announcements') {
                 loadAnnouncements();
             }
@@ -4634,9 +4627,130 @@
             }
         }
 
-        // ==================== 智能问答 ====================
+        // ==================== 数据问答 ====================
         let isWaitingForResponse = false;
         let lastAnalysisKeywords = null; // 保存最近一次问题分析的关键词
+        let currentChatSessionId = null;
+        let chatSessions = [];
+
+        function escapeHtml(text) {
+            return String(text || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        async function loadChatSessions(selectLatest = false) {
+            const select = document.getElementById('chatSessionSelect');
+            if (!select) return;
+
+            try {
+                const response = await fetchWithAuth('/api/v1/chat/sessions?page=1&page_size=50');
+                const result = await response.json();
+                if (result.code !== 200) {
+                    throw new Error(result.message || '会话加载失败');
+                }
+
+                chatSessions = (result.data && result.data.items) || [];
+                const selectedId = selectLatest && chatSessions[0]
+                    ? String(chatSessions[0].id)
+                    : (currentChatSessionId ? String(currentChatSessionId) : '');
+
+                select.innerHTML = '<option value="">新的对话</option>' + chatSessions.map((session) => {
+                    const name = escapeHtml(session.session_name || '新的对话');
+                    const time = session.last_active || session.created_time || '';
+                    return `<option value="${session.id}">${name}${time ? ' · ' + escapeHtml(time) : ''}</option>`;
+                }).join('');
+                select.value = selectedId;
+
+                if (selectLatest && selectedId) {
+                    await loadChatSessionMessages(Number(selectedId));
+                }
+            } catch (error) {
+                console.error('加载聊天会话失败:', error);
+            }
+        }
+
+        async function selectChatSessionFromDropdown() {
+            const select = document.getElementById('chatSessionSelect');
+            if (!select || isWaitingForResponse) return;
+
+            const sessionId = select.value ? Number(select.value) : null;
+            if (!sessionId) {
+                startNewChatSession();
+                return;
+            }
+            await loadChatSessionMessages(sessionId);
+        }
+
+        async function loadChatSessionMessages(sessionId) {
+            const messagesContainer = document.getElementById('chatMessages');
+            if (!messagesContainer) return;
+
+            try {
+                const response = await fetchWithAuth(`/api/v1/chat/sessions/${sessionId}/messages?page=1&page_size=100`);
+                const result = await response.json();
+                if (result.code !== 200) {
+                    throw new Error(result.message || '历史消息加载失败');
+                }
+
+                currentChatSessionId = sessionId;
+                const select = document.getElementById('chatSessionSelect');
+                if (select) select.value = String(sessionId);
+
+                const items = (result.data && result.data.items) || [];
+                messagesContainer.innerHTML = '';
+                if (!items.length) {
+                    renderChatEmptyState();
+                    return;
+                }
+
+                items.forEach((item) => {
+                    const meta = item.metadata || {};
+                    const messageId = addStreamingMessageToChat(
+                        item.role === 'assistant' ? 'assistant' : 'user',
+                        renderMarkdown(item.content || ''),
+                        null,
+                        null,
+                        `history-${item.id || Date.now()}`
+                    );
+                    if (item.role === 'assistant' && meta.sources && meta.sources.length) {
+                        updateStreamingMessage(
+                            messageId,
+                            item.content || '',
+                            meta.sources,
+                            {
+                                pattern: meta.pattern,
+                                react_steps: meta.react_steps,
+                            }
+                        );
+                    }
+                });
+            } catch (error) {
+                console.error('加载聊天历史失败:', error);
+            }
+        }
+
+        function renderChatEmptyState() {
+            const messagesContainer = document.getElementById('chatMessages');
+            if (!messagesContainer) return;
+            messagesContainer.innerHTML = `
+                <div class="empty-state">
+                    <p>暂无问答记录</p>
+                    <small>输入问题后，系统会基于业务数据和文档返回结果。</small>
+                </div>
+            `;
+        }
+
+        function startNewChatSession() {
+            if (isWaitingForResponse) return;
+            currentChatSessionId = null;
+            const select = document.getElementById('chatSessionSelect');
+            if (select) select.value = '';
+            renderChatEmptyState();
+        }
         
         async function sendMessage() {
             const input = document.getElementById('chatInput');
@@ -4664,16 +4778,20 @@
 
             // 创建助手消息容器，显示初始等待状态
             const assistantMessageId = 'msg-' + Date.now();
-            addStreamingMessageToChat('assistant', '<div class="status-message">⏳ 正在处理您的问题...</div>', null, null, assistantMessageId);
+            addStreamingMessageToChat('assistant', '<div class="status-message">正在处理请求...</div>', null, null, assistantMessageId);
 
             try {
                 // 使用流式问答接口
+                const body = new URLSearchParams({ 'question': question });
+                if (currentChatSessionId) {
+                    body.append('session_id', String(currentChatSessionId));
+                }
                 const response = await fetchWithAuth('/api/v1/chat/ask/stream', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: new URLSearchParams({ 'question': question })
+                    body
                 });
 
                 if (!response.ok) {
@@ -4703,6 +4821,13 @@
                                 const data = JSON.parse(line.slice(6));
 
                                 switch (data.type) {
+                                    case 'session':
+                                        if (data.session && data.session.id) {
+                                            currentChatSessionId = data.session.id;
+                                            const select = document.getElementById('chatSessionSelect');
+                                            if (select) select.value = String(currentChatSessionId);
+                                        }
+                                        break;
                                     case 'thought':
                                         updateThoughtStreaming(assistantMessageId, data.content || '');
                                         break;
@@ -4753,6 +4878,7 @@
             } finally {
                 sendBtn.disabled = false;
                 isWaitingForResponse = false;
+                loadChatSessions();
             }
         }
 
@@ -4765,7 +4891,7 @@
             if (!el) {
                 el = document.createElement('div');
                 el.className = 'react-thought';
-                el.style.cssText = 'font-size:12px;color:#64748b;margin-bottom:8px;border-left:2px solid #94a3b8;padding-left:8px;white-space:pre-wrap;';
+                el.style.cssText = 'font-size:12px;color:#64748b;margin-bottom:8px;padding:0;white-space:pre-wrap;';
                 const sc = mc.querySelector('.streaming-content');
                 if (sc) {
                     mc.insertBefore(el, sc);
@@ -4773,7 +4899,7 @@
                     mc.insertBefore(el, mc.firstChild);
                 }
             }
-            el.textContent = text ? ('💭 ' + text) : '';
+            el.textContent = text ? ('推理过程：' + text) : '';
             el.style.display = text ? 'block' : 'none';
             const chatMessages = document.getElementById('chatMessages');
             if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -4788,7 +4914,7 @@
             if (!log) {
                 log = document.createElement('div');
                 log.className = 'react-tool-log';
-                log.style.cssText = 'font-size:12px;color:#555;margin-bottom:8px;padding:6px 8px;background:#f1f5f9;border-radius:6px;border-left:3px solid #0ea5e9;';
+                log.style.cssText = 'font-size:12px;color:#475569;margin-bottom:8px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;';
                 const sc = mc.querySelector('.streaming-content');
                 if (sc) {
                     mc.insertBefore(log, sc);
@@ -4879,34 +5005,32 @@
                     });
                     
                     const docList = Object.values(docGroups);
-                    const sourcesTitle = isReactSqlSources ? '📚 可下载文档（SQL 小范围命中）' : '📚 相关文档';
-                sourcesHtml = `
-                    <div class="sources delayed-content" style="margin-top: 10px; padding: 8px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #007bff;">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 8px;">${sourcesTitle} (${docList.length}个):</div>
+                    const sourcesTitle = isReactSqlSources ? '可下载文档' : '相关文档';
+                    sourcesHtml = `
+                    <div class="sources delayed-content source-panel">
+                        <div class="source-title">${sourcesTitle} (${docList.length}个):</div>
                         ${docList.map(doc => {
                             // 计算该文档的最高相似度
                             const maxSimilarity = Math.max(...doc.chunks.map(chunk => chunk.similarity || 0));
                             const similarityPercent = (maxSimilarity * 100).toFixed(1);
                             const badgeSql = isReactSqlSources
-                                ? '<span style="font-size: 11px; color: #666; margin-left: 8px;">📎</span>'
-                                : `<span style="font-size: 11px; color: #666; margin-left: 8px;">相似度: ${similarityPercent}%</span>`;
+                                ? '<span class="source-meta">附件</span>'
+                                : `<span class="source-meta">相似度: ${similarityPercent}%</span>`;
                             
                             return `
-                            <div style="margin-bottom: 6px; padding: 4px; background: white; border-radius: 4px; border: 1px solid #e9ecef;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div style="flex: 1;">
-                                        <span style="font-size: 13px; color: #333; font-weight: 500;">📄 ${doc.document_name}</span>
+                            <div class="source-item">
+                                <div class="source-row">
+                                    <div>
+                                        <span class="source-name">${doc.document_name}</span>
                                         ${badgeSql}
                                     </div>
-                                    <div style="display: flex; gap: 4px;">
+                                    <div class="source-actions">
                                         ${doc.document_id ? `
                                             <button class="action-btn download-btn" data-doc-id="${doc.document_id}" data-filename="${doc.original_filename || doc.document_name}" 
-                                                    style="padding: 2px 6px; font-size: 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;" 
-                                                    title="下载文档">📥</button>
+                                                    title="下载文档">下载</button>
                                             ${doc.file_type === 'pdf' ? `
                                             <button class="action-btn preview-btn" data-doc-id="${doc.document_id}" data-doc-name="${doc.document_name}"
-                                                    style="padding: 2px 6px; font-size: 10px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;" 
-                                                    title="预览PDF源文件">👁️</button>
+                                                    title="预览PDF源文件">预览</button>
                                             ` : ''}
                                         ` : ''}
                                     </div>
@@ -4924,8 +5048,8 @@
                 if (searchInfo.pattern === 'react_xml_sql' || searchInfo.react_steps != null) {
                     const steps = searchInfo.react_steps != null ? searchInfo.react_steps : '—';
                     searchInfoHtml = `
-                    <div class="search-info delayed-content" style="margin-top: 10px; padding: 8px; background: #ecfeff; border-radius: 6px; font-size: 12px; color: #666; border-left: 3px solid #06b6d4;">
-                        🤖 数据库 ReAct 问答 · 推理步数: <strong>${steps}</strong>
+                    <div class="search-info delayed-content search-info-react">
+                        数据库问答 · 推理步数: <strong>${steps}</strong>
                         ${searchInfo.pattern ? ` · <code style="font-size:11px;">${searchInfo.pattern}</code>` : ''}
                     </div>
                 `;
@@ -4939,24 +5063,24 @@
 
                     let qualityInfo = '';
                     if (resultQuality === 'high') {
-                        qualityInfo = `✅ ${highQualityCount} 个高质量匹配`;
+                        qualityInfo = `${highQualityCount} 个高质量匹配`;
                     } else if (resultQuality === 'low') {
-                        qualityInfo = `⚠️ ${lowQualityCount} 个低质量匹配`;
+                        qualityInfo = `${lowQualityCount} 个低质量匹配`;
                     } else {
-                        qualityInfo = '❌ 无匹配结果';
+                        qualityInfo = '无匹配结果';
                     }
 
-                    const bg =
+                    const qualityClass =
                         resultQuality === 'high'
-                            ? '#f0f8ff'
+                            ? 'search-info-high'
                             : resultQuality === 'low'
-                              ? '#fff8e1'
-                              : '#ffebee';
+                              ? 'search-info-low'
+                              : 'search-info-none';
 
                     searchInfoHtml = `
-                    <div class="search-info delayed-content" style="margin-top: 10px; padding: 8px; background: ${bg}; border-radius: 6px; font-size: 12px; color: #666;">
-                        ${isEnhanced ? '🧠 AI增强搜索' : '📝 基础搜索'} | ${qualityInfo}
-                        ${searchQuery && searchQuery !== originalQuery ? `<br>🔍 优化查询: "${searchQuery}"` : ''}
+                    <div class="search-info delayed-content ${qualityClass}">
+                        ${isEnhanced ? '增强搜索' : '基础搜索'} | ${qualityInfo}
+                        ${searchQuery && searchQuery !== originalQuery ? `<br>优化查询: "${searchQuery}"` : ''}
                     </div>
                 `;
                 }
@@ -5139,7 +5263,7 @@
                         `${documentName} - 智能高亮`, 
                         hasActualHighlight ? result.data.highlighted_content : result.data.content, 
                         hasActualHighlight,
-                        hasActualHighlight ? `🔍 高亮关键词: ${keywords.join(', ')}` : '⚠️ 未找到匹配的关键词'
+                        hasActualHighlight ? `高亮关键词: ${keywords.join(', ')}` : '未找到匹配的关键词'
                     );
                 } else {
                     alert('查看文档失败: ' + result.message);
@@ -5829,63 +5953,6 @@
             }
         }
 
-        // ==================== 主题设置 ====================
-        
-        // 显示主题选择器
-        function showThemeSelector() {
-            document.getElementById('themeModal').style.display = 'flex';
-            // 设置当前主题为激活状态
-            const currentTheme = localStorage.getItem('theme') || 'default';
-            updateThemeSelection(currentTheme);
-        }
-
-        // 关闭主题选择器
-        function closeThemeSelector() {
-            document.getElementById('themeModal').style.display = 'none';
-        }
-
-        // 选择主题
-        function selectTheme(theme) {
-            console.log('🎨 切换主题到:', theme);
-            
-            // 应用主题
-            document.documentElement.setAttribute('data-theme', theme);
-            
-            // 保存到本地存储
-            localStorage.setItem('theme', theme);
-            
-            // 更新选择状态
-            updateThemeSelection(theme);
-            
-            // 强制刷新样式
-            document.body.style.display = 'none';
-            document.body.offsetHeight; // 触发重排
-            document.body.style.display = '';
-            
-            console.log('✅ 主题已切换到:', theme);
-            
-            // 关闭模态框
-            setTimeout(() => {
-                closeThemeSelector();
-            }, 500);
-        }
-
-        // 更新主题选择状态
-        function updateThemeSelection(theme) {
-            document.querySelectorAll('.theme-option').forEach(option => {
-                option.classList.remove('active');
-            });
-            document.querySelector(`[data-theme="${theme}"]`).classList.add('active');
-        }
-
-        // 初始化主题
-        function initTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'default';
-            console.log('🎨 初始化主题:', savedTheme);
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            console.log('✅ 主题初始化完成, data-theme:', document.documentElement.getAttribute('data-theme'));
-        }
-
         // ==================== 公告管理功能 ====================
         
         // 公告相关变量
@@ -6035,7 +6102,6 @@
                         <tr>
                             <td colspan="8" class="text-center">
                                 <div class="empty-state">
-                                    <div class="icon">⚠️</div>
                                     <p>加载失败</p>
                                     <small>请检查网络连接或刷新页面重试</small>
                                 </div>
@@ -6050,7 +6116,6 @@
                     <tr>
                         <td colspan="8" class="text-center">
                             <div class="empty-state">
-                                <div class="icon">⚠️</div>
                                 <p>加载失败</p>
                                 <small>请检查网络连接或刷新页面重试</small>
                             </div>
@@ -6070,7 +6135,6 @@
                     <tr>
                         <td colspan="5" class="text-center">
                             <div class="empty-state">
-                                <div class="icon">📢</div>
                                 <p>暂无公告</p>
                                 <small>点击"新建公告"按钮创建第一个公告</small>
                             </div>
@@ -6242,52 +6306,5 @@
 
     </script>
 
-    <!-- 主题设置模态框 -->
-    <div class="modal" id="themeModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>🎨 主题设置</h3>
-                <button class="close-btn" onclick="closeThemeSelector()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="theme-options">
-                    <div class="theme-option active" data-theme="default" onclick="selectTheme('default')">
-                        <div class="theme-preview default-theme"></div>
-                        <div class="theme-info">
-                            <h4>默认主题</h4>
-                            <p>经典蓝白配色</p>
-                        </div>
-                    </div>
-                    
-                    <div class="theme-option" data-theme="dark" onclick="selectTheme('dark')">
-                        <div class="theme-preview dark-theme"></div>
-                        <div class="theme-info">
-                            <h4>深色主题</h4>
-                            <p>护眼深色模式</p>
-                        </div>
-                    </div>
-                    
-                    
-                    <div class="theme-option" data-theme="purple" onclick="selectTheme('purple')">
-                        <div class="theme-preview purple-theme"></div>
-                        <div class="theme-info">
-                            <h4>紫色主题</h4>
-                            <p>优雅紫色系</p>
-                        </div>
-                    </div>
-                    
-                    <div class="theme-option" data-theme="yellow" onclick="selectTheme('yellow')">
-                        <div class="theme-preview yellow-theme"></div>
-                        <div class="theme-info">
-                            <h4>黄色主题</h4>
-                            <p>温暖活力风格</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </body>
 </html>
-
-

@@ -494,6 +494,280 @@
         [data-theme="yellow"] body {
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
         }
+
+        /* 后台产品化视觉覆盖 */
+        :root,
+        [data-theme="default"],
+        [data-theme="dark"],
+        [data-theme="purple"],
+        [data-theme="yellow"] {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --card-bg: #ffffff;
+            --text-color: #111827;
+            --border-color: #e5e7eb;
+            --bg-color: #f3f4f6;
+            --header-bg: #ffffff;
+        }
+
+        body,
+        [data-theme] body {
+            background: #f3f4f6 !important;
+            background-image: none !important;
+            color: #111827;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1180px;
+        }
+
+        .header,
+        [data-theme="dark"] .header {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: none;
+            padding: 16px 20px;
+        }
+
+        .system-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            box-shadow: none;
+            transition: none;
+        }
+
+        .system-logo:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .header h1,
+        [data-theme="dark"] .header h1 {
+            color: #111827;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .back-btn {
+            padding: 9px 14px;
+            background: #ffffff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+        }
+
+        .back-btn:hover {
+            background: #f9fafb;
+            color: #111827;
+        }
+
+        .content-grid {
+            grid-template-columns: 280px minmax(0, 1fr);
+        }
+
+        .profile-card,
+        .tabs,
+        [data-theme="dark"] .profile-card,
+        [data-theme="dark"] .tabs {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: none;
+            color: #111827;
+        }
+
+        .profile-card {
+            padding: 24px;
+        }
+
+        .avatar,
+        #avatarPlaceholder {
+            width: 112px !important;
+            height: 112px !important;
+            border-radius: 50% !important;
+            border: 1px solid #d1d5db;
+            background: #f9fafb !important;
+            color: #6b7280 !important;
+            font-size: 16px !important;
+            font-weight: 600;
+        }
+
+        .avatar-upload {
+            width: 32px;
+            height: 32px;
+            background: #2563eb;
+            color: #ffffff;
+            border-radius: 6px;
+            border: 2px solid #ffffff;
+            transition: background-color 0.15s ease;
+            font-size: 0;
+        }
+
+        .avatar-upload::before {
+            content: "上传";
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .avatar-upload:hover {
+            background: #1d4ed8;
+        }
+
+        .username {
+            color: #111827;
+            font-size: 20px;
+        }
+
+        .user-meta,
+        .stat-label,
+        .info-label {
+            color: #6b7280;
+        }
+
+        .stat-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 14px;
+        }
+
+        .stat-value {
+            color: #111827;
+            font-size: 22px;
+        }
+
+        .tab-header {
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .tab-btn {
+            padding: 14px 16px;
+            color: #6b7280;
+            font-size: 14px;
+            border-bottom-width: 2px;
+        }
+
+        .tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+
+        .tab-content {
+            padding: 24px;
+        }
+
+        .tab-content h3,
+        [data-theme="dark"] .tab-content h3 {
+            color: #111827;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .info-item {
+            border-bottom-color: #e5e7eb;
+        }
+
+        .info-value {
+            color: #111827;
+        }
+
+        .form-label,
+        [data-theme="dark"] .form-group label {
+            color: #374151;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .form-control {
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-shadow: none;
+            color: #111827;
+        }
+
+        .form-control:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .btn {
+            border-radius: 6px;
+            font-weight: 600;
+            box-shadow: none;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #f9fafb;
+        }
+
+        .announcement-banner {
+            background: #ffffff;
+            color: #111827;
+            border: 1px solid #fecaca;
+            border-left: 4px solid #dc2626;
+            border-radius: 8px;
+            box-shadow: none;
+            animation: none;
+        }
+
+        .announcement-icon {
+            display: none;
+        }
+
+        .announcement-title {
+            color: #111827;
+        }
+
+        .announcement-content-text {
+            color: #4b5563;
+            opacity: 1;
+        }
+
+        .announcement-close {
+            background: #ffffff;
+            color: #6b7280;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            transition: background-color 0.15s ease;
+        }
+
+        .announcement-close:hover {
+            background: #f9fafb;
+            transform: none;
+        }
+
+        .alert {
+            border-radius: 6px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -509,7 +783,7 @@
         <!-- 公告横幅 -->
         <div id="announcementBanner" class="announcement-banner" style="display: none;">
             <div class="announcement-content">
-                <div class="announcement-icon">📢</div>
+                <div class="announcement-icon"></div>
                 <div class="announcement-text">
                     <div class="announcement-title" id="announcementTitle"></div>
                     <div class="announcement-content-text" id="announcementContent"></div>
@@ -523,9 +797,8 @@
             <div class="profile-card">
                 <div class="avatar-container">
                     <img src="" alt="头像" class="avatar" id="avatarImg" style="display: none;">
-                    <div id="avatarPlaceholder" style="width: 120px; height: 120px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #999;">👤</div>
+                    <div id="avatarPlaceholder" style="width: 120px; height: 120px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #999;">用户</div>
                     <label class="avatar-upload" for="avatarInput">
-                        📷
                         <input type="file" id="avatarInput" accept="image/*">
                     </label>
                 </div>
@@ -546,7 +819,7 @@
                         <div class="stat-label">待处理申请</div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value">✅</div>
+                        <div class="stat-value">正常</div>
                         <div class="stat-label">账号状态</div>
                     </div>
                 </div>
@@ -601,7 +874,7 @@
                             <div class="form-group">
                                 <div style="background: #d4edda; padding: 12px; border-radius: 6px; border-left: 4px solid #28a745;">
                                     <small style="color: #155724; font-size: 13px;">
-                                        ✨ <strong>提示：</strong>点击左侧头像上的相机图标可以上传新头像，上传后会立即保存（最大5MB）
+                                        <strong>提示：</strong>点击左侧头像上的上传按钮可以上传新头像，上传后会立即保存（最大5MB）
                                     </small>
                                 </div>
                             </div>
@@ -618,7 +891,7 @@
                         <div id="passwordAlert"></div>
                         <div style="background: #fff3cd; padding: 12px; border-radius: 6px; border-left: 4px solid #ffc107; margin-bottom: 20px;">
                             <small style="color: #856404; font-size: 13px;">
-                                ⚠️ <strong>安全提示：</strong>修改密码后需要重新登录，请确保记住新密码
+                                <strong>安全提示：</strong>修改密码后需要重新登录，请确保记住新密码
                             </small>
                         </div>
                         <form id="passwordForm">
@@ -913,7 +1186,7 @@
                     const result = await response.json();
                     
                     if (response.ok && result.code === 200) {
-                        showAlert('editAlert', '✅ 头像更新成功！', 'success');
+                        showAlert('editAlert', '头像更新成功', 'success');
                         console.log('头像保存成功:', avatarPath);
                     } else {
                         alert('头像保存失败：' + result.message);
@@ -978,14 +1251,14 @@
                 
                 // 验证用户名长度
                 if (username.length < 2 || username.length > 20) {
-                    showAlert('editAlert', '❌ 用户名长度必须在2-20个字符之间', 'error');
+                    showAlert('editAlert', '用户名长度必须在2-20个字符之间', 'error');
                     return;
                 }
                 
                 // 验证邮箱格式
                 const emailRegex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
                 if (!emailRegex.test(email)) {
-                    showAlert('editAlert', '❌ 邮箱格式不正确', 'error');
+                    showAlert('editAlert', '邮箱格式不正确', 'error');
                     return;
                 }
                 
@@ -994,7 +1267,7 @@
                 const hasEmailChange = email !== currentUser.email;
                 
                 if (!hasUsernameChange && !hasEmailChange) {
-                    showAlert('editAlert', 'ℹ️ 没有检测到任何修改', 'error');
+                    showAlert('editAlert', '没有检测到任何修改', 'error');
                     return;
                 }
                 
@@ -1018,17 +1291,50 @@
                 const result = await response.json();
                 
                 if (response.ok && result.code === 200) {
-                    showAlert('editAlert', '✅ 个人信息更新成功！', 'success');
+                    showAlert('editAlert', '个人信息更新成功', 'success');
                     // 重新加载信息
                     await loadProfile();
                 } else {
-                    showAlert('editAlert', '❌ 更新失败：' + result.message, 'error');
+                    showAlert('editAlert', '更新失败：' + result.message, 'error');
                 }
             } catch (error) {
                 console.error('更新个人信息失败:', error);
-                showAlert('editAlert', '❌ 更新失败：网络错误', 'error');
+                showAlert('editAlert', '更新失败：网络错误', 'error');
             }
         });
+
+        function bytesToBase64(bytes) {
+            let binary = '';
+            bytes.forEach((byte) => {
+                binary += String.fromCharCode(byte);
+            });
+            return btoa(binary);
+        }
+
+        async function aesEncrypt(content, keyText = 'awkfjwhkgowkslg3') {
+            if (window.CryptoJS) {
+                const key = CryptoJS.enc.Utf8.parse(keyText);
+                return CryptoJS.AES.encrypt(content, key, {
+                    iv: key,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
+                }).toString();
+            }
+
+            if (!window.crypto || !window.crypto.subtle) {
+                throw new Error('当前浏览器不支持本地密码加密');
+            }
+
+            const encoder = new TextEncoder();
+            const keyBytes = encoder.encode(keyText);
+            const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['encrypt']);
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-CBC', iv: keyBytes },
+                cryptoKey,
+                encoder.encode(content)
+            );
+            return bytesToBase64(new Uint8Array(encrypted));
+        }
 
         // 修改密码表单提交
         document.getElementById('passwordForm').addEventListener('submit', async (e) => {
@@ -1040,19 +1346,19 @@
             
             // 验证新密码和确认密码是否一致
             if (newPassword !== confirmPassword) {
-                showAlert('passwordAlert', '❌ 两次输入的新密码不一致', 'error');
+                showAlert('passwordAlert', '两次输入的新密码不一致', 'error');
                 return;
             }
             
             // 验证新密码长度
             if (newPassword.length < 6) {
-                showAlert('passwordAlert', '❌ 新密码长度不能少于6位', 'error');
+                showAlert('passwordAlert', '新密码长度不能少于6位', 'error');
                 return;
             }
             
             // 验证旧密码和新密码不能相同
             if (oldPassword === newPassword) {
-                showAlert('passwordAlert', '❌ 新密码不能与旧密码相同', 'error');
+                showAlert('passwordAlert', '新密码不能与旧密码相同', 'error');
                 return;
             }
             
@@ -1062,15 +1368,7 @@
                 const userResult = await userResponse.json();
                 const user = userResult.data;
                 
-                // 使用CBC模式与后端保持一致
-                const key = CryptoJS.enc.Utf8.parse('awkfjwhkgowkslg3'); // 16字节密钥
-                const iv = key; // IV与密钥相同
-                
-                const encryptedOld = CryptoJS.AES.encrypt(oldPassword, key, {
-                    iv: iv,
-                    mode: CryptoJS.mode.CBC,
-                    padding: CryptoJS.pad.Pkcs7
-                }).toString();
+                const encryptedOld = await aesEncrypt(oldPassword);
                 
                 // 先验证旧密码是否正确（通过尝试用旧密码更新来验证）
                 const verifyData = {
@@ -1091,16 +1389,12 @@
                 const verifyResult = await verifyResponse.json();
                 
                 if (!verifyResponse.ok || verifyResult.code !== 200) {
-                    showAlert('passwordAlert', '❌ 当前密码错误，请重新输入', 'error');
+                    showAlert('passwordAlert', '当前密码错误，请重新输入', 'error');
                     return;
                 }
                 
                 // 旧密码验证通过，更新为新密码
-                const encryptedNew = CryptoJS.AES.encrypt(newPassword, key, {
-                    iv: iv,
-                    mode: CryptoJS.mode.CBC,
-                    padding: CryptoJS.pad.Pkcs7
-                }).toString();
+                const encryptedNew = await aesEncrypt(newPassword);
                 
                 // 构造更新数据，使用新密码
                 const updateData = {
@@ -1121,7 +1415,7 @@
                 const result = await response.json();
                 
                 if (response.ok && result.code === 200) {
-                    showAlert('passwordAlert', '✅ 密码修改成功！3秒后跳转到登录页...', 'success');
+                    showAlert('passwordAlert', '密码修改成功，3秒后跳转到登录页...', 'success');
                     
                     // 清空表单
                     document.getElementById('passwordForm').reset();
@@ -1138,11 +1432,11 @@
                         window.location.href = '/static/login.html';
                     }, 3000);
                 } else {
-                    showAlert('passwordAlert', '❌ 修改失败：' + result.message, 'error');
+                    showAlert('passwordAlert', '修改失败：' + result.message, 'error');
                 }
             } catch (error) {
                 console.error('修改密码失败:', error);
-                showAlert('passwordAlert', '❌ 修改失败：网络错误或密码验证失败', 'error');
+                showAlert('passwordAlert', '修改失败：网络错误或密码验证失败', 'error');
             }
         });
 
@@ -1189,4 +1483,3 @@
     </script>
 </body>
 </html>
-

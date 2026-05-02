@@ -563,6 +563,175 @@
         [data-theme="yellow"] .form-group .hint {
             color: #333;
         }
+
+        /* 后台产品化视觉覆盖 */
+        :root,
+        [data-theme="default"],
+        [data-theme="dark"],
+        [data-theme="purple"],
+        [data-theme="yellow"] {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --card-bg: #ffffff;
+            --text-color: #111827;
+            --border-color: #d1d5db;
+            --bg-color: #f3f4f6;
+            --login-bg: #f3f4f6;
+        }
+
+        body,
+        [data-theme] body {
+            min-height: 100vh;
+            background: #f3f4f6 !important;
+            background-image: none !important;
+            color: #111827;
+            overflow: auto;
+            padding: 24px;
+        }
+
+        body::before,
+        body::after,
+        .register-container::before,
+        .register-container::after,
+        .register-btn::before,
+        .register-btn::after {
+            display: none !important;
+            content: none !important;
+        }
+
+        .register-container,
+        [data-theme="dark"] .register-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 32px;
+            background: #ffffff !important;
+            border: 1px solid #e5e7eb !important;
+            border-radius: 8px !important;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            animation: none !important;
+        }
+
+        .register-header {
+            margin-bottom: 24px;
+        }
+
+        .system-logo {
+            width: 56px;
+            height: 56px;
+            margin-bottom: 14px;
+            border-radius: 8px;
+            box-shadow: none !important;
+            transition: none;
+        }
+
+        .system-logo:hover {
+            transform: none;
+            box-shadow: none !important;
+        }
+
+        .register-header h1,
+        [data-theme="dark"] .register-header h1 {
+            color: #111827;
+            font-size: 24px;
+            line-height: 1.25;
+            font-weight: 700;
+            text-shadow: none;
+            margin-bottom: 6px;
+        }
+
+        .register-header p {
+            color: #6b7280;
+            font-size: 14px;
+            text-shadow: none;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            color: #374151;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .form-group input {
+            height: 40px;
+            padding: 9px 11px;
+            color: #111827;
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-shadow: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .form-group input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .form-group .hint,
+        [data-theme="dark"] .form-group .hint,
+        [data-theme="yellow"] .form-group .hint {
+            color: #6b7280;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .password-strength {
+            height: 4px;
+            margin-top: 8px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .password-strength-bar {
+            border-radius: 999px;
+        }
+
+        .password-match {
+            margin-top: 6px;
+            font-size: 12px;
+        }
+
+        .register-btn {
+            height: 40px;
+            border-radius: 6px;
+            background: #2563eb !important;
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: none;
+            transition: background-color 0.15s ease;
+            transform: none !important;
+            animation: none !important;
+        }
+
+        .register-btn:hover {
+            background: #1d4ed8 !important;
+        }
+
+        .login-link {
+            color: #2563eb;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .login-link:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
+
+        .error-message,
+        .success-message {
+            border-radius: 6px;
+            font-size: 13px;
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
@@ -645,18 +814,42 @@
         // AES 密钥（需要与后端配置一致）
         const AES_KEY = 'awkfjwhkgowkslg3';
 
-        // AES 加密函数（CBC 模式，PKCS7 填充）
-        function aesEncrypt(content, key) {
-            const keyHex = CryptoJS.enc.Utf8.parse(key);
-            const ivHex = keyHex; // IV 与 key 相同
-            
-            const encrypted = CryptoJS.AES.encrypt(content, keyHex, {
-                iv: ivHex,
-                mode: CryptoJS.mode.CBC,
-                padding: CryptoJS.pad.Pkcs7
+        function bytesToBase64(bytes) {
+            let binary = '';
+            bytes.forEach((byte) => {
+                binary += String.fromCharCode(byte);
             });
-            
-            return encrypted.toString();
+            return btoa(binary);
+        }
+
+        // AES 加密函数（CBC 模式，PKCS7 填充）
+        async function aesEncrypt(content, key) {
+            if (window.CryptoJS) {
+                const keyHex = CryptoJS.enc.Utf8.parse(key);
+                const ivHex = keyHex; // IV 与 key 相同
+
+                const encrypted = CryptoJS.AES.encrypt(content, keyHex, {
+                    iv: ivHex,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
+                });
+
+                return encrypted.toString();
+            }
+
+            if (!window.crypto || !window.crypto.subtle) {
+                throw new Error('当前浏览器不支持本地密码加密');
+            }
+
+            const encoder = new TextEncoder();
+            const keyBytes = encoder.encode(key);
+            const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['encrypt']);
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-CBC', iv: keyBytes },
+                cryptoKey,
+                encoder.encode(content)
+            );
+            return bytesToBase64(new Uint8Array(encrypted));
         }
 
         // 页面加载时设置事件监听
@@ -726,11 +919,11 @@
             }
             
             if (password === confirmPassword) {
-                matchDiv.textContent = '✓ 密码匹配';
+                matchDiv.textContent = '密码匹配';
                 matchDiv.classList.remove('nomatch');
                 matchDiv.classList.add('match');
             } else {
-                matchDiv.textContent = '✗ 密码不匹配';
+                matchDiv.textContent = '密码不匹配';
                 matchDiv.classList.remove('match');
                 matchDiv.classList.add('nomatch');
             }
@@ -797,7 +990,7 @@
 
             try {
                 // 使用 AES 加密密码
-                const encryptedPassword = aesEncrypt(password, AES_KEY);
+                const encryptedPassword = await aesEncrypt(password, AES_KEY);
                 console.log('加密后的密码:', encryptedPassword);
 
                 // 构建请求数据

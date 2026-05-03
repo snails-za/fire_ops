@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS "device" (
     "status" VARCHAR(50),
     "install_date" DATE,
     "installer" VARCHAR(50),
+    "installer_contact" VARCHAR(11),
     "contact" VARCHAR(11),
     "remark" TEXT,
     "created_by_user_id" INT REFERENCES "user" ("id") ON DELETE SET NULL,
@@ -79,7 +80,8 @@ COMMENT ON COLUMN "device"."images" IS '设备图片';
 COMMENT ON COLUMN "device"."status" IS '设备状态';
 COMMENT ON COLUMN "device"."install_date" IS '安装日期';
 COMMENT ON COLUMN "device"."installer" IS '安装人';
-COMMENT ON COLUMN "device"."contact" IS '联系方式（手机号）';
+COMMENT ON COLUMN "device"."installer_contact" IS '安装人联系方式（手机号）';
+COMMENT ON COLUMN "device"."contact" IS '维护人联系方式（手机号）';
 COMMENT ON COLUMN "device"."remark" IS '备注';
 COMMENT ON COLUMN "device"."created_by_user_id" IS '创建用户';
 COMMENT ON COLUMN "device"."maintainer_user_id" IS '设备负责人';

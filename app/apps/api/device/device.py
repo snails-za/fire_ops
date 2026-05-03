@@ -111,11 +111,21 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     # 创建设备时关联用户ID
     device_data["created_by_user_id"] = user.id
 
-    # 设备负责人：优先使用传入的 maintainer_user_id，否则默认当前登录用户
+    # 设备负责人：优先使用传入的 maintainer_user_id，否则默认当前登录用户。
+    # 联系方式统一从用户资料带出；资料未维护时允许为空。
     maintainer_id = device_data.pop("maintainer_user_id", None)
     if not maintainer_id:
         maintainer_id = user.id
+    maintainer = await User.get_or_none(id=maintainer_id)
+    if not maintainer:
+        return response(code=400, message="维护人不存在")
     device_data["maintainer_user_id"] = maintainer_id
+    device_data["contact"] = maintainer.contact or None
+
+    if device_data.get("installer"):
+        installer_user = await User.get_or_none(username=device_data["installer"])
+        if installer_user:
+            device_data["installer_contact"] = installer_user.contact or None
 
     device_obj = await Device.create(**device_data)
     
@@ -154,7 +164,15 @@ async def update_device(device_id: int, device: DeviceUpdate, user: User = Depen
     # 处理设备负责人变更（仅存 user_id，不做强关联）
     maintainer_id = update_data.pop("maintainer_user_id", None)
     if maintainer_id is not None:
+        maintainer = await User.get_or_none(id=maintainer_id)
+        if not maintainer:
+            return response(code=400, message="维护人不存在")
         device_obj.maintainer_user_id = maintainer_id
+        update_data["contact"] = maintainer.contact or None
+
+    if "installer" in update_data:
+        installer_user = await User.get_or_none(username=update_data["installer"])
+        update_data["installer_contact"] = installer_user.contact if installer_user else None
 
     # 验证设备状态：只允许四种状态
     valid_statuses = ["告警", "异常", "离线", "正常"]

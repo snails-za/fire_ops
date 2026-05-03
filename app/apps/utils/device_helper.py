@@ -64,6 +64,7 @@ async def get_all_devices_by_permission(user_id: Optional[int] = None, is_admin:
                 "status": device.status,
                 "install_date": str(device.install_date) if device.install_date else None,
                 "installer": device.installer,
+                "installer_contact": device.installer_contact,
                 "contact": device.contact,
                 "remark": device.remark,
                 "images": device.images,
@@ -203,7 +204,8 @@ def format_device_context(device_data: Dict[str, Any]) -> str:
 - 状态: {device.get('status', '未知')}
 - 安装日期: {device.get('install_date', '未设置')}
 - 安装人: {device.get('installer', '未设置')}
-- 联系方式: {device.get('contact', '未设置')}"""
+- 安装人联系方式: {device.get('installer_contact', '未设置')}
+- 维护人联系方式: {device.get('contact', '未设置')}"""
             
             if device.get('remark'):
                 device_info += f"\n- 备注: {device.get('remark')}"
@@ -216,6 +218,5 @@ def format_device_context(device_data: Dict[str, Any]) -> str:
     
     print(f"格式化后的设备上下文长度: {len(result)} 字符")
     return result
-
 
 

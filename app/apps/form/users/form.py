@@ -12,6 +12,7 @@ class UserBase(BaseModel):
     head: Optional[str] = Field(None, title="头像", description="头像路径")
     email: Optional[str] = Field(None, pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", title="邮箱",
                        description="邮箱格式不正确")
+    contact: Optional[str] = Field(None, pattern=r"^1[3-9]\d{9}$", title="联系方式", description="手机号格式不正确")
 
 
 class UserCreate(UserBase):

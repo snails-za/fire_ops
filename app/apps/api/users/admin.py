@@ -61,7 +61,7 @@ async def create_user(user: UserCreate):
     heads = os.listdir(os.path.join(STATIC_PATH, "images", "user", "demo"))
     head = user.head or os.path.join("/", "static", "images", "user", "demo", random.choice(heads))
     user_obj = await User.create(username=user.username, email=user.email, pinyin=get_pinyin(user.username),
-                                 password=get_hash(decrypt_pwd), head=head, role=user.role)
+                                 contact=user.contact, password=get_hash(decrypt_pwd), head=head, role=user.role)
     data = await User_Pydantic.from_tortoise_orm(user_obj)
     return response(data=data.model_dump(), message="注册成功！")
 
@@ -77,6 +77,7 @@ async def update_user(user_id: int, user: UserUpdate):
         "username": user.username,
         "pinyin": get_pinyin(user.username),
         "email": user.email,
+        "contact": user.contact,
     }
     if user.role:
         update_data["role"] = user.role

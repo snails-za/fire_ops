@@ -1,68 +1,98 @@
-# fire_ops（消安云管）
+# fire_ops
 
-一个以 **FastAPI** 为核心的消防/设备运营平台，集成：
+消安云管后端服务，基于 FastAPI 构建，负责账号认证、用户管理、设备管理、公告管理、文档解析、向量检索和智能问答。
 
-- 设备、事件、公告、用户等业务管理
-- 文档上传、解析、向量检索（Chroma / Qdrant）
-- 流式智能问答（SSE）：`ReAct + SQL + 文档检索插件`
+新的 Web 后台已经拆分到 `fire-admin`。本项目中的 `static/*.html` 是旧版静态后台页面，暂时保留用于对照接口和历史逻辑，不再作为新后台的主要维护入口。
 
----
-
-## 1. 项目结构（仓库级）
+## 项目关系
 
 ```text
-fire_ops/
-├─ app/        # 后端应用主目录（FastAPI + Tortoise + Celery + RAG）
-├─ conf/       # 运行/部署配置（按环境维护）
-└─ docker/     # 容器化相关文件
+code/
+├─ fire_ops/        # 后端服务，本项目
+├─ fire-admin/      # Vue Web 后台管理端
+└─ fire-equipment/  # UniApp 移动端前台
 ```
 
-后端代码与文档主要在 `app/`。
+## 技术栈
 
----
+- Python 3.10 到 3.12
+- FastAPI
+- Uvicorn / Gunicorn
+- Tortoise ORM
+- Aerich
+- PostgreSQL
+- Redis
+- Celery
+- LangChain / langchain-openai
+- Qdrant 或 Chroma
+- sentence-transformers
+- PyMuPDF / unstructured / EasyOCR
 
-## 2. 核心能力
+## 功能范围
 
-- **业务管理**：设备、事件、公告、用户与权限
-- **文档知识库**：上传后分块入库并写入向量库
-- **智能问答（流式）**：
-  - ReAct 循环（function calling）
-  - SQL 工具（库结构查看、只读查询）
-  - 可插拔工具（如向量检索、文档下载来源注册）
-- **统一来源输出**：问答结束输出 `meta["sources"]`，便于 Web/移动端展示证据和下载入口
+- 认证
+  - 用户登录、后台登录、验证码、退出登录、Token 刷新
+- 用户
+  - 用户列表、详情、新增、编辑、删除、联系人和好友申请
+- 设备
+  - 设备列表、统计、详情、新增、编辑、删除、图片上传
+- 公告
+  - 公告列表、公开公告、详情、新增、编辑、发布、归档、删除
+- 文档
+  - 文档上传、解析、分块、向量化、下载、重新解析、删除、统计
+- 智能问答
+  - SSE 流式问答
+  - ReAct 工具调用
+  - SQL 查询工具
+  - 文档检索工具
+  - 会话存储和短期上下文记忆
+- 公共能力
+  - 健康检查
+  - 系统资源监控
 
----
+## 目录结构
 
-## 3. 技术栈
+```text
+fire_ops/app/
+├─ apps/
+│  ├─ api/                 # FastAPI 路由
+│  │  ├─ announcement/     # 公告接口
+│  │  ├─ chat/             # 智能问答和会话接口
+│  │  ├─ device/           # 设备接口
+│  │  ├─ documents/        # 文档接口
+│  │  ├─ event/            # 事件接口
+│  │  └─ users/            # 认证、用户、联系人接口
+│  ├─ dependencies/        # 鉴权依赖
+│  ├─ form/                # 请求表单模型
+│  ├─ models/              # 数据模型
+│  └─ utils/               # 业务工具、RAG、Agent、MCP 工具
+├─ celery_tasks/           # Celery 配置和异步任务
+├─ data/                   # 上传文件和运行数据，通常不提交
+├─ migrations/             # Aerich 迁移文件
+├─ models/                 # 本地模型缓存，通常不提交
+├─ static/                 # 旧版 HTML 后台页面
+├─ asgi.py                 # FastAPI 应用入口
+├─ config.py               # 全局配置
+├─ pyproject.toml
+└─ uv.lock
+```
 
-- **Python**: 3.10 ~ 3.12（`>=3.10,<3.13`）
-- **Web**: FastAPI, Uvicorn, Gunicorn
-- **ORM**: Tortoise ORM + Aerich
-- **数据库**: PostgreSQL
-- **缓存/队列**: Redis + Celery
-- **RAG/LLM**: LangChain, langchain-openai, sentence-transformers
-- **向量库**: Chroma / Qdrant（默认 Qdrant）
-- **OCR/文档解析**: EasyOCR, PyMuPDF, unstructured 等
+## 本地启动
 
----
+以下命令在 `fire_ops/app` 目录执行。
 
-## 4. 快速启动（本地开发）
-
-以下命令在 `app/` 目录执行。
-
-### 4.1 安装依赖
+### 1. 安装依赖
 
 ```bash
-cd app
+cd fire_ops/app
 uv sync
 ```
 
-### 4.2 配置环境变量
+如果没有安装 `uv`，先安装 `uv`，或按团队环境使用等价的 Python 虚拟环境管理方式。
 
-项目使用 `starlette.config.Config()` 读取环境变量。  
-优先建议在运行环境中设置变量，不要直接提交敏感值到仓库。
+### 2. 配置环境变量
 
-常用变量示例：
+项目通过 `starlette.config.Config()` 读取环境变量。常用配置如下：
 
 ```bash
 export POSTGRES_HOST=localhost
@@ -73,6 +103,8 @@ export POSTGRES_DB=fire_ops
 
 export REDIS_HOST=localhost
 export REDIS_PORT=16379
+export REDIS_PASSWORD=
+export REDIS_DB=0
 
 export OPENAI_API_KEY=your_api_key
 export OPENAI_BASE_URL=https://api.openai.com/v1/
@@ -81,138 +113,161 @@ export VECTOR_DB_TYPE=qdrant
 export QDRANT_HOST=localhost
 export QDRANT_PORT=16333
 export QDRANT_COLLECTION_NAME=documents
-
-# 工具在 import mcp_tools.tools 时注册；问答需配置 DATABASE_URL（SQL 插件懒加载连接池）
 ```
 
-### 4.3 初始化/迁移数据库
+敏感信息不要提交到仓库。
+
+### 3. 初始化或迁移数据库
+
+首次初始化：
 
 ```bash
-cd app
-# 1) 模型有变更时，先生成迁移文件
-aerich migrate
-
-# 2) 应用迁移到数据库
-aerich upgrade
-```
-
-若是首次接入空库，可按需执行：
-
-```bash
-cd app
+cd fire_ops/app
 aerich init -t config.TORTOISE_ORM
 aerich init-db
 ```
 
-说明：
-
-- 日常开发最常用的是 `aerich migrate && aerich upgrade`
-- 仅当首次初始化项目时才需要 `init / init-db`
-
-### 4.4 启动服务
+日常模型变更：
 
 ```bash
-cd app
+cd fire_ops/app
+aerich migrate
+aerich upgrade
+```
+
+### 4. 启动 API
+
+```bash
+cd fire_ops/app
 uvicorn asgi:app --reload --host 0.0.0.0 --port 8000
 ```
 
-可选：启动 Celery worker（文档处理等异步任务）
+访问：
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### 5. 启动 Celery Worker
+
+文档解析等异步任务需要 Celery：
 
 ```bash
-cd app
+cd fire_ops/app
 celery -A celery_tasks.app worker -l info --pool=solo
 ```
 
-### 4.5 访问入口
+## 前后端入口
 
-- API 文档：`http://localhost:8000/docs`
-- 管理页面：`http://localhost:8000/static/admin.html`
+- API 文档：`http://127.0.0.1:8000/docs`
+- 新后台：启动 `fire-admin` 后访问 `http://127.0.0.1:5174`
+- 移动端：使用 HBuilderX 打开 `fire-equipment`
+- 旧后台静态页：`http://127.0.0.1:8000/static/admin.html`
 
----
+旧后台仅保留，不建议继续新增复杂交互。
 
-## 5. 智能问答（ReAct）说明
+## 认证和 Token
 
-### 5.1 流式问答接口
+后端使用 JWT + Redis 存储登录态。
 
-- `POST /api/v1/chat/ask/stream`
-- 鉴权：需要登录
-- 请求：`multipart/form-data`，字段 `question`
-- 响应：SSE（`text/event-stream`）
+关键入口：
 
-SSE 事件类型（`data` 的 `type`）：
+- 登录：`/api/v1/auth/login`、`/api/v1/auth/admin/login`
+- 当前用户：`/api/v1/auth/info`
+- Token 刷新：`/api/v1/auth/refresh_token`
 
-- `thought`：推理过程（累积）
-- `content`：回答正文（累积）
-- `action`：工具调用提示
+Token 机制说明：
+
+- access token 默认有效期由 `MAX_AGE` 控制，当前为 1 小时。
+- Redis 中还有一个短刷新窗口，由 `REFRESH_MAX_AGE` 控制。
+- 受保护接口可能返回 `403` 表示需要刷新 Token。
+- 前端收到 `403` 后应调用 `/api/v1/auth/refresh_token`，成功后重试原请求。
+
+`fire-admin` 和 `fire-equipment` 都应走各自统一的请求封装，避免重复实现 Token 逻辑。
+
+## 智能问答和会话记忆
+
+核心入口：
+
+```text
+POST /api/v1/chat/ask/stream
+字段：question、session_id
+```
+
+该接口返回 SSE 流。新会话会先返回 `session` 事件，回答过程中返回推理、工具调用、正文、来源和完成事件。
+
+主要事件类型：
+
+- `session`：当前会话信息，新会话会在开始时返回
+- `thought`：模型推理过程
+- `action`：工具调用
+- `content`：回答正文
+- `sources`：相关文档来源
 - `error`：错误信息
-- `sources`：来源列表（证据/下载信息）
 - `done`：本轮结束
 
-### 5.2 ReAct 工具与插件
+会话管理保留三个关键入口：
 
-内置工具：
+- `POST /api/v1/chat/sessions`
+- `GET /api/v1/chat/sessions`
+- `GET /api/v1/chat/sessions/{session_id}/messages`
 
-- `get_database_schema`
-- `execute_sql`（只读校验）
+会话逻辑：
 
-插件工具（`import mcp_tools.tools` 注册到 `plugin_mcp`）：
+- 不传 `session_id` 时自动创建会话。
+- 会话标题由首个问题生成，过长会截断。
+- 每轮问答会保存用户问题、助手回答和元数据。
+- 后续同一会话会加载最近若干条消息作为短期上下文。
 
-- 例如 `search_uploaded_documents`（向量检索）
-- 例如 `register_chat_document_sources`（注册下载来源）
+相关代码：
 
-来源聚合：文档/下载类工具写入 `chat_extra()[SOURCES_EXTRA_KEY]`（`mcp_tools.mcp_bridge`），Agent 同步到 `meta["sources"]`。
+- `apps/api/chat/chat.py`
+- `apps/utils/chat_session.py`
+- `apps/utils/react_agent.py`
+- `apps/utils/react_sse.py`
 
-数据库访问（连接池、SQL 方言、换库）集中在 `mcp_tools` 插件内实现；`react_agent` 只负责 LLM 与工具调用协议，换数据库或复用到其他项目时核心推理逻辑可保持不变。
+## 文档解析和向量检索
 
----
+文档能力包括上传、解析、分块、向量化、检索和下载。
 
-## 6. 常用 API（节选）
+文档解析任务依赖 Celery Worker。向量检索根据配置使用 Qdrant 或 Chroma。具体接口以 `/docs` 实际暴露为准，前后台只需要通过统一 API 封装调用，不建议在 README 中维护接口清单。
 
-- 认证
-  - `POST /api/v1/auth/login`
-  - `GET /api/v1/auth/info`
-- 文档
-  - `POST /api/v1/documents/upload`
-  - `GET /api/v1/documents/list`
-  - `GET /api/v1/documents/{document_id}/download`
-- 聊天
-  - `POST /api/v1/chat/ask/stream`
-  - `GET /api/v1/chat/search`
-  - `POST /api/v1/chat/analyze`
+## 数据和模型文件
 
-以 `/docs` 实际暴露为准。
+以下内容通常不应该提交：
 
----
+- `data/`
+- `models/`
+- `.venv/`
+- `.ruff_cache/`
+- `__pycache__/`
+- 大模型权重、向量库数据、上传文件
 
-## 7. 生产部署建议
+如果本地模型过大，建议放在独立模型目录，通过环境变量或配置指向，不要直接提交到 Git。
 
-- 使用 Gunicorn + Uvicorn worker 承载 API
-- Redis 与 PostgreSQL 独立部署并启用监控
-- 向量库（Qdrant/Chroma）持久化卷独立管理
-- 将 `OPENAI_API_KEY`、数据库密码等放入密钥管理系统
-- 为 `mcp_tools/tools/` 变更建立审核（插件即执行代码）
+## 开发约定
 
----
+- 新增接口放在 `apps/api/<module>/`，并在 API 初始化处注册路由。
+- 请求参数模型放在 `apps/form/`。
+- 数据模型放在 `apps/models/`，变更后生成 Aerich 迁移。
+- 通用业务逻辑放在 `apps/utils/`，不要堆在路由函数里。
+- 智能问答工具调用相关逻辑集中在 `apps/utils/mcp_tools/` 和 `react_agent.py`。
+- 旧版静态 HTML 不再承接新后台复杂需求，新后台改 `fire-admin`。
 
-## 8. 常见问题
+## 排查问题
 
-- **问：SSE 没有返回 `sources`？**  
-  确认插件是否写入 `chat_extra()[SOURCES_EXTRA_KEY]`，以及模型是否调用了对应工具。
+### 登录后很快失效
 
-- **问：向量检索效果不稳定？**  
-  调整 `SIMILARITY_THRESHOLD`、分块策略（`CHUNK_SIZE/CHUNK_OVERLAP`）、检索 `top_k`，或启用重排配置
-  `RERANK_ENABLED`、`RERANK_MODEL`。本地没有重排模型时会尝试在线下载到 `HF_HOME`。
+这是后端刷新机制触发。前端收到 `403` 后需要调用 `/api/v1/auth/refresh_token` 并重试原请求。
 
-- **问：数据库迁移报错？**  
-  先确认连接参数与权限，再执行 `aerich upgrade`；跨版本变更建议在测试库先验证。
+### 文档上传后一直处理中
 
----
+检查 Celery Worker 是否启动，Redis 是否可用，文档解析日志是否报错。
 
-## 9. 代码与文档入口
+### 问答没有历史上下文
 
-- 后端入口：`app/asgi.py`
-- 全局配置：`app/config.py`
-- ReAct 核心：`app/apps/utils/react_agent.py`
-- SSE 转换：`app/apps/utils/react_sse.py`
-- MCP 与 LangChain 衔接：`app/mcp_tools/mcp_bridge.py`；SQL 插件：`app/mcp_tools/sql_plugin.py`
-- 工具实现：`app/mcp_tools/tools/`（`tools/__init__.py` 注册到 `plugin_mcp`）
+确认请求是否传入正确 `session_id`，并检查 `ChatSession`、`ChatMessage` 表是否正常写入。
+
+### 向量检索没有结果
+
+检查文档是否解析完成、向量库是否启动、集合名是否一致、嵌入模型是否可用。

@@ -59,8 +59,9 @@ async def create_user(user: UserCreate):
         print(e)
         return response(code=0, message="密码参数错误！")
     heads = os.listdir(os.path.join(STATIC_PATH, "images", "user", "demo"))
+    head = user.head or os.path.join("/", "static", "images", "user", "demo", random.choice(heads))
     user_obj = await User.create(username=user.username, email=user.email, pinyin=get_pinyin(user.username),
-                                 password=get_hash(decrypt_pwd), head=os.path.join("/", "static", "images", "user", "demo", random.choice(heads)), role=user.role)
+                                 password=get_hash(decrypt_pwd), head=head, role=user.role)
     data = await User_Pydantic.from_tortoise_orm(user_obj)
     return response(data=data.model_dump(), message="注册成功！")
 

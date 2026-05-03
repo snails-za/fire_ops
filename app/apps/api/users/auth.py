@@ -6,7 +6,7 @@ from redis import Redis
 from tortoise.contrib.pydantic import pydantic_model_creator
 
 from apps.dependencies.auth import get_token_str, get_current_user
-from apps.form.users.form import TokenResponse
+from apps.form.users.form import ChangePasswordForm, TokenResponse
 from apps.models.user import User
 from apps.utils import response
 from apps.utils.aes_helper import decrypt
@@ -39,6 +39,22 @@ async def check_login(user: User = Depends(get_current_user)):
     """
     data = await User_Pydantic.from_tortoise_orm(user)
     return response(message="已登录", data=data.model_dump())
+
+
+@router.put("/change_password", summary="修改当前用户密码", dependencies=[Depends(get_current_user)])
+async def change_password(form: ChangePasswordForm, user: User = Depends(get_current_user)):
+    try:
+        old_password = decrypt(AES_KEY, form.old_password)
+        new_password = decrypt(AES_KEY, form.new_password)
+    except Exception:
+        return response(code=0, message="密码参数错误！")
+
+    if user.password != get_hash(old_password):
+        return response(code=0, message="原密码不正确")
+
+    user.password = get_hash(new_password)
+    await user.save()
+    return response(message="密码修改成功！")
 
 
 @router.get("/get_captcha", summary="获取验证码", description="获取验证码接口")

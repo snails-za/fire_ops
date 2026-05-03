@@ -24,5 +24,10 @@ class UserUpdate(UserBase):
     role: Optional[str] = Field(default=None, title="用户角色", description="用户角色: user, admin, leader, maintainer")
 
 
+class ChangePasswordForm(BaseModel):
+    old_password: str = Field(..., min_length=8, max_length=100, title="原密码")
+    new_password: str = Field(..., min_length=8, max_length=100, title="新密码")
+
+
 class ProcessApplyRequest(BaseModel):
     accept: bool

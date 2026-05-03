@@ -48,6 +48,18 @@ async def user_list(username: Optional[str] = None, page: int = 1, page_size: in
     return response(data=data, total=total, total_page=total_page, message="获取用户列表成功！")
 
 
+@router.get("/personnel", summary="人员列表", description="获取可选人员列表", dependencies=[Depends(get_current_user)])
+async def personnel_list(username: Optional[str] = None, page: int = 1, page_size: int = 100):
+    conditions = [~Q(role__in=["admin", "管理员"])]
+    if username:
+        conditions.append(Q(username__icontains=username))
+
+    query = User.filter(*conditions).order_by("-id")
+    total = await query.count()
+    items = await User_Pydantic.from_queryset(query.offset((page - 1) * page_size).limit(page_size))
+    return response(data=[_.model_dump() for _ in items], total=total, message="获取人员列表成功！")
+
+
 @router.post("/register", response_model=User_Pydantic, summary="注册用户", description="创建用户接口")
 async def create_user(user: UserCreate):
     # 判断用户名是否已经被注册

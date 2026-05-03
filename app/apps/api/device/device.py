@@ -119,12 +119,16 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     maintainer = await User.get_or_none(id=maintainer_id)
     if not maintainer:
         return response(code=400, message="维护人不存在")
+    if maintainer.role == "admin":
+        return response(code=400, message="管理员不能作为维护人")
     device_data["maintainer_user_id"] = maintainer_id
     device_data["contact"] = maintainer.contact or None
 
     if device_data.get("installer"):
         installer_user = await User.get_or_none(username=device_data["installer"])
         if installer_user:
+            if installer_user.role == "admin":
+                return response(code=400, message="管理员不能作为安装人")
             device_data["installer_contact"] = installer_user.contact or None
 
     device_obj = await Device.create(**device_data)
@@ -167,11 +171,15 @@ async def update_device(device_id: int, device: DeviceUpdate, user: User = Depen
         maintainer = await User.get_or_none(id=maintainer_id)
         if not maintainer:
             return response(code=400, message="维护人不存在")
+        if maintainer.role == "admin":
+            return response(code=400, message="管理员不能作为维护人")
         device_obj.maintainer_user_id = maintainer_id
         update_data["contact"] = maintainer.contact or None
 
     if "installer" in update_data:
         installer_user = await User.get_or_none(username=update_data["installer"])
+        if installer_user and installer_user.role == "admin":
+            return response(code=400, message="管理员不能作为安装人")
         update_data["installer_contact"] = installer_user.contact if installer_user else None
 
     # 验证设备状态：只允许四种状态

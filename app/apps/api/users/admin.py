@@ -38,7 +38,7 @@ async def upload_image(file: UploadFile = File(...)):
 async def user_list(username: Optional[str] = None, page: int = 1, page_size: int = 10):
     conditions = []
     if username:
-        conditions.append(Q(username__icontains=username))
+        conditions.append(Q(username__icontains=username) | Q(fullname__icontains=username))
 
     query = User.filter(*conditions).order_by("-id")
     total = await query.count()
@@ -52,7 +52,7 @@ async def user_list(username: Optional[str] = None, page: int = 1, page_size: in
 async def personnel_list(username: Optional[str] = None, page: int = 1, page_size: int = 100):
     conditions = [~Q(role__in=["admin", "管理员"])]
     if username:
-        conditions.append(Q(username__icontains=username))
+        conditions.append(Q(username__icontains=username) | Q(fullname__icontains=username))
 
     query = User.filter(*conditions).order_by("-id")
     total = await query.count()
@@ -72,7 +72,7 @@ async def create_user(user: UserCreate):
         return response(code=0, message="密码参数错误！")
     heads = os.listdir(os.path.join(STATIC_PATH, "images", "user", "demo"))
     head = user.head or os.path.join("/", "static", "images", "user", "demo", random.choice(heads))
-    user_obj = await User.create(username=user.username, email=user.email, pinyin=get_pinyin(user.username),
+    user_obj = await User.create(username=user.username, fullname=user.fullname, email=user.email, pinyin=get_pinyin(user.fullname or user.username),
                                  contact=user.contact, password=get_hash(decrypt_pwd), head=head, role=user.role)
     data = await User_Pydantic.from_tortoise_orm(user_obj)
     return response(data=data.model_dump(), message="注册成功！")
@@ -87,7 +87,8 @@ async def update_user(user_id: int, user: UserUpdate):
     # 构建更新数据
     update_data = {
         "username": user.username,
-        "pinyin": get_pinyin(user.username),
+        "fullname": user.fullname,
+        "pinyin": get_pinyin(user.fullname or user.username),
         "email": user.email,
         "contact": user.contact,
     }

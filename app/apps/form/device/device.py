@@ -56,3 +56,5 @@ class DeviceOut(DeviceIn):
     id: int
     created_by_user_id: Optional[int] = Field(None, description="创建用户ID")
     maintainer_user_id: Optional[int] = Field(None, description="设备负责人用户ID")
+    installer_fullname: Optional[str] = Field(None, description="安装人姓名")
+    maintainer_fullname: Optional[str] = Field(None, description="维护人姓名")

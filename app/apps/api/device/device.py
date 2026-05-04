@@ -19,6 +19,25 @@ router = APIRouter(prefix="/device", tags=["设备管理"])
 Device_Pydantic = pydantic_model_creator(Device, name="Device")
 
 
+async def enrich_device_display(device_data: dict) -> dict:
+    """补充设备详情/列表中的人员展示姓名，兼容历史只存 username 的 installer 字段。"""
+    installer = device_data.get("installer")
+    if installer:
+        installer_user = await User.get_or_none(username=installer)
+        device_data["installer_fullname"] = installer_user.fullname if installer_user else installer
+    else:
+        device_data["installer_fullname"] = None
+
+    maintainer_id = device_data.get("maintainer_user_id")
+    if maintainer_id:
+        maintainer = await User.get_or_none(id=maintainer_id)
+        device_data["maintainer_fullname"] = maintainer.fullname if maintainer else None
+    else:
+        device_data["maintainer_fullname"] = None
+
+    return device_data
+
+
 async def create_event_from_device(device: Device, status: str, user: User):
     """
     从设备状态变更自动创建或更新事件。
@@ -138,7 +157,7 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
         await create_event_from_device(device_obj, device_obj.status, user)
     
     data = await Device_Pydantic.from_tortoise_orm(device_obj)
-    return response(data=data.model_dump())
+    return response(data=await enrich_device_display(data.model_dump()))
 
 
 @router.put("/update/{device_id}", response_model=DeviceOut, summary="更新设备", description="更新设备信息",
@@ -217,7 +236,7 @@ async def update_device(device_id: int, device: DeviceUpdate, user: User = Depen
             )
     
     data = await Device_Pydantic.from_tortoise_orm(device_obj)
-    return response(data=data.model_dump(), message="更新成功")
+    return response(data=await enrich_device_display(data.model_dump()), message="更新成功")
 
 
 @router.delete("/delete/{device_id}", summary="删除设备", description="删除设备",
@@ -263,7 +282,7 @@ async def device_detail(device_id: int, user: User = Depends(get_current_user)):
         return response(code=404, message="设备不存在或无权访问")
     
     data = await Device_Pydantic.from_tortoise_orm(device_obj)
-    return response(data=data.model_dump())
+    return response(data=await enrich_device_display(data.model_dump()))
 
 
 @router.get("/list", response_model=list[Device_Pydantic], summary="设备列表", description="获取设备列表",
@@ -310,7 +329,9 @@ async def device_list(
     query = query.offset((page - 1) * page_size).limit(page_size)
     res = await Device_Pydantic.from_queryset(query)
 
-    data = [item.model_dump() for item in res]
+    data = []
+    for item in res:
+        data.append(await enrich_device_display(item.model_dump()))
     total_page = (total + page_size - 1) // page_size
     
     return response(

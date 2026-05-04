@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS "user" (
     "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "username" VARCHAR(20) NOT NULL UNIQUE,
+    "fullname" VARCHAR(50),
     "email" VARCHAR(50) UNIQUE,
     "contact" VARCHAR(11),
     "password" VARCHAR(128),
@@ -27,6 +28,7 @@ COMMENT ON COLUMN "user"."id" IS '用户ID';
 COMMENT ON COLUMN "user"."created_at" IS '创建时间';
 COMMENT ON COLUMN "user"."updated_at" IS '更新时间';
 COMMENT ON COLUMN "user"."username" IS '用户名';
+COMMENT ON COLUMN "user"."fullname" IS '姓名';
 COMMENT ON COLUMN "user"."email" IS '邮箱';
 COMMENT ON COLUMN "user"."contact" IS '联系方式（手机号）';
 COMMENT ON COLUMN "user"."password" IS '密码';

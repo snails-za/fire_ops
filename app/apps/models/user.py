@@ -6,6 +6,7 @@ from apps.models.base import BaseModel
 class User(BaseModel):
     id = fields.IntField(pk=True, description="用户ID")
     username = fields.CharField(max_length=20, unique=True, index=True, description="用户名")
+    fullname = fields.CharField(max_length=50, description="姓名")
     email = fields.CharField(null=True, max_length=50, unique=True, index=True, description="邮箱")
     contact = fields.CharField(max_length=11, null=True, description="联系方式（手机号）")
     password = fields.CharField(max_length=128, null=True, description="密码")
@@ -23,4 +24,3 @@ class FriendRequest(BaseModel):
     is_star = fields.BooleanField(default=False, description="是否星标")
     is_accept = fields.BooleanField(default=None, null=True, description="是否接受")
     bak = fields.TextField(null=True, description="备注")
-

@@ -90,17 +90,21 @@ async def get_event_list(
 
         device = event.device
         mu = await User.get_or_none(id=device.maintainer_user_id)
+        maintainer_user = None
+        if mu:
+            maintainer_user = {
+                "id": mu.id,
+                "username": mu.username,
+                "fullname": mu.fullname,
+                "role": mu.role,
+                "head": mu.head,
+            }
         event_dict["device"] = {
             "id": device.id,
             "name": device.name,
             "address": device.address,
             "status": device.status,
-            "maintainer_user": {
-                "id": mu.id,
-                "username": mu.username,
-                "role": mu.role,
-                "head": mu.head,
-            },
+            "maintainer_user": maintainer_user,
         }
         event_dict["triggered_time_display"] = event.created_at.strftime("%Y-%m-%d %H:%M:%S")
 

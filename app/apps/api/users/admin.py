@@ -60,6 +60,39 @@ async def personnel_list(username: Optional[str] = None, page: int = 1, page_siz
     return response(data=[_.model_dump() for _ in items], total=total, message="获取人员列表成功！")
 
 
+@router.get("/search", summary="搜索联系人", description="按姓名、用户名或联系方式搜索可添加联系人", dependencies=[Depends(get_current_user)])
+async def search_users(keyword: Optional[str] = None, page: int = 1, page_size: int = 20, user: User = Depends(get_current_user)):
+    keyword = (keyword or "").strip()
+    if not keyword:
+        return response(data=[], total=0, total_page=0, message="请输入搜索关键词")
+
+    conditions = [
+        ~Q(id=user.id),
+        Q(username__icontains=keyword) | Q(fullname__icontains=keyword) | Q(contact__icontains=keyword),
+    ]
+    query = User.filter(*conditions).order_by("-id")
+    total = await query.count()
+    total_page = total // page_size + (1 if total % page_size > 0 else 0)
+    users = await User_Pydantic.from_queryset(query.offset((page - 1) * page_size).limit(page_size))
+    data = []
+    for item in users:
+        user_data = item.model_dump()
+        target_id = user_data["id"]
+        accepted = await FriendRequest.filter(
+            Q(requester_id=user.id, receiver_id=target_id) | Q(requester_id=target_id, receiver_id=user.id),
+            is_accept=True,
+        ).exists()
+        pending_sent = await FriendRequest.filter(requester_id=user.id, receiver_id=target_id, is_accept=None).exists()
+        pending_received = await FriendRequest.filter(requester_id=target_id, receiver_id=user.id, is_accept=None).exists()
+        user_data["is_contact"] = accepted
+        user_data["pending_sent"] = pending_sent
+        user_data["pending_received"] = pending_received
+        user_data["can_add"] = not accepted and not pending_sent and not pending_received
+        data.append(user_data)
+
+    return response(data=data, total=total, total_page=total_page, message="搜索成功")
+
+
 @router.post("/register", response_model=User_Pydantic, summary="注册用户", description="创建用户接口")
 async def create_user(user: UserCreate):
     # 判断用户名是否已经被注册

@@ -98,6 +98,8 @@ async def create_user(user: UserCreate):
     # 判断用户名是否已经被注册
     if await User.filter(Q(username=user.username)).exists():
         return response(code=0, message="用户名已经被注册！")
+    if user.email and await User.filter(Q(email=user.email)).exists():
+        return response(code=0, message="邮箱已经被注册！")
     try:
         decrypt_pwd = decrypt(AES_KEY, user.password)
     except Exception as e:
@@ -116,7 +118,8 @@ async def create_user(user: UserCreate):
 async def update_user(user_id: int, user: UserUpdate):
     if await User.filter(Q(username=user.username)).exclude(id=user_id).exists():
         return response(code=0, message="用户名已经被注册！")
-    
+    if user.email and await User.filter(Q(email=user.email)).exclude(id=user_id).exists():
+        return response(code=0, message="邮箱已经被注册！")
     # 构建更新数据
     update_data = {
         "username": user.username,

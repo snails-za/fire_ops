@@ -24,6 +24,11 @@ STATIC_PATH = os.path.join(BASE_PATH, "static")
 SECRET_KEY = config("SECRET_KEY", default="adjasdmasdjoqwijeqwbhfqwnqndaslmdlkas")
 AES_KEY = config("AES_KEY", default="awkfjwhkgowkslg3")
 
+# 初始后台管理员配置。仅在数据库没有任何 admin 角色用户时自动创建。
+INITIAL_ADMIN_USERNAME = config("INITIAL_ADMIN_USERNAME", default="admin")
+INITIAL_ADMIN_PASSWORD = Secret(config("INITIAL_ADMIN_PASSWORD", cast=str, default="admin123"))
+INITIAL_ADMIN_FULLNAME = config("INITIAL_ADMIN_FULLNAME", default="系统管理员")
+
 # Token配置
 REFRESH_MAX_AGE = 60  # 刷新token时间（秒）
 MAX_AGE = 60 * 60     # 登录有效性Token（秒）

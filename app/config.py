@@ -26,12 +26,14 @@ AES_KEY = config("AES_KEY", default="awkfjwhkgowkslg3")
 
 # 初始后台管理员配置。仅在数据库没有任何 admin 角色用户时自动创建。
 INITIAL_ADMIN_USERNAME = config("INITIAL_ADMIN_USERNAME", default="admin")
-INITIAL_ADMIN_PASSWORD = Secret(config("INITIAL_ADMIN_PASSWORD", cast=str, default="admin123"))
+INITIAL_ADMIN_PASSWORD = Secret(
+    config("INITIAL_ADMIN_PASSWORD", cast=str, default="admin123")
+)
 INITIAL_ADMIN_FULLNAME = config("INITIAL_ADMIN_FULLNAME", default="系统管理员")
 
 # Token配置
 REFRESH_MAX_AGE = 60  # 刷新token时间（秒）
-MAX_AGE = 60 * 60     # 登录有效性Token（秒）
+MAX_AGE = 60 * 60  # 登录有效性Token（秒）
 
 # =============================================================================
 # 数据库配置
@@ -65,7 +67,9 @@ TORTOISE_ORM = {
 _models_dir = os.path.join(BASE_PATH, "apps", "models")
 for _ in os.listdir(_models_dir):
     if _.endswith(".py") and _ != "__init__.py":
-        TORTOISE_ORM["apps"]["models"]["models"].append(f"apps.models.{_.split('.')[0]}")
+        TORTOISE_ORM["apps"]["models"]["models"].append(
+            f"apps.models.{_.split('.')[0]}"
+        )
 
 # 数据库迁移配置
 AERICH_SAFE_MODE = config("AERICH_SAFE_MODE", cast=int, default=1)
@@ -84,7 +88,7 @@ REDIS_DB = config("REDIS_DB", cast=int, default=0)
 # =============================================================================
 
 # 数据存储路径
-DATA_DIR =  os.path.join(BASE_PATH, "data")
+DATA_DIR = os.path.join(BASE_PATH, "data")
 
 # 文档存储路径
 DOCUMENT_STORE_PATH = os.path.join(DATA_DIR, "documents")
@@ -102,15 +106,15 @@ for path in [DOCUMENT_STORE_PATH, AVATAR_STORE_PATH, DEVICE_STORE_PATH]:
 
 # 文件处理限制
 MAX_FILE_SIZE = config("MAX_FILE_SIZE", cast=int, default=50 * 1024 * 1024)  # 50MB
-ALLOWED_FILE_TYPES = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt']
+ALLOWED_FILE_TYPES = ["pdf", "docx", "doc", "xlsx", "xls", "txt"]
 
 # =============================================================================
 # RAG系统配置
 # =============================================================================
 
 # OpenAI API配置
-OPENAI_API_KEY = config("OPENAI_API_KEY", default="sk-zk21f16b46c63a80f63e49c05308ebd59cb66be108a0fdca")
-OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.zhizengzeng.com/v1/")
+OPENAI_API_KEY = config("OPENAI_API_KEY", default="sk-026f821a221b49d3a674d15bd8d2d248")
+OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.deepseek.com")
 
 # 嵌入模型配置
 # 全局禁用 tokenizers 的并行分词
@@ -171,7 +175,9 @@ QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 OCR_ENABLED = config("OCR_ENABLED", cast=bool, default=True)
 OCR_USE_GPU = config("OCR_USE_GPU", cast=bool, default=True)
 # OCR模型缓存路径
-OCR_MODEL_PATH = config("OCR_MODEL_PATH", default=os.path.join(BASE_PATH, "models", "easyocr"))
+OCR_MODEL_PATH = config(
+    "OCR_MODEL_PATH", default=os.path.join(BASE_PATH, "models", "easyocr")
+)
 
 # OCR并发处理配置
 OCR_MAX_CONCURRENT_PAGES = config("OCR_MAX_CONCURRENT_PAGES", cast=int, default=1)
@@ -189,12 +195,12 @@ OCR_DPI = config("OCR_DPI", cast=int, default=150)  # 降低DPI节省内存
 # =============================================================================
 
 # 消息代理和结果后端
-BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/1'
-CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/2'
+BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/1"
+CELERY_RESULT_BACKEND = f"redis://{REDIS_HOST}:{REDIS_PORT}/2"
 
 # 序列化配置
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 
 # 任务配置
@@ -206,6 +212,6 @@ CELERY_QUEUES = {
     "default": {
         "exchange": "default",
         "exchange_type": "direct",
-        "routing_key": "default"
+        "routing_key": "default",
     }
 }

@@ -29,7 +29,7 @@ from langchain_community.document_loaders import (
     PyMuPDFLoader,
     Docx2txtLoader,
     TextLoader,
-    UnstructuredMarkdownLoader
+    UnstructuredMarkdownLoader,
 )
 from langchain_core.documents import Document
 from pdf2image import convert_from_path
@@ -38,13 +38,21 @@ from pdf2image import pdfinfo_from_path
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from apps.utils.ocr_engines import get_ocr_engine
 from apps.utils.rag_helper import vector_search
-from config import OCR_ENABLED, OCR_USE_GPU, OCR_MAX_CONCURRENT_PAGES, OCR_BATCH_SIZE, OCR_DPI, HF_HOME, HF_OFFLINE
+from config import (
+    OCR_ENABLED,
+    OCR_USE_GPU,
+    OCR_MAX_CONCURRENT_PAGES,
+    OCR_BATCH_SIZE,
+    OCR_DPI,
+    HF_HOME,
+    HF_OFFLINE,
+)
 
 
 class SimpleExcelLoader:
     """
     简单的 Excel 加载器 - 避免 UnstructuredExcelLoader 的 NLTK 依赖
-    
+
     使用 openpyxl 直接读取 Excel，兼容 LangChain 接口
     """
 
@@ -71,7 +79,7 @@ class SimpleExcelLoader:
                     content = f"工作表: {sheet_name}\n\n" + "\n".join(rows)
                     doc = Document(
                         page_content=content,
-                        metadata={"source": self.file_path, "sheet_name": sheet_name}
+                        metadata={"source": self.file_path, "sheet_name": sheet_name},
                     )
                     documents.append(doc)
 
@@ -85,7 +93,7 @@ class SimpleExcelLoader:
 class DocumentParser:
     """
     文档解析器 - 专门负责文档内容提取
-    
+
     主要功能：
     1. 使用LangChain文档加载器处理多种格式
     2. OCR处理扫描版PDF
@@ -96,7 +104,7 @@ class DocumentParser:
     def __init__(self):
         """
         初始化文档解析器
-        
+
         配置组件：
         1. OCR引擎：EasyOCR实例（如果启用）
         2. 依赖检查工具
@@ -118,17 +126,17 @@ class DocumentParser:
     async def extract_content(self, file_path: str, file_type: str) -> str:
         """
         提取文档内容的主入口方法
-        
+
         处理流程：
         1. 根据文件类型选择合适的加载器
         2. 使用LangChain加载器提取内容
         3. 如果失败且是PDF，尝试OCR处理
         4. 返回提取的文本内容
-        
+
         Args:
             file_path: 文件路径
             file_type: 文件类型
-            
+
         Returns:
             str: 提取的文本内容
         """
@@ -136,7 +144,9 @@ class DocumentParser:
             if not os.path.exists(file_path):
                 raise Exception(f"文件不存在: {file_path}")
 
-            print(f"📄 开始解析 {file_type.upper()} 文档: {os.path.basename(file_path)}")
+            print(
+                f"📄 开始解析 {file_type.upper()} 文档: {os.path.basename(file_path)}"
+            )
 
             # 根据文件类型选择合适的加载器
             loaders = self._get_loaders(file_path, file_type)
@@ -155,7 +165,9 @@ class DocumentParser:
                 raise Exception("无法加载任何文档内容")
 
             # 合并所有文档内容
-            content = "\n\n".join([doc.page_content for doc in texts if doc.page_content.strip()])
+            content = "\n\n".join(
+                [doc.page_content for doc in texts if doc.page_content.strip()]
+            )
 
             if not content.strip():
                 raise Exception("文档内容为空")
@@ -171,18 +183,20 @@ class DocumentParser:
                 try:
                     return await self._extract_pdf_with_ocr(file_path)
                 except Exception as ocr_e:
-                    raise Exception(f"所有PDF处理方法都失败: LangChain({str(e)}), OCR({str(ocr_e)})")
+                    raise Exception(
+                        f"所有PDF处理方法都失败: LangChain({str(e)}), OCR({str(ocr_e)})"
+                    )
             else:
                 raise Exception(f"文档内容提取失败: {str(e)}")
 
     def _get_loaders(self, file_path: str, file_type: str) -> list:
         """
         根据文件类型获取合适的LangChain加载器
-        
+
         Args:
             file_path: 文件路径
             file_type: 文件类型
-            
+
         Returns:
             list: 加载器列表
         """
@@ -200,7 +214,7 @@ class DocumentParser:
             # 使用自定义加载器，完全避开 UnstructuredExcelLoader 的 NLTK 依赖
             loaders.append(SimpleExcelLoader(file_path))
         elif file_type == "txt":
-            loaders.append(TextLoader(file_path, encoding='utf-8'))
+            loaders.append(TextLoader(file_path, encoding="utf-8"))
         elif file_type == "md":
             loaders.append(UnstructuredMarkdownLoader(file_path))
         else:
@@ -211,15 +225,15 @@ class DocumentParser:
     async def _extract_pdf_with_ocr(self, file_path: str) -> str:
         """
         使用OCR技术提取PDF中的图片文字
-        
+
         包含完整的依赖检查和错误处理
-        
+
         Args:
             file_path: PDF文件路径
-            
+
         Returns:
             str: OCR识别的文本内容
-            
+
         Raises:
             Exception: 当OCR依赖缺失或处理失败时
         """
@@ -230,16 +244,16 @@ class DocumentParser:
             # 分批转换PDF为图片（节省内存）
             print("🔄 正在分批转换PDF为图片...")
             print(f"⚙️ 分批大小: {OCR_BATCH_SIZE} 页, DPI: {OCR_DPI}")
-            
+
             # 获取PDF总页数
             info = pdfinfo_from_path(file_path)
-            total_pages = info.get('Pages', 0)
-            
+            total_pages = info.get("Pages", 0)
+
             if total_pages == 0:
                 raise Exception("无法获取PDF页数")
-            
+
             print(f"📄 PDF共 {total_pages} 页，将分批处理以节省内存")
-            
+
             content = ""
             successful_pages = 0
 
@@ -251,86 +265,89 @@ class DocumentParser:
 
             # 统一的并发处理逻辑（支持1到N的并发数）
             semaphore = asyncio.Semaphore(OCR_MAX_CONCURRENT_PAGES)
-            
+
             async def process_single_page(page_num, image):
                 async with semaphore:
                     try:
                         progress = (page_num / total_pages) * 100
-                        print(f"🔄 开始处理第 {page_num}/{total_pages} 页... ({progress:.1f}%)")
-                        
+                        print(
+                            f"🔄 开始处理第 {page_num}/{total_pages} 页... ({progress:.1f}%)"
+                        )
+
                         processed_image = self._preprocess_image_for_ocr(image)
-                        
+
                         if self.ocr_engine is None:
                             raise Exception("OCR引擎未初始化")
-                        
+
                         page_text = await asyncio.wait_for(
                             asyncio.get_event_loop().run_in_executor(
-                                None,
-                                self.ocr_engine.extract_text,
-                                processed_image
+                                None, self.ocr_engine.extract_text, processed_image
                             ),
-                            timeout=TIMEOUT_PER_PAGE
+                            timeout=TIMEOUT_PER_PAGE,
                         )
-                        
+
                         del processed_image
                         print(f"✅ 第 {page_num}/{total_pages} 页完成")
                         return page_num, page_text, None
-                        
+
                     except asyncio.TimeoutError:
                         return page_num, None, "处理超时"
                     except Exception as e:
                         return page_num, None, str(e)
-            
+
             # 真正的分批处理：转换一批，处理一批，立即释放
             for batch_start in range(1, total_pages + 1, OCR_BATCH_SIZE):
                 batch_end = min(batch_start + OCR_BATCH_SIZE - 1, total_pages)
                 print(f"🔄 转换第 {batch_start}-{batch_end} 页...")
-                
+
                 try:
                     # 转换当前批次
                     batch_images = await asyncio.get_event_loop().run_in_executor(
                         None,
                         lambda: convert_from_path(
-                            file_path, 
+                            file_path,
                             dpi=OCR_DPI,
                             first_page=batch_start,
                             last_page=batch_end,
-                            fmt='jpeg'
-                        )
+                            fmt="jpeg",
+                        ),
                     )
                     print(f"✅ 第 {batch_start}-{batch_end} 页转换完成")
-                    
+
                     if not batch_images:
                         print(f"⚠️ 第 {batch_start}-{batch_end} 页转换后无图片")
                         continue
-                    
+
                     # 立即处理当前批次
                     batch_tasks = []
                     for idx, image in enumerate(batch_images):
                         page_num = batch_start + idx
                         batch_tasks.append(process_single_page(page_num, image))
-                    
+
                     # 并发处理当前批次
-                    batch_results = await asyncio.gather(*batch_tasks, return_exceptions=False)
-                    
+                    batch_results = await asyncio.gather(
+                        *batch_tasks, return_exceptions=False
+                    )
+
                     # 保存当前批次结果
                     for page_num, page_text, error in batch_results:
                         if not error and page_text and page_text.strip():
                             content += f"\n--- 第 {page_num} 页 (OCR) ---\n"
                             content += page_text.strip() + "\n"
                             successful_pages += 1
-                    
+
                     # 立即清理当前批次
                     del batch_images
                     del batch_tasks
                     del batch_results
                     gc.collect()
                     print(f"🧹 第 {batch_start}-{batch_end} 页处理完成，已清理内存")
-                    
+
                 except Exception as e:
                     if "poppler" in str(e).lower():
                         raise Exception(
-                            "缺少poppler依赖。请运行: brew install poppler (macOS) 或 apt-get install poppler-utils (Ubuntu)")
+                            "缺少poppler依赖。请运行: brew install poppler (macOS) 或 apt-get install poppler-utils (Ubuntu)"
+                        )
                     print(f"⚠️ 第 {batch_start}-{batch_end} 页处理失败: {e}")
 
             if successful_pages == 0:
@@ -356,16 +373,17 @@ class DocumentParser:
     def _check_ocr_dependencies(self):
         """
         检查OCR所需的依赖是否可用
-        
+
         Raises:
             Exception: 当依赖缺失时
         """
         try:
             # 检查poppler工具（PDF转图片需要）
-            poppler_path = shutil.which('pdftoppm')
+            poppler_path = shutil.which("pdftoppm")
             if not poppler_path:
                 raise Exception(
-                    "缺少poppler工具，请安装: brew install poppler (macOS) 或 sudo apt-get install poppler-utils (Ubuntu)")
+                    "缺少poppler工具，请安装: brew install poppler (macOS) 或 sudo apt-get install poppler-utils (Ubuntu)"
+                )
             print("✅ OCR依赖检查通过")
         except Exception as e:
             raise e
@@ -373,17 +391,17 @@ class DocumentParser:
     def _preprocess_image_for_ocr(self, pil_image: Image.Image) -> Image.Image:
         """
         简单的图像预处理，提高OCR识别准确性
-        
+
         Args:
             pil_image: PIL图像对象
-            
+
         Returns:
             Image.Image: 预处理后的图像
         """
         try:
             # 简单的灰度转换
-            if pil_image.mode != 'L':
-                gray_image = pil_image.convert('L')
+            if pil_image.mode != "L":
+                gray_image = pil_image.convert("L")
             else:
                 gray_image = pil_image
 
@@ -393,7 +411,9 @@ class DocumentParser:
                 scale_factor = max(800 / width, 800 / height)
                 new_width = int(width * scale_factor)
                 new_height = int(height * scale_factor)
-                gray_image = gray_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                gray_image = gray_image.resize(
+                    (new_width, new_height), Image.Resampling.LANCZOS
+                )
 
             return gray_image
 
@@ -406,13 +426,13 @@ class DocumentParser:
 class DocumentProcessor:
     """
     文档处理器 - 负责文档分块和向量化
-    
+
     主要功能：
     1. 智能文本分块，保持语义完整性
     2. 生成高质量向量嵌入
     3. 与数据库和向量存储同步
     4. 协调文档解析器和向量化流程
-    
+
     处理流程：
     1. 使用DocumentParser提取文档内容
     2. 智能分块处理
@@ -423,7 +443,7 @@ class DocumentProcessor:
     def __init__(self):
         """
         初始化文档处理器
-        
+
         配置组件：
         1. 文本分割器：1000字符块大小，200字符重叠
         2. 文档解析器：独立的DocumentParser实例
@@ -450,21 +470,23 @@ class DocumentProcessor:
         except Exception as e:
             raise Exception(f"DocumentProcessor初始化失败: {e}")
 
-    async def process_document(self, document_id: int, file_path: str, file_type: str) -> bool:
+    async def process_document(
+        self, document_id: int, file_path: str, file_type: str
+    ) -> bool:
         """
         处理文档并生成向量嵌入
-        
+
         处理流程：
         1. 提取文档内容
         2. 智能分块处理
         3. 存储到ChromaDB
         4. 更新数据库状态
-        
+
         Args:
             document_id: 文档ID
             file_path: 文件路径
             file_type: 文件类型
-            
+
         Returns:
             bool: 处理是否成功
         """
@@ -497,7 +519,7 @@ class DocumentProcessor:
                     chunk_index=i,
                     content=chunk_text,
                     content_length=len(chunk_text),
-                    metadata={"chunk_index": i}
+                    metadata={"chunk_index": i},
                 )
                 chunk_objects.append(chunk)
 
@@ -507,14 +529,16 @@ class DocumentProcessor:
                 metadata = {
                     "filename": document.original_filename or document.filename,
                     "file_type": file_type,
-                    "upload_time": document.upload_time.isoformat() if document.upload_time else None
+                    "upload_time": document.upload_time.isoformat()
+                    if document.upload_time
+                    else None,
                 }
 
                 await vector_search.add_documents_from_chunks(
                     document_id=document_id,
                     chunks=chunks,
                     chunk_objects=chunk_objects,
-                    metadata=metadata
+                    metadata=metadata,
                 )
             # 7. 更新文档状态为完成并设置处理时间
             document.status = "completed"

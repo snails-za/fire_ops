@@ -1,21 +1,22 @@
 import os
 import importlib
 
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from config import DEBUG, STATIC_PATH, BASE_PATH
-# ✅ 执行 Aerich 补丁以拦截 DROP 操作（防止误删表字段）
-from apps.utils import aerich_patch as aerich_patch
 
-router = APIRouter()
+# 执行 Aerich 补丁以拦截 DROP 操作，防止迁移误删表字段。
+from apps.utils import aerich_patch as aerich_patch
 
 
 def init_static(app):
     app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
-    app.mount("/data", StaticFiles(directory=os.path.join(BASE_PATH, "data")), name="data")
+    app.mount(
+        "/data", StaticFiles(directory=os.path.join(BASE_PATH, "data")), name="data"
+    )
 
 
 def init_cors(app):
@@ -29,22 +30,18 @@ def init_cors(app):
 
 
 def init_routes(app):
-    api_dir = os.path.join(os.path.dirname(__file__), 'api')
-    exclude_dirs = ['__pycache__']
+    api_dir = os.path.join(os.path.dirname(__file__), "api")
+    exclude_dirs = ["__pycache__"]
 
-    # 使用 os.walk 遍历所有子目录和文件
     for root, dirs, files in os.walk(api_dir):
-        # 检查当前目录名是否在排除列表中
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
 
-        # 将文件路径转换为包名
-        package_name = root.replace(api_dir, 'apps.api').replace(os.sep, '.')
+        package_name = root.replace(api_dir, "apps.api").replace(os.sep, ".")
         for filename in files:
-            # 只处理 .py 文件，且排除 __init__.py 文件
-            if filename.endswith('.py') and filename != '__init__.py':
+            if filename.endswith(".py") and filename != "__init__.py":
                 module_name = f"{package_name}.{filename[:-3]}"
                 module = importlib.import_module(module_name)
-                if hasattr(module, 'router'):
+                if hasattr(module, "router"):
                     app.include_router(module.router, prefix="/api/v1")
 
 
@@ -59,16 +56,10 @@ def custom_openapi(app: FastAPI):
         routes=app.routes,
     )
 
-    # ✅ 用 Header 的方式注入 token
     openapi_schema["components"]["securitySchemes"] = {
-        "BearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT"
-        },
+        "BearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
     }
 
-    # ✅ 设置全局 security（可选）
     openapi_schema["security"] = [{"BearerAuth": []}]
 
     app.openapi_schema = openapi_schema
@@ -91,6 +82,3 @@ def create_app(lifespan=None):
 
     app.openapi = lambda: custom_openapi(app)
     return app
-
-
-

@@ -7,7 +7,11 @@ from fastapi import APIRouter, Query, Form, Depends
 from fastapi.responses import StreamingResponse
 
 from apps.utils import response
-from apps.utils.llm_optimizers import get_question_optimizer, get_search_optimizer, optimize_question
+from apps.utils.llm_optimizers import (
+    get_question_optimizer,
+    get_search_optimizer,
+    optimize_question,
+)
 from apps.utils.vector_db_selector import vector_search
 from apps.utils.react_agent import ReactAgent, ReactAgentConfig
 from apps.utils.react_sse import iter_sse_from_agent_streaming, sse_data_line
@@ -28,12 +32,16 @@ from config import OPENAI_API_KEY, OPENAI_BASE_URL, SIMILARITY_THRESHOLD
 router = APIRouter(prefix="/chat", tags=["智能问答"])
 
 
-@router.post("/ask/stream", summary="流式智能问答", description="XML ReAct + FastMCP 工具（流式）",
-             dependencies=[Depends(get_current_user)])
+@router.post(
+    "/ask/stream",
+    summary="流式智能问答",
+    description="XML ReAct + FastMCP 工具（流式）",
+    dependencies=[Depends(get_current_user)],
+)
 async def ask_question_stream(
-        question: str = Form(..., description="用户问题 / 任务"),
-        session_id: Optional[int] = Form(None, description="会话ID，不传则新建会话"),
-        user: User = Depends(get_current_user),
+    question: str = Form(..., description="用户问题 / 任务"),
+    session_id: Optional[int] = Form(None, description="会话ID，不传则新建会话"),
+    user: User = Depends(get_current_user),
 ):
     async def generate_stream():
         try:
@@ -51,21 +59,25 @@ async def ask_question_stream(
                 "role": getattr(user, "role", None),
                 "session_id": session.id,
             }
-            yield sse_data_line({"type": "session", "session": session_to_dict(session)})
+            yield sse_data_line(
+                {"type": "session", "session": session_to_dict(session)}
+            )
 
             async def save_turn(meta: Dict[str, Any]) -> None:
                 try:
-                    await save_chat_turn(session, q, meta.get("final_answer") or "", meta)
+                    await save_chat_turn(
+                        session, q, meta.get("final_answer") or "", meta
+                    )
                 except Exception as save_error:
                     print(f"保存聊天记录失败: {save_error}")
                     traceback.print_exc()
 
             async for line in iter_sse_from_agent_streaming(
-                    agent,
-                    q,
-                    tool_context=tool_context,
-                    conversation_history=conversation_history,
-                    on_done=save_turn,
+                agent,
+                q,
+                tool_context=tool_context,
+                conversation_history=conversation_history,
+                on_done=save_turn,
             ):
                 yield line
         except Exception as e:
@@ -74,25 +86,37 @@ async def ask_question_stream(
             yield sse_data_line({"type": "error", "message": f"问答失败: {str(e)}"})
 
     headers = {"Cache-Control": "no-cache", "Connection": "keep-alive"}
-    return StreamingResponse(generate_stream(), media_type="text/event-stream", headers=headers)
+    return StreamingResponse(
+        generate_stream(), media_type="text/event-stream", headers=headers
+    )
 
 
-@router.post("/sessions", summary="创建聊天会话", description="创建一个空的聊天会话",
-             dependencies=[Depends(get_current_user)])
+@router.post(
+    "/sessions",
+    summary="创建聊天会话",
+    description="创建一个空的聊天会话",
+    dependencies=[Depends(get_current_user)],
+)
 async def create_chat_session(
-        session_name: str = Form(DEFAULT_SESSION_TITLE, description="会话名称"),
-        user: User = Depends(get_current_user),
+    session_name: str = Form(DEFAULT_SESSION_TITLE, description="会话名称"),
+    user: User = Depends(get_current_user),
 ):
-    session = await ChatSession.create(user=user, session_name=(session_name or DEFAULT_SESSION_TITLE)[:100])
+    session = await ChatSession.create(
+        user=user, session_name=(session_name or DEFAULT_SESSION_TITLE)[:100]
+    )
     return response(data=session_to_dict(session), message="会话创建成功")
 
 
-@router.get("/sessions", summary="聊天会话列表", description="获取当前用户的聊天会话列表",
-            dependencies=[Depends(get_current_user)])
+@router.get(
+    "/sessions",
+    summary="聊天会话列表",
+    description="获取当前用户的聊天会话列表",
+    dependencies=[Depends(get_current_user)],
+)
 async def list_chat_sessions(
-        page: int = Query(1, ge=1),
-        page_size: int = Query(20, ge=1, le=100),
-        user: User = Depends(get_current_user),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user: User = Depends(get_current_user),
 ):
     query = ChatSession.filter(user_id=user.id).order_by("-last_active")
     total = await query.count()
@@ -108,13 +132,17 @@ async def list_chat_sessions(
     )
 
 
-@router.get("/sessions/{session_id}/messages", summary="聊天消息列表", description="获取会话消息",
-            dependencies=[Depends(get_current_user)])
+@router.get(
+    "/sessions/{session_id}/messages",
+    summary="聊天消息列表",
+    description="获取会话消息",
+    dependencies=[Depends(get_current_user)],
+)
 async def list_chat_messages(
-        session_id: int,
-        page: int = Query(1, ge=1),
-        page_size: int = Query(50, ge=1, le=200),
-        user: User = Depends(get_current_user),
+    session_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    user: User = Depends(get_current_user),
 ):
     session = await ChatSession.get_or_none(id=session_id, user_id=user.id)
     if not session:
@@ -134,11 +162,15 @@ async def list_chat_messages(
     )
 
 
-@router.get("/search", summary="文档搜索", description="基于LLM优化的文档搜索",
-            dependencies=[Depends(get_current_user)])
+@router.get(
+    "/search",
+    summary="文档搜索",
+    description="基于LLM优化的文档搜索",
+    dependencies=[Depends(get_current_user)],
+)
 async def search_documents(
-        query: str,
-        top_k: int = Query(5, ge=1, le=20, description="返回结果数量"),
+    query: str,
+    top_k: int = Query(5, ge=1, le=20, description="返回结果数量"),
 ):
     """搜索相关文档 - 集成LLM查询优化"""
     try:
@@ -154,7 +186,10 @@ async def search_documents(
                 optimized_query = search_optimizer.invoke({"question": original_query})
                 optimized_query = optimized_query.strip()
 
-                if len(optimized_query) >= 2 and len(optimized_query) <= len(original_query) * 2:
+                if (
+                    len(optimized_query) >= 2
+                    and len(optimized_query) <= len(original_query) * 2
+                ):
                     search_query = optimized_query
 
             except Exception as e:
@@ -181,15 +216,19 @@ async def search_documents(
             document = result.get("document")
             chunk = result.get("chunk")
 
-            results.append({
-                "document_id": document.id if document else None,
-                "document_name": document.filename if document else "未知文档",
-                "chunk_content": chunk.content if chunk else "",
-                "similarity": round(result.get("similarity", 0), 4),
-                "rerank_score": round(result["rerank_score"], 4) if "rerank_score" in result else None,
-                "reranked": bool(result.get("reranked", False)),
-                "chunk_index": chunk.chunk_index if chunk else 0
-            })
+            results.append(
+                {
+                    "document_id": document.id if document else None,
+                    "document_name": document.filename if document else "未知文档",
+                    "chunk_content": chunk.content if chunk else "",
+                    "similarity": round(result.get("similarity", 0), 4),
+                    "rerank_score": round(result["rerank_score"], 4)
+                    if "rerank_score" in result
+                    else None,
+                    "reranked": bool(result.get("reranked", False)),
+                    "chunk_index": chunk.chunk_index if chunk else 0,
+                }
+            )
 
         return response(
             data={
@@ -199,9 +238,9 @@ async def search_documents(
                 "total": len(results),
                 "llm_enhanced": search_optimizer is not None,
                 "similarity_threshold": SIMILARITY_THRESHOLD,
-                "filtered_by_threshold": True
+                "filtered_by_threshold": True,
             },
-            message="搜索成功"
+            message="搜索成功",
         )
 
     except Exception as e:
@@ -216,14 +255,18 @@ async def get_config():
     return response(
         data={
             "similarity_threshold": SIMILARITY_THRESHOLD,
-            "threshold_description": f"相似度阈值 {SIMILARITY_THRESHOLD:.1%}，只显示相似度大于此值的文档"
+            "threshold_description": f"相似度阈值 {SIMILARITY_THRESHOLD:.1%}，只显示相似度大于此值的文档",
         },
-        message="配置获取成功"
+        message="配置获取成功",
     )
 
 
-@router.post("/analyze", summary="问题分析", description="使用LLM分析问题意图和关键词",
-             dependencies=[Depends(get_current_user)])
+@router.post(
+    "/analyze",
+    summary="问题分析",
+    description="使用LLM分析问题意图和关键词",
+    dependencies=[Depends(get_current_user)],
+)
 async def analyze_question(question: str = Form(..., description="用户问题")):
     """问题分析 - 展示LLM的问题理解能力"""
     try:
@@ -235,9 +278,9 @@ async def analyze_question(question: str = Form(..., description="用户问题")
                 data={
                     "question": question,
                     "analysis": "LLM未配置，无法进行深度分析",
-                    "llm_available": False
+                    "llm_available": False,
                 },
-                message="LLM未配置"
+                message="LLM未配置",
             )
 
         # 使用新的结构化输出
@@ -247,9 +290,9 @@ async def analyze_question(question: str = Form(..., description="用户问题")
             data={
                 "question": question,
                 "analysis": analysis_result,
-                "llm_available": True
+                "llm_available": True,
             },
-            message="分析成功"
+            message="分析成功",
         )
 
     except Exception as e:

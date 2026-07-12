@@ -23,7 +23,7 @@ class OCREngineAdapter:
         """初始化EasyOCR"""
         # 确保OCR模型目录存在
         os.makedirs(OCR_MODEL_PATH, exist_ok=True)
-        
+
         # 检测GPU可用性
         gpu_available = self._check_gpu_availability()
         actual_use_gpu = self.use_gpu and gpu_available
@@ -33,17 +33,23 @@ class OCREngineAdapter:
             try:
                 print("🚀 尝试启用GPU加速模式")
                 print(f"📁 OCR模型路径: {OCR_MODEL_PATH}")
-                self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=True, model_storage_directory=OCR_MODEL_PATH)
+                self.easy_reader = easyocr.Reader(
+                    ["ch_sim", "en"], gpu=True, model_storage_directory=OCR_MODEL_PATH
+                )
                 print("✅ GPU模式初始化成功")
             except Exception as gpu_error:
                 print(f"⚠️ GPU模式初始化失败: {str(gpu_error)}")
                 print("🔄 自动降级到CPU模式")
-                self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False, model_storage_directory=OCR_MODEL_PATH)
+                self.easy_reader = easyocr.Reader(
+                    ["ch_sim", "en"], gpu=False, model_storage_directory=OCR_MODEL_PATH
+                )
                 print("✅ CPU模式初始化成功")
         else:
             print("💻 使用CPU模式")
             print(f"📁 OCR模型路径: {OCR_MODEL_PATH}")
-            self.easy_reader = easyocr.Reader(['ch_sim', 'en'], gpu=False, model_storage_directory=OCR_MODEL_PATH)
+            self.easy_reader = easyocr.Reader(
+                ["ch_sim", "en"], gpu=False, model_storage_directory=OCR_MODEL_PATH
+            )
             print("✅ CPU模式初始化成功")
 
         print("✅ EasyOCR引擎初始化完成")
@@ -81,11 +87,11 @@ class OCREngineAdapter:
 
         # 提取文本
         texts = []
-        for (bbox, text, confidence) in results:
+        for bbox, text, confidence in results:
             if confidence > 0.5:  # 只保留高置信度的文本
                 texts.append(text)
 
-        return '\n'.join(texts)
+        return "\n".join(texts)
 
 
 def get_ocr_engine(use_gpu: bool = True) -> OCREngineAdapter:

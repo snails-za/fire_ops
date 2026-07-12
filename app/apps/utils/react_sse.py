@@ -46,7 +46,9 @@ async def iter_sse_from_agent_streaming(
             content_buf += ev.get("text") or ""
             yield sse_data_line({"type": "content", "content": content_buf})
         elif et == "tool_start":
-            yield sse_data_line({"type": "action", "message": f"🔧 工具: {ev.get('name')}"})
+            yield sse_data_line(
+                {"type": "action", "message": f"🔧 工具: {ev.get('name')}"}
+            )
         elif et == "tool_end":
             ok = ev.get("ok")
             preview = str(ev.get("preview") or "")
@@ -56,7 +58,9 @@ async def iter_sse_from_agent_streaming(
                 {"type": "action", "message": f"{sym} {label}: {preview[:120]}..."}
             )
         elif et == "error":
-            yield sse_data_line({"type": "error", "message": ev.get("message") or "错误"})
+            yield sse_data_line(
+                {"type": "error", "message": ev.get("message") or "错误"}
+            )
         elif et == "done":
             meta = ev.get("meta") or {}
             if on_done:

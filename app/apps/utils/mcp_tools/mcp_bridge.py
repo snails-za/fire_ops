@@ -4,6 +4,7 @@
 会话数据（user_id、sources 等）存在「当前 asyncio 任务 id → dict」里：
 一次流式问答整条链路在同一条 Task 里 await，工具也在该 Task 里执行；
 两个用户同时问 = 两个不同 Task = 两份数据，不会串。结束时 reset 删掉。"""
+
 import asyncio
 import json
 import traceback

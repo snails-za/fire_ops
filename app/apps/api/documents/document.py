@@ -18,18 +18,24 @@ router = APIRouter(prefix="/documents", tags=["文档管理"])
 
 # 创建Pydantic模型
 Document_Pydantic = pydantic_model_creator(Document, name="Document")
-DocumentChunk_Pydantic = pydantic_model_creator(DocumentChunk, name="DocumentChunk", exclude=("id",))
+DocumentChunk_Pydantic = pydantic_model_creator(
+    DocumentChunk, name="DocumentChunk", exclude=("id",)
+)
 
 
-@router.post("/upload", summary="上传文档(匿名)", description="上传文档并自动解析向量化（无需登录）")
+@router.post(
+    "/upload",
+    summary="上传文档(匿名)",
+    description="上传文档并自动解析向量化（无需登录）",
+)
 async def upload_document(
-        file: UploadFile = File(...),
+    file: UploadFile = File(...),
 ):
     """上传文档"""
     try:
         # 检查文件类型
-        allowed_types = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt', 'md']
-        file_extension = file.filename.split('.')[-1].lower()
+        allowed_types = ["pdf", "docx", "doc", "xlsx", "xls", "txt", "md"]
+        file_extension = file.filename.split(".")[-1].lower()
 
         if file_extension not in allowed_types:
             return response(code=400, message=f"不支持的文件类型: {file_extension}")
@@ -54,15 +60,11 @@ async def upload_document(
             file_size=len(content),
             file_type=file_extension,
             content="",  # 稍后处理
-            status="queued"  # 初始状态为排队中
+            status="queued",  # 初始状态为排队中
         )
 
         # 使用Celery异步处理文档（非阻塞）
-        task = process_document_task.delay(
-            document.id,
-            file_path,
-            file_extension
-        )
+        task = process_document_task.delay(document.id, file_path, file_extension)
 
         # 保存任务ID到文档记录中，用于状态查询
         document.task_id = task.id
@@ -71,7 +73,7 @@ async def upload_document(
         data = await Document_Pydantic.from_tortoise_orm(document)
 
         # 根据文件类型提供不同的处理提示
-        if file_extension == 'pdf':
+        if file_extension == "pdf":
             message = "PDF文档上传成功！系统将自动识别文本内容，如果是扫描件将使用OCR技术处理..."
         else:
             message = "文档上传成功，正在处理中..."
@@ -85,17 +87,17 @@ async def upload_document(
 
 @router.get("/list", summary="文档列表(匿名)", description="获取文档列表（无需登录）")
 async def get_documents(
-        page: int = Query(1, ge=1, description="页码"),
-        page_size: int = Query(10, ge=1, le=100, description="每页数量"),
-        status: Optional[str] = Query(None, description="文档状态"),
-        keyword: Optional[str] = Query(None, description="搜索关键字（文件名或内容）"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=100, description="每页数量"),
+    status: Optional[str] = Query(None, description="文档状态"),
+    keyword: Optional[str] = Query(None, description="搜索关键字（文件名或内容）"),
 ):
     """获取文档列表"""
     try:
         conditions = []
         if status:
             conditions.append(Q(status=status))
-        
+
         # 添加关键字搜索条件
         if keyword:
             # 搜索文件名
@@ -114,19 +116,20 @@ async def get_documents(
         total_page = (total + page_size - 1) // page_size
 
         return response(
-            data=data,
-            total=total,
-            total_page=total_page,
-            message="获取文档列表成功"
+            data=data, total=total, total_page=total_page, message="获取文档列表成功"
         )
 
     except Exception as e:
         return response(code=500, message=f"获取文档列表失败: {str(e)}")
 
 
-@router.get("/{document_id}", summary="获取文档详情(匿名)", description="获取文档详细信息（无需登录）")
+@router.get(
+    "/{document_id}",
+    summary="获取文档详情(匿名)",
+    description="获取文档详细信息（无需登录）",
+)
 async def get_document(
-        document_id: int,
+    document_id: int,
 ):
     """获取文档详情"""
     try:
@@ -139,20 +142,23 @@ async def get_document(
         # 获取文档分块信息
         chunks = await DocumentChunk.filter(document_id=document_id).count()
 
-        return response(data={
-            "document": doc_data.model_dump(),
-            "chunks_count": chunks
-        })
+        return response(
+            data={"document": doc_data.model_dump(), "chunks_count": chunks}
+        )
 
     except Exception as e:
         return response(code=500, message=f"获取文档详情失败: {str(e)}")
 
 
-@router.get("/{document_id}/chunks", summary="获取文档分块(匿名)", description="获取文档的分块信息（无需登录）")
+@router.get(
+    "/{document_id}/chunks",
+    summary="获取文档分块(匿名)",
+    description="获取文档的分块信息（无需登录）",
+)
 async def get_document_chunks(
-        document_id: int,
-        page: int = Query(1, ge=1, description="页码"),
-        page_size: int = Query(10, ge=1, le=100, description="每页数量"),
+    document_id: int,
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=100, description="每页数量"),
 ):
     """获取文档分块"""
     try:
@@ -173,19 +179,20 @@ async def get_document_chunks(
         total_page = (total + page_size - 1) // page_size
 
         return response(
-            data=data,
-            total=total,
-            total_page=total_page,
-            message="获取文档分块成功"
+            data=data, total=total, total_page=total_page, message="获取文档分块成功"
         )
 
     except Exception as e:
         return response(code=500, message=f"获取文档分块失败: {str(e)}")
 
 
-@router.delete("/{document_id}", summary="删除文档(匿名)", description="删除文档及其相关数据（无需登录）")
+@router.delete(
+    "/{document_id}",
+    summary="删除文档(匿名)",
+    description="删除文档及其相关数据（无需登录）",
+)
 async def delete_document(
-        document_id: int,
+    document_id: int,
 ):
     """删除文档"""
     try:
@@ -212,9 +219,13 @@ async def delete_document(
         return response(code=500, message=f"删除文档失败: {str(e)}")
 
 
-@router.post("/{document_id}/reprocess", summary="重新处理文档(匿名)", description="重新处理文档向量化（无需登录）")
+@router.post(
+    "/{document_id}/reprocess",
+    summary="重新处理文档(匿名)",
+    description="重新处理文档向量化（无需登录）",
+)
 async def reprocess_document(
-        document_id: int,
+    document_id: int,
 ):
     """重新处理文档"""
     try:
@@ -239,9 +250,7 @@ async def reprocess_document(
 
         # 使用Celery重新处理文档
         task = process_document_task.delay(
-            document.id,
-            document.file_path,
-            document.file_type
+            document.id, document.file_path, document.file_type
         )
 
         # 保存新的任务ID
@@ -254,7 +263,11 @@ async def reprocess_document(
         return response(code=500, message=f"重新处理文档失败: {str(e)}")
 
 
-@router.get("/stats/overview", summary="文档统计(匿名)", description="获取文档处理统计信息（无需登录）")
+@router.get(
+    "/stats/overview",
+    summary="文档统计(匿名)",
+    description="获取文档处理统计信息（无需登录）",
+)
 async def get_document_stats():
     """获取文档统计信息"""
     try:
@@ -267,27 +280,29 @@ async def get_document_stats():
         total_chunks = await DocumentChunk.all().count()
         total_vectors = await vector_search.count_vectors()
 
-        return response(data={
-            "documents": {
-                "total": total_documents,
-                "queued": queued_documents,
-                "processing": processing_documents,
-                "completed": completed_documents,
-                "failed": failed_documents
-            },
-            "chunks": {
-                "total": total_chunks
-            },
-            "vectors": {
-                "total": total_vectors
+        return response(
+            data={
+                "documents": {
+                    "total": total_documents,
+                    "queued": queued_documents,
+                    "processing": processing_documents,
+                    "completed": completed_documents,
+                    "failed": failed_documents,
+                },
+                "chunks": {"total": total_chunks},
+                "vectors": {"total": total_vectors},
             }
-        })
+        )
 
     except Exception as e:
         return response(code=500, message=f"获取统计信息失败: {str(e)}")
 
 
-@router.get("/{document_id}/download", summary="下载文档(匿名)", description="下载原始文档文件（无需登录）")
+@router.get(
+    "/{document_id}/download",
+    summary="下载文档(匿名)",
+    description="下载原始文档文件（无需登录）",
+)
 async def download_document(document_id: int):
     """下载文档"""
     try:
@@ -302,24 +317,29 @@ async def download_document(document_id: int):
 
         # 处理文件名编码问题
         import urllib.parse
-        safe_filename = urllib.parse.quote(document.original_filename, safe='')
-        
+
+        safe_filename = urllib.parse.quote(document.original_filename, safe="")
+
         # 返回文件下载响应（强制下载）
         return FileResponse(
             path=document.file_path,
             filename=document.original_filename,
-            media_type='application/octet-stream',
+            media_type="application/octet-stream",
             headers={
                 "Content-Disposition": f"attachment; filename*=UTF-8''{safe_filename}",
-                "Cache-Control": "no-cache"
-            }
+                "Cache-Control": "no-cache",
+            },
         )
 
     except Exception as e:
         return response(code=500, message=f"下载文档失败: {str(e)}")
 
 
-@router.get("/{document_id}/preview", summary="预览文档(匿名)", description="在浏览器中预览文档内容（无需登录）")
+@router.get(
+    "/{document_id}/preview",
+    summary="预览文档(匿名)",
+    description="在浏览器中预览文档内容（无需登录）",
+)
 async def preview_document(document_id: int):
     """预览文档"""
     try:
@@ -334,28 +354,33 @@ async def preview_document(document_id: int):
 
         # 处理文件名编码问题
         import urllib.parse
-        safe_filename = urllib.parse.quote(document.original_filename, safe='')
-        
+
+        safe_filename = urllib.parse.quote(document.original_filename, safe="")
+
         # 返回文件预览响应（在浏览器中直接显示）
         return FileResponse(
             path=document.file_path,
             filename=document.original_filename,
-            media_type='application/pdf',
+            media_type="application/pdf",
             headers={
                 "Content-Disposition": f"inline; filename*=UTF-8''{safe_filename}",
-                "Cache-Control": "no-cache"
-            }
+                "Cache-Control": "no-cache",
+            },
         )
 
     except Exception as e:
         return response(code=500, message=f"预览文档失败: {str(e)}")
 
 
-@router.get("/{document_id}/view", summary="查看文档内容(匿名)", description="查看文档内容并支持高亮显示（无需登录）")
+@router.get(
+    "/{document_id}/view",
+    summary="查看文档内容(匿名)",
+    description="查看文档内容并支持高亮显示（无需登录）",
+)
 async def view_document_content(
-        document_id: int,
-        highlight: Optional[str] = Query(None, description="需要高亮的文本"),
-        chunk_id: Optional[int] = Query(None, description="特定文档块ID")
+    document_id: int,
+    highlight: Optional[str] = Query(None, description="需要高亮的文本"),
+    chunk_id: Optional[int] = Query(None, description="特定文档块ID"),
 ):
     """查看文档内容"""
     try:
@@ -365,7 +390,9 @@ async def view_document_content(
 
         # 如果指定了chunk_id，返回特定块的内容
         if chunk_id:
-            chunk = await DocumentChunk.get_or_none(id=chunk_id, document_id=document_id)
+            chunk = await DocumentChunk.get_or_none(
+                id=chunk_id, document_id=document_id
+            )
             if not chunk:
                 return response(code=404, message="文档块不存在")
 
@@ -373,7 +400,7 @@ async def view_document_content(
             chunk_info = {
                 "chunk_id": chunk.id,
                 "chunk_index": chunk.chunk_index,
-                "content_length": chunk.content_length
+                "content_length": chunk.content_length,
             }
         else:
             # 返回完整文档内容
@@ -394,25 +421,26 @@ async def view_document_content(
                     # 使用正则表达式进行不区分大小写的高亮
                     pattern = re.compile(re.escape(keyword), re.IGNORECASE)
                     highlighted_content = pattern.sub(
-                        lambda
-                            m: f'<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; font-weight: bold;">{m.group()}</mark>',
-                        highlighted_content
+                        lambda m: f'<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; font-weight: bold;">{m.group()}</mark>',
+                        highlighted_content,
                     )
 
-        return response(data={
-            "document": {
-                "id": document.id,
-                "filename": document.original_filename,
-                "file_type": document.file_type,
-                "upload_time": document.upload_time,
-                "status": document.status
-            },
-            "content": content,
-            "highlighted_content": highlighted_content,
-            "highlight_text": highlight,
-            "chunk_info": chunk_info,
-            "has_highlight": bool(highlight and highlight.strip())
-        })
+        return response(
+            data={
+                "document": {
+                    "id": document.id,
+                    "filename": document.original_filename,
+                    "file_type": document.file_type,
+                    "upload_time": document.upload_time,
+                    "status": document.status,
+                },
+                "content": content,
+                "highlighted_content": highlighted_content,
+                "highlight_text": highlight,
+                "chunk_info": chunk_info,
+                "has_highlight": bool(highlight and highlight.strip()),
+            }
+        )
 
     except Exception as e:
         return response(code=500, message=f"查看文档失败: {str(e)}")

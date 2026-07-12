@@ -13,21 +13,19 @@ MAX_DOCUMENT_IDS = 10
 class ChatDocumentToolsModule:
     """聊天下载文档来源注册 MCP 工具模块。"""
 
-    TOOL_PROMPT_APPEND = """
+    TOOL_PROMPT_APPEND = f"""
 【聊天下载】当用户需要下载已存在的知识库文档时：
 1. 先用 execute_sql 查询 document 表确认 id（勿一次查出大量行）。
 2. 再调用工具 register_chat_document_sources，参数示例：{"document_ids":[15]} 或 {"ids":[15,16]}。
-3. 单次最多 """ + str(
-        MAX_DOCUMENT_IDS
-    ) + """ 个 id；只填真实存在的 id。"""
+3. 单次最多 {MAX_DOCUMENT_IDS} 个 id；只填真实存在的 id。"""
 
     def __init__(self, extra: Optional[ChatTaskExtra] = None) -> None:
         self._extra = extra or chat_task_extra
 
     async def _register_impl(
-        self,
-        document_ids: Optional[List[int]],
-        ids: Optional[List[int]],
+            self,
+            document_ids: Optional[List[int]],
+            ids: Optional[List[int]],
     ) -> str:
         pool = await get_sql_pool()
         bucket = self._extra.current()
@@ -52,7 +50,7 @@ class ChatDocumentToolsModule:
                 """
                 SELECT id, original_filename, file_type
                 FROM document
-                WHERE id = ANY($1::int[])
+                WHERE id = ANY ($1::int[])
                 """,
                 id_list,
             )
@@ -70,7 +68,7 @@ class ChatDocumentToolsModule:
             orig = (r["original_filename"] or "").strip()
             if not orig:
                 continue
-            ft = (r["file_type"] or "pdf")
+            ft = r["file_type"] or "pdf"
             if isinstance(ft, str):
                 ft = ft.lower() or "pdf"
             else:
@@ -96,8 +94,8 @@ class ChatDocumentToolsModule:
     def register(self, app: FastMCP) -> None:
         @app.tool()
         async def register_chat_document_sources(
-            document_ids: Optional[List[int]] = None,
-            ids: Optional[List[int]] = None,
+                document_ids: Optional[List[int]] = None,
+                ids: Optional[List[int]] = None,
         ) -> str:
             """将知识库文档 id 注册到当前会话供前端下载；需先用 SQL 确认 id 存在。"""
             return await self._register_impl(document_ids, ids)

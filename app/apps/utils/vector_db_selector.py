@@ -3,6 +3,7 @@
 
 支持ChromaDB和Qdrant两个数据库的切换
 """
+
 import traceback
 from typing import List, Dict, Any
 
@@ -21,9 +22,14 @@ from apps.models.document import Document as DocumentModel, DocumentChunk
 from apps.utils.common import get_local_model_path
 from config import CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION, SIMILARITY_THRESHOLD
 from config import (
-    EMBEDDING_MODEL, HF_HOME, HF_OFFLINE,
-    QDRANT_HOST, QDRANT_PORT, QDRANT_COLLECTION_NAME,
-    RERANK_ENABLED, RERANK_MODEL,
+    EMBEDDING_MODEL,
+    HF_HOME,
+    HF_OFFLINE,
+    QDRANT_HOST,
+    QDRANT_PORT,
+    QDRANT_COLLECTION_NAME,
+    RERANK_ENABLED,
+    RERANK_MODEL,
 )
 from config import VECTOR_DB_TYPE
 
@@ -55,15 +61,15 @@ class VectorDBSelector:
         if local_model_path and HF_OFFLINE:
             embeddings = HuggingFaceEmbeddings(
                 model_name=local_model_path,
-                model_kwargs={'device': self.device},
-                encode_kwargs={'normalize_embeddings': True}
+                model_kwargs={"device": self.device},
+                encode_kwargs={"normalize_embeddings": True},
             )
         else:
             embeddings = HuggingFaceEmbeddings(
                 model_name=EMBEDDING_MODEL,
                 cache_folder=HF_HOME,
-                model_kwargs={'device': self.device},
-                encode_kwargs={'normalize_embeddings': True}
+                model_kwargs={"device": self.device},
+                encode_kwargs={"normalize_embeddings": True},
             )
         return embeddings
 
@@ -102,7 +108,9 @@ class VectorDBSelector:
             self.reranker_available = False
             return None
 
-    def _rerank_results(self, query: str, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _rerank_results(
+        self, query: str, results: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """使用 CrossEncoder 对召回结果重排。"""
         reranker = self._get_reranker_model()
         if not reranker or not results:
@@ -146,20 +154,18 @@ class VectorDBSelector:
         """初始化 Qdrant（修正版）"""
         host, port, collection_name = QDRANT_HOST, QDRANT_PORT, QDRANT_COLLECTION_NAME
 
-        # ✅ 必须用 url= 显式指定 HTTP 访问，否则默认走 gRPC！
+        # 显式指定 HTTP 访问，否则 qdrant-client 默认可能走 gRPC。
         client = QdrantClient(url=f"http://{host}:{port}", timeout=30)
         print(f"🌐 正在连接 Qdrant: http://{host}:{port}")
 
-        # ✅ 如果 collection 不存在则自动创建
         if not client.collection_exists(collection_name):
             dim = self.embeddings.client.get_sentence_embedding_dimension()
             client.create_collection(
                 collection_name=collection_name,
-                vectors_config=VectorParams(size=dim, distance=Distance.COSINE)
+                vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
             )
             print(f"✅ 自动创建 Qdrant collection: {collection_name} (dim={dim})")
 
-        # ✅ 初始化 LangChain 向量存储
         self.vectorstore = Qdrant(
             client=client,
             collection_name=collection_name,
@@ -167,9 +173,13 @@ class VectorDBSelector:
         )
         print("✅ 使用Qdrant向量存储")
 
-
-    async def add_documents_from_chunks(self, document_id: int, chunks: List[str], chunk_objects: List,
-                                        metadata: Dict[str, Any] = None) -> List[str]:
+    async def add_documents_from_chunks(
+        self,
+        document_id: int,
+        chunks: List[str],
+        chunk_objects: List,
+        metadata: Dict[str, Any] = None,
+    ) -> List[str]:
         """添加文档到向量存储"""
         try:
             if not chunks or not chunk_objects:
@@ -184,14 +194,12 @@ class VectorDBSelector:
                     "document_id": document_id,
                     "chunk_id": chunk_obj.id,
                     "chunk_index": i,
-                    "source": metadata.get("filename",
-                                           f"document_{document_id}") if metadata else f"document_{document_id}",
+                    "source": metadata.get("filename", f"document_{document_id}")
+                    if metadata
+                    else f"document_{document_id}",
                 }
 
-                langchain_doc = Document(
-                    page_content=chunk_text,
-                    metadata=doc_metadata
-                )
+                langchain_doc = Document(page_content=chunk_text, metadata=doc_metadata)
 
                 documents.append(langchain_doc)
                 chunk_ids.append(str(chunk_obj.id))
@@ -207,15 +215,17 @@ class VectorDBSelector:
             raise Exception(f"添加文档到向量存储失败: {e}")
 
     async def search_similar_documents(
-            self,
-            query: str,
-            top_k: int = 5,
-            use_threshold: bool = True,
+        self,
+        query: str,
+        top_k: int = 5,
+        use_threshold: bool = True,
     ) -> List[Dict[str, Any]]:
         """搜索相似文档"""
         try:
             # 执行搜索
-            print(f"🔍 执行向量搜索: 查询='{query}', top_k={top_k}, 数据库类型={self.db_type}")
+            print(
+                f"🔍 执行向量搜索: 查询='{query}', top_k={top_k}, 数据库类型={self.db_type}"
+            )
             results = self.vectorstore.similarity_search_with_score(query, k=top_k)
             print(f"📊 搜索结果数量: {len(results)}")
 
@@ -229,12 +239,14 @@ class VectorDBSelector:
                     similarity = score
                 else:
                     similarity = max(0.0, 1.0 - score)
-                print(f"📈 结果 {i + 1}: score={score:.4f}, similarity={similarity:.4f}")
+                print(
+                    f"📈 结果 {i + 1}: score={score:.4f}, similarity={similarity:.4f}"
+                )
                 # 获取元数据
                 metadata = doc.metadata
                 print(f"📄 文档元数据: {metadata}")
-                document_id = metadata.get('document_id')
-                chunk_id = metadata.get('chunk_id')
+                document_id = metadata.get("document_id")
+                chunk_id = metadata.get("chunk_id")
 
                 if document_id and chunk_id:
                     try:
@@ -250,11 +262,11 @@ class VectorDBSelector:
 
                         if document and chunk:
                             result_item = {
-                                'document': document,
-                                'chunk': chunk,
-                                'similarity': similarity,
-                                'metadata': metadata,
-                                'above_threshold': similarity >= SIMILARITY_THRESHOLD
+                                "document": document,
+                                "chunk": chunk,
+                                "similarity": similarity,
+                                "metadata": metadata,
+                                "above_threshold": similarity >= SIMILARITY_THRESHOLD,
                             }
 
                             all_results.append(result_item)
@@ -267,7 +279,9 @@ class VectorDBSelector:
                         continue
 
             # 选择返回结果
-            print(f"📋 过滤前结果: {len(all_results)}, 过滤后结果: {len(filtered_results)}")
+            print(
+                f"📋 过滤前结果: {len(all_results)}, 过滤后结果: {len(filtered_results)}"
+            )
 
             if filtered_results:
                 filtered_results = self._rerank_results(query, filtered_results)
@@ -297,11 +311,10 @@ class VectorDBSelector:
                     points_selector=Filter(
                         must=[
                             FieldCondition(
-                                key="document_id",
-                                match=MatchValue(value=document_id)
+                                key="document_id", match=MatchValue(value=document_id)
                             )
                         ]
-                    )
+                    ),
                 )
             else:
                 # ChromaDB删除
@@ -318,7 +331,9 @@ class VectorDBSelector:
         try:
             if self.db_type == "qdrant":
                 # Qdrant统计
-                collection_info = self.vectorstore.client.get_collection(QDRANT_COLLECTION_NAME)
+                collection_info = self.vectorstore.client.get_collection(
+                    QDRANT_COLLECTION_NAME
+                )
                 return collection_info.points_count
             else:
                 # ChromaDB统计

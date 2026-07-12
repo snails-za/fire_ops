@@ -57,7 +57,9 @@ class VectorSearchToolsModule:
                     if len(chunk_text) > 200
                     else chunk_text,
                     "similarity": round(float(item.get("similarity", 0.0)), 4),
-                    "rerank_score": round(float(item["rerank_score"]), 4) if "rerank_score" in item else None,
+                    "rerank_score": round(float(item["rerank_score"]), 4)
+                    if "rerank_score" in item
+                    else None,
                     "reranked": bool(item.get("reranked", False)),
                     "document_id": document.id,
                     "chunk_id": chunk.id,
@@ -71,7 +73,7 @@ class VectorSearchToolsModule:
     async def _search_impl(self, query: str, top_k: int) -> str:
         q = (query or "").strip()
         if not q:
-            return "缺少 query：请提供工具参数 {\"query\":\"检索语句\"}。"
+            return '缺少 query：请提供工具参数 {"query":"检索语句"}。'
 
         results = await vector_search.search_similar_documents(
             query=q,
@@ -91,7 +93,9 @@ class VectorSearchToolsModule:
             sim = s.get("similarity", 0.0)
             rerank_score = s.get("rerank_score")
             flag = "高相关" if s.get("above_threshold", True) else "低相关"
-            rank_text = f" 重排分≈{float(rerank_score):.3f}" if rerank_score is not None else ""
+            rank_text = (
+                f" 重排分≈{float(rerank_score):.3f}" if rerank_score is not None else ""
+            )
             snippet = (s.get("chunk_text") or "")[:_MAX_SNIPPET]
             lines.append(
                 f"[{i}] 《{s.get('document_name') or '未知文档'}》"

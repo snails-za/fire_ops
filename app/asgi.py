@@ -7,7 +7,11 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
-from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html, get_redoc_html
+from fastapi.openapi.docs import (
+    get_swagger_ui_html,
+    get_swagger_ui_oauth2_redirect_html,
+    get_redoc_html,
+)
 
 from tortoise import Tortoise
 from apps.utils.redis_ import RedisManager
@@ -29,9 +33,7 @@ def get_default_admin_head():
         return None
 
     heads = sorted(
-        filename
-        for filename in os.listdir(demo_dir)
-        if not filename.startswith(".")
+        filename for filename in os.listdir(demo_dir) if not filename.startswith(".")
     )
     if not heads:
         return None
@@ -70,20 +72,23 @@ async def lifespan(app: FastAPI):
     # 初始化 Redis
     await RedisManager.init()
     print("✅ Redis 初始化完成")
-    
+
     yield
-    
+
     # 关闭连接
     await RedisManager.close()
     await Tortoise.close_connections()
     print("✅ Finished up.")
 
+
 app = create_app(lifespan=lifespan)
+
 
 # 添加根路径重定向到登录页面
 @app.get("/", include_in_schema=False)
 async def root():
     from fastapi.responses import RedirectResponse
+
     return RedirectResponse(url="/static/admin.html")
 
 

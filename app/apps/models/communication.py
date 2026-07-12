@@ -18,7 +18,9 @@ class DirectConversation(BaseModel):
         on_delete=fields.CASCADE,
         description="会话用户B",
     )
-    last_message = fields.CharField(max_length=500, null=True, description="最后一条消息")
+    last_message = fields.CharField(
+        max_length=500, null=True, description="最后一条消息"
+    )
     last_message_at = fields.DatetimeField(null=True, description="最后消息时间")
 
     class Meta:

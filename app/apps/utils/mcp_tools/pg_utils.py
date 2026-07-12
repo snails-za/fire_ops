@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """SQL 插件：连接池（DATABASE_URL）与只读查询实现。"""
+
 import asyncio
 import os
 import re
@@ -228,7 +229,12 @@ async def builtin_get_database_schema(ctx: SqlToolContext, **_kw: Any) -> str:
     cur_table = ""
     redact = ctx.cfg.redact_sensitive
     for r in rows:
-        t, c, dt, nul = r["table_name"], r["column_name"], r["data_type"], r["is_nullable"]
+        t, c, dt, nul = (
+            r["table_name"],
+            r["column_name"],
+            r["data_type"],
+            r["is_nullable"],
+        )
         if redact and _is_sensitive_column_name(c):
             continue
         if t != cur_table:

@@ -1,6 +1,7 @@
 import redis.asyncio as redis
 from config import REDIS_HOST, REDIS_DB, REDIS_PORT, REDIS_PASSWORD
 
+
 class RedisManager:
     _client = None
 

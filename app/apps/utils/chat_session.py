@@ -73,11 +73,17 @@ async def get_or_create_session(
         if not session:
             raise ValueError("会话不存在或无权访问")
         return session
-    return await ChatSession.create(user=user, session_name=make_session_title(question))
+    return await ChatSession.create(
+        user=user, session_name=make_session_title(question)
+    )
 
 
 async def load_conversation_history(session: ChatSession) -> str:
-    messages = await ChatMessage.filter(session=session).order_by("-timestamp").limit(MAX_HISTORY_MESSAGES)
+    messages = (
+        await ChatMessage.filter(session=session)
+        .order_by("-timestamp")
+        .limit(MAX_HISTORY_MESSAGES)
+    )
     return format_chat_history(list(reversed(messages)))
 
 

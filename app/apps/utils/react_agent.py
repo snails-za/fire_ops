@@ -15,7 +15,11 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import SecretStr
 
 from apps.utils.xml_react import XmlReactSession
-from apps.utils.mcp_tools.mcp_bridge import SOURCES_EXTRA_KEY, chat_task_extra, langchain_mcp_bridge
+from apps.utils.mcp_tools.mcp_bridge import (
+    SOURCES_EXTRA_KEY,
+    chat_task_extra,
+    langchain_mcp_bridge,
+)
 from apps.utils.mcp_tools.tools import TOOL_PROMPTS
 
 
@@ -93,7 +97,9 @@ class ReactAgent:
 
         extra_token = chat_task_extra.set(dict(tool_context or {}))
         try:
-            _, names_sorted = await langchain_mcp_bridge.openai_tools_bundle(self.mcp_server_app)
+            _, names_sorted = await langchain_mcp_bridge.openai_tools_bundle(
+                self.mcp_server_app
+            )
 
             llm = ChatOpenAI(
                 api_key=SecretStr(self.openai_api_key),
@@ -103,10 +109,7 @@ class ReactAgent:
                 max_tokens=self.config.max_tokens,
             )
             system_prompt = (
-                SYSTEM_PROMPT
-                + TOOL_PROMPTS
-                + "\n\n"
-                + _tool_names_line(names_sorted)
+                SYSTEM_PROMPT + TOOL_PROMPTS + "\n\n" + _tool_names_line(names_sorted)
             )
 
             history_xml = conversation_history.strip()
@@ -133,7 +136,9 @@ class ReactAgent:
                 human = XmlReactSession.build_human_xml(task, history_xml, inst)
                 yield {"event": "turn_start", "step": step + 1}
                 parsed_step = None
-                async for ev in XmlReactSession.stream_react_step(llm, system_prompt, human):
+                async for ev in XmlReactSession.stream_react_step(
+                    llm, system_prompt, human
+                ):
                     if ev.get("event") == "react_step_done":
                         parsed_step = ev["step"]
                     else:
@@ -142,12 +147,14 @@ class ReactAgent:
                 if parsed_step is None:
                     raise RuntimeError("LLM 输出解析失败：缺少 react_step_done")
 
-                trace.append({
-                    "step": step + 1,
-                    "raw": parsed_step.raw_xml,
-                    "step_inner": parsed_step.body_xml,
-                    "thought": parsed_step.thought,
-                })
+                trace.append(
+                    {
+                        "step": step + 1,
+                        "raw": parsed_step.raw_xml,
+                        "step_inner": parsed_step.body_xml,
+                        "thought": parsed_step.thought,
+                    }
+                )
 
                 if parsed_step.is_final:
                     meta_finish["final_answer"] = parsed_step.final_answer
@@ -158,7 +165,9 @@ class ReactAgent:
 
                 if parsed_step.parse_error:
                     obs = parsed_step.parse_error
-                    history_xml = XmlReactSession.append_history(history_xml, step + 1, parsed_step.raw_xml, obs)
+                    history_xml = XmlReactSession.append_history(
+                        history_xml, step + 1, parsed_step.raw_xml, obs
+                    )
                     trace[-1]["observation"] = obs
                     yield {
                         "event": "tool_end",
@@ -170,7 +179,9 @@ class ReactAgent:
 
                 if not parsed_step.needs_tool:
                     obs = "解析失败：未得到可执行的工具调用。"
-                    history_xml = XmlReactSession.append_history(history_xml, step + 1, parsed_step.raw_xml, obs)
+                    history_xml = XmlReactSession.append_history(
+                        history_xml, step + 1, parsed_step.raw_xml, obs
+                    )
                     trace[-1]["observation"] = obs
                     yield {
                         "event": "tool_end",
@@ -207,7 +218,9 @@ class ReactAgent:
             human = XmlReactSession.build_human_xml(task, history_xml, inst)
             yield {"event": "turn_start", "step": "final"}
             parsed_step = None
-            async for ev in XmlReactSession.stream_react_step(llm, system_prompt, human):
+            async for ev in XmlReactSession.stream_react_step(
+                llm, system_prompt, human
+            ):
                 if ev.get("event") == "react_step_done":
                     parsed_step = ev["step"]
                 else:
@@ -216,12 +229,14 @@ class ReactAgent:
             if parsed_step is None:
                 raise RuntimeError("LLM 输出解析失败：缺少 react_step_done")
 
-            trace.append({
-                "step": "final",
-                "raw": parsed_step.raw_xml,
-                "step_inner": parsed_step.body_xml,
-                "thought": parsed_step.thought,
-            })
+            trace.append(
+                {
+                    "step": "final",
+                    "raw": parsed_step.raw_xml,
+                    "step_inner": parsed_step.body_xml,
+                    "thought": parsed_step.thought,
+                }
+            )
             final_answer = (
                 parsed_step.final_answer
                 or "抱歉，推理步数已用尽，请缩小问题范围后重试。"

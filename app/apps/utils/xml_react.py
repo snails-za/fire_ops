@@ -2,6 +2,7 @@
 """XML ReAct：会话 XML 拼装、增量标签抽取、完整 <step> 解析。
 
 与 MCP / LangChain 解耦；仅处理文本结构与 LangChain 消息块取字。"""
+
 from __future__ import annotations
 
 import json
@@ -78,7 +79,9 @@ class XmlDeltaExtractor:
         if not open_match:
             return None, None
         start = open_match.end()
-        close_match = re.search(rf"</{tag}\s*>", self.buffer[start:], flags=re.IGNORECASE)
+        close_match = re.search(
+            rf"</{tag}\s*>", self.buffer[start:], flags=re.IGNORECASE
+        )
         if not close_match:
             return start, None
         return start, start + close_match.start()
@@ -110,7 +113,9 @@ class XmlReactSession:
         )
 
     @staticmethod
-    def append_history(history: str, step_idx: int, model_xml: str, observation: str) -> str:
+    def append_history(
+        history: str, step_idx: int, model_xml: str, observation: str
+    ) -> str:
         ent = {chr(34): "&quot;", chr(39): "&apos;"}
         m = xml_esc.escape(model_xml, entities=ent)
         o = xml_esc.escape(observation, entities=ent)
@@ -227,7 +232,10 @@ class XmlReactSession:
         human_xml: str,
     ) -> AsyncIterator[Dict[str, Any]]:
         """流式返回可展示增量，并在结束时返回结构化 ReactStep。"""
-        messages = [SystemMessage(content=system_prompt), HumanMessage(content=human_xml)]
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_xml),
+        ]
         extractor = XmlDeltaExtractor()
         async for chunk in llm.astream(messages):
             piece = cls.langchain_chunk_text(chunk)

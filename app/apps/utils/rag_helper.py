@@ -28,7 +28,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from apps.utils.vector_db_selector import vector_search
-from config import OPENAI_API_KEY, OPENAI_BASE_URL
+from config import OPENAI_API_KEY, OPENAI_BASE_URL, MODEL
 
 
 class RAGGenerator:
@@ -68,8 +68,9 @@ class RAGGenerator:
                         api_key=OPENAI_API_KEY,
                         base_url=OPENAI_BASE_URL,
                         temperature=0.1,  # 较低的温度确保回答的一致性
-                        model="gpt-3.5-turbo",
+                        model=MODEL,
                         max_tokens=2000,  # 限制回答长度
+                        top_p=0.8
                     )
 
                     # 创建系统提示模板

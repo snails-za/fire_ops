@@ -115,6 +115,7 @@ ALLOWED_FILE_TYPES = ["pdf", "docx", "doc", "xlsx", "xls", "txt"]
 # OpenAI API配置
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="sk-026f821a221b49d3a674d15bd8d2d248")
 OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.deepseek.com")
+MODEL = config("MODEL", default="deepseek-chat")
 
 # 嵌入模型配置
 # 全局禁用 tokenizers 的并行分词

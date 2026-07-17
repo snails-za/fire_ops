@@ -21,11 +21,12 @@ from apps.utils.mcp_tools.mcp_bridge import (
     langchain_mcp_bridge,
 )
 from apps.utils.mcp_tools.tools import TOOL_PROMPTS
+from config import MODEL
 
 
 @dataclass
 class ReactAgentConfig:
-    model: str = "deepseek-chat"
+    model: str = MODEL
     max_iterations: int = 10
     temperature: float = 0.1
     max_tokens: int = 2500

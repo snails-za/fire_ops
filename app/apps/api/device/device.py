@@ -77,6 +77,20 @@ async def enrich_device_display(device_data: dict) -> dict:
     return device_data
 
 
+async def get_accessible_device(device_id: int, user: User) -> Optional[Device]:
+    """
+    按角色取可访问设备：
+    - admin/leader：任意设备
+    - maintainer：自己创建的，或自己是维护人的
+    """
+    if is_privileged(user):
+        return await Device.get_or_none(id=device_id)
+    return await Device.get_or_none(
+        Q(id=device_id)
+        & (Q(created_by_user_id=user.id) | Q(maintainer_user_id=user.id))
+    )
+
+
 async def create_event_from_device(device: Device, status: str, user: User):
     """
     从设备状态变更自动创建或更新事件。
@@ -243,11 +257,8 @@ async def update_device(
     :param user: 当前用户
     :return:
     """
-    # 查询设备是否存在（管理员和班长可以访问所有设备，其他用户只能访问自己创建的设备）
-    if is_privileged(user):
-        device_obj = await Device.get_or_none(id=device_id)
-    else:
-        device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
+    # 管理员/班长可操作全部；维护人员可操作自己创建或自己负责的设备
+    device_obj = await get_accessible_device(device_id, user)
 
     if not device_obj:
         return response(code=404, message="设备不存在或无权访问")
@@ -338,11 +349,8 @@ async def delete_device(device_id: int, user: User = Depends(get_current_user)):
     :param user: 当前用户
     :return:
     """
-    # 查询设备是否存在（管理员和班长可以访问所有设备，其他用户只能访问自己创建的设备）
-    if is_privileged(user):
-        device_obj = await Device.get_or_none(id=device_id)
-    else:
-        device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
+    # 管理员/班长可删全部；维护人员可删自己创建或自己负责的设备
+    device_obj = await get_accessible_device(device_id, user)
 
     if not device_obj:
         return response(code=404, message="设备不存在或无权访问")
@@ -367,11 +375,7 @@ async def device_detail(device_id: int, user: User = Depends(get_current_user)):
     :param user: 当前用户
     :return:
     """
-    # 查询设备是否存在（管理员和班长可以访问所有设备，其他用户只能访问自己创建的设备）
-    if is_privileged(user):
-        device_obj = await Device.get_or_none(id=device_id)
-    else:
-        device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
+    device_obj = await get_accessible_device(device_id, user)
 
     if not device_obj:
         return response(code=404, message="设备不存在或无权访问")

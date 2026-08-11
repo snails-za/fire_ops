@@ -17,26 +17,62 @@ from config import DEVICE_STORE_PATH
 
 router = APIRouter(prefix="/device", tags=["设备管理"])
 
-Device_Pydantic = pydantic_model_creator(Device, name="Device")
+Device_Pydantic = pydantic_model_creator(
+    Device,
+    name="Device",
+    # 只排除反向关系；若 exclude maintainer_user/created_by_user，
+    # Tortoise 不会生成 maintainer_user_id，列表里维护人姓名会变成 "-"。
+    exclude=("events",),
+)
+
+
+def _user_display_name(user: Optional[User], fallback: Optional[str] = None) -> Optional[str]:
+    if user:
+        name = (user.fullname or "").strip() or (user.username or "").strip()
+        if name:
+            return name
+    fallback_name = (fallback or "").strip()
+    return fallback_name or None
 
 
 async def enrich_device_display(device_data: dict) -> dict:
     """补充设备详情/列表中的人员展示姓名，兼容历史只存 username 的 installer 字段。"""
     installer = device_data.get("installer")
-    if installer:
-        installer_user = await User.get_or_none(username=installer)
-        device_data["installer_fullname"] = (
-            installer_user.fullname if installer_user else installer
+    installer_user = await User.get_or_none(username=installer) if installer else None
+    device_data["installer_fullname"] = _user_display_name(installer_user, installer)
+
+    # Tortoise pydantic 常给嵌套 maintainer_user，而不是扁平 maintainer_user_id
+    maintainer_id = device_data.get("maintainer_user_id")
+    nested = device_data.get("maintainer_user")
+    if not maintainer_id and isinstance(nested, dict):
+        maintainer_id = nested.get("id")
+
+    maintainer = await User.get_or_none(id=maintainer_id) if maintainer_id else None
+    # 无 FK 时用联系方式反查维护人，保证列表能展示姓名
+    if maintainer is None:
+        contact = (device_data.get("contact") or "").strip()
+        if contact:
+            maintainer = await User.get_or_none(contact=contact)
+            if maintainer:
+                maintainer_id = maintainer.id
+
+    device_data["maintainer_user_id"] = maintainer_id
+
+    if maintainer is not None:
+        device_data["maintainer_fullname"] = _user_display_name(maintainer)
+    elif isinstance(nested, dict):
+        device_data["maintainer_fullname"] = (
+            (nested.get("fullname") or "").strip()
+            or (nested.get("username") or "").strip()
+            or None
         )
     else:
-        device_data["installer_fullname"] = None
-
-    maintainer_id = device_data.get("maintainer_user_id")
-    if maintainer_id:
-        maintainer = await User.get_or_none(id=maintainer_id)
-        device_data["maintainer_fullname"] = maintainer.fullname if maintainer else None
-    else:
         device_data["maintainer_fullname"] = None
+
+    # 去掉嵌套关系，避免列表响应膨胀/泄露密码等字段
+    device_data.pop("maintainer_user", None)
+    device_data.pop("created_by_user", None)
+    device_data.pop("events", None)
 
     return device_data
 
@@ -155,11 +191,21 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     # 创建设备时关联用户ID
     device_data["created_by_user_id"] = user.id
 
-    # 设备负责人：优先使用传入的 maintainer_user_id，否则默认当前登录用户。
-    # 联系方式统一从用户资料带出；资料未维护时允许为空。
+    # 每台设备必须绑定安装人 + 维护人；联系方式从用户资料带出。
+    installer_name = (device_data.get("installer") or "").strip()
+    if not installer_name:
+        return response(code=400, message="请选择安装人员")
+    installer_user = await User.get_or_none(username=installer_name)
+    if not installer_user:
+        return response(code=400, message="安装人不存在")
+    if is_admin(installer_user):
+        return response(code=400, message="管理员不能作为安装人")
+    device_data["installer"] = installer_user.username
+    device_data["installer_contact"] = installer_user.contact or None
+
     maintainer_id = device_data.pop("maintainer_user_id", None)
     if not maintainer_id:
-        maintainer_id = user.id
+        return response(code=400, message="请选择维护人员")
     maintainer = await User.get_or_none(id=maintainer_id)
     if not maintainer:
         return response(code=400, message="维护人不存在")
@@ -168,21 +214,16 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     device_data["maintainer_user_id"] = maintainer_id
     device_data["contact"] = maintainer.contact or None
 
-    if device_data.get("installer"):
-        installer_user = await User.get_or_none(username=device_data["installer"])
-        if installer_user:
-            if is_admin(installer_user):
-                return response(code=400, message="管理员不能作为安装人")
-            device_data["installer_contact"] = installer_user.contact or None
-
     device_obj = await Device.create(**device_data)
 
     # 如果设备状态不是正常，自动创建事件
     if device_obj.status and device_obj.status in ["告警", "异常", "离线"]:
         await create_event_from_device(device_obj, device_obj.status, user)
 
-    data = await Device_Pydantic.from_tortoise_orm(device_obj)
-    return response(data=await enrich_device_display(data.model_dump()))
+    dump = (await Device_Pydantic.from_tortoise_orm(device_obj)).model_dump()
+    dump["maintainer_user_id"] = device_obj.maintainer_user_id
+    dump["created_by_user_id"] = device_obj.created_by_user_id
+    return response(data=await enrich_device_display(dump))
 
 
 @router.put(
@@ -216,9 +257,11 @@ async def update_device(
     update_data = device.model_dump(exclude_unset=True)
     new_status = update_data.get("status", old_status)
 
-    # 处理设备负责人变更（仅存 user_id，不做强关联）
-    maintainer_id = update_data.pop("maintainer_user_id", None)
-    if maintainer_id is not None:
+    # 维护人变更：必须是有效非管理员用户
+    if "maintainer_user_id" in update_data:
+        maintainer_id = update_data.pop("maintainer_user_id")
+        if not maintainer_id:
+            return response(code=400, message="请选择维护人员")
         maintainer = await User.get_or_none(id=maintainer_id)
         if not maintainer:
             return response(code=400, message="维护人不存在")
@@ -228,12 +271,16 @@ async def update_device(
         update_data["contact"] = maintainer.contact or None
 
     if "installer" in update_data:
-        installer_user = await User.get_or_none(username=update_data["installer"])
-        if installer_user and is_admin(installer_user):
+        installer_name = (update_data.get("installer") or "").strip()
+        if not installer_name:
+            return response(code=400, message="请选择安装人员")
+        installer_user = await User.get_or_none(username=installer_name)
+        if not installer_user:
+            return response(code=400, message="安装人不存在")
+        if is_admin(installer_user):
             return response(code=400, message="管理员不能作为安装人")
-        update_data["installer_contact"] = (
-            installer_user.contact if installer_user else None
-        )
+        update_data["installer"] = installer_user.username
+        update_data["installer_contact"] = installer_user.contact or None
 
     # 验证设备状态：只允许四种状态
     valid_statuses = ["告警", "异常", "离线", "正常"]
@@ -270,9 +317,11 @@ async def update_device(
                 message_type="system",
             )
 
-    data = await Device_Pydantic.from_tortoise_orm(device_obj)
+    dump = (await Device_Pydantic.from_tortoise_orm(device_obj)).model_dump()
+    dump["maintainer_user_id"] = device_obj.maintainer_user_id
+    dump["created_by_user_id"] = device_obj.created_by_user_id
     return response(
-        data=await enrich_device_display(data.model_dump()), message="更新成功"
+        data=await enrich_device_display(dump), message="更新成功"
     )
 
 
@@ -327,8 +376,10 @@ async def device_detail(device_id: int, user: User = Depends(get_current_user)):
     if not device_obj:
         return response(code=404, message="设备不存在或无权访问")
 
-    data = await Device_Pydantic.from_tortoise_orm(device_obj)
-    return response(data=await enrich_device_display(data.model_dump()))
+    dump = (await Device_Pydantic.from_tortoise_orm(device_obj)).model_dump()
+    dump["maintainer_user_id"] = device_obj.maintainer_user_id
+    dump["created_by_user_id"] = device_obj.created_by_user_id
+    return response(data=await enrich_device_display(dump))
 
 
 @router.get(
@@ -380,11 +431,14 @@ async def device_list(
     total = await query.count()
 
     query = query.offset((page - 1) * page_size).limit(page_size)
-    res = await Device_Pydantic.from_queryset(query)
-
+    devices = await query
     data = []
-    for item in res:
-        data.append(await enrich_device_display(item.model_dump()))
+    for device_obj in devices:
+        dump = (await Device_Pydantic.from_tortoise_orm(device_obj)).model_dump()
+        # 显式写入 FK id：Tortoise pydantic 在部分 exclude 组合下会丢掉 *_id
+        dump["maintainer_user_id"] = device_obj.maintainer_user_id
+        dump["created_by_user_id"] = device_obj.created_by_user_id
+        data.append(await enrich_device_display(dump))
     total_page = (total + page_size - 1) // page_size
 
     return response(

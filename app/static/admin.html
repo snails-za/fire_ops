@@ -3583,9 +3583,10 @@
                                         <th>设备名称</th>
                                         <th>地址</th>
                                         <th>状态</th>
-                                        <th>联系方式</th>
+                                        <th>安装人</th>
+                                        <th>维护人员</th>
+                                        <th>维护电话</th>
                                         <th>安装日期</th>
-                                        <th>负责人ID</th>
                                         <th>操作</th>
                                     </tr>
                                 </thead>
@@ -3833,20 +3834,24 @@
                             <input type="number" step="any" id="deviceFormLat" class="form-control">
                         </div>
                         <div class="form-group">
-                            <label for="deviceFormInstaller">安装人</label>
-                            <input type="text" id="deviceFormInstaller" class="form-control">
+                            <label for="deviceFormInstaller">安装人 *</label>
+                            <select id="deviceFormInstaller" class="form-control">
+                                <option value="">请选择安装人</option>
+                            </select>
                         </div>
                         <div class="form-group">
-                            <label for="deviceFormContact">联系方式</label>
-                            <input type="tel" id="deviceFormContact" class="form-control" placeholder="11位手机号">
+                            <label for="deviceFormMaintainer">维护人员 *</label>
+                            <select id="deviceFormMaintainer" class="form-control">
+                                <option value="">请选择维护人员</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="deviceFormContact">维护人电话</label>
+                            <input type="tel" id="deviceFormContact" class="form-control" placeholder="选择维护人后自动带出" readonly>
                         </div>
                         <div class="form-group">
                             <label for="deviceFormInstallDate">安装日期</label>
                             <input type="date" id="deviceFormInstallDate" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="deviceFormMaintainer">负责人用户ID</label>
-                            <input type="number" id="deviceFormMaintainer" class="form-control" min="1">
                         </div>
                         <div class="form-group full-width">
                             <label for="deviceFormRemark">备注</label>
@@ -4751,7 +4756,7 @@
         // ==================== 设备管理 ====================
         async function loadDevices(page = 1, deviceName = '', status = '') {
             const tbody = document.getElementById('devicesTableBody');
-            tbody.innerHTML = '<tr><td colspan="9" class="loading"></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" class="loading"></td></tr>';
 
             try {
                 let url = `/api/v1/device/list?page=${page}&page_size=10`;
@@ -4778,9 +4783,10 @@
                                 <td>${escapeHtml(device.name || '-')}</td>
                                 <td>${escapeHtml(device.address || '-')}</td>
                                 <td><span class="badge ${getDeviceStatusBadge(device.status)}">${escapeHtml(device.status || '未知')}</span></td>
+                                <td>${escapeHtml(device.installer_fullname || device.installer || '-')}</td>
+                                <td>${escapeHtml(device.maintainer_fullname || '-')}</td>
                                 <td>${escapeHtml(device.contact || '-')}</td>
                                 <td>${device.install_date || '-'}</td>
-                                <td>${device.maintainer_user_id || '-'}</td>
                                 <td>
                                     <div class="table-actions">
                                         <button class="action-btn view-btn" onclick="viewDevice(${device.id})">详情</button>
@@ -4791,14 +4797,14 @@
                             </tr>
                         `).join('');
                     } else {
-                        tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>暂无设备数据</p></td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><p>暂无设备数据</p></td></tr>';
                     }
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>加载失败</p></td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><p>加载失败</p></td></tr>';
                 }
             } catch (error) {
                 console.error('加载设备列表失败:', error);
-                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>加载失败</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><p>加载失败</p></td></tr>';
             }
         }
 
@@ -4860,11 +4866,50 @@
             loadDevices(1);
         }
 
+        async function loadDevicePersonnelOptions() {
+            const installerSel = document.getElementById('deviceFormInstaller');
+            const maintainerSel = document.getElementById('deviceFormMaintainer');
+            if (!installerSel || !maintainerSel) return [];
+
+            try {
+                const response = await fetchWithAuth('/api/v1/admin/personnel?page=1&page_size=200');
+                const result = await response.json();
+                const list = (result.code === 200 ? (result.data || []) : []).filter((u) => u && u.role !== 'admin');
+
+                const installerValue = installerSel.value;
+                const maintainerValue = maintainerSel.value;
+                installerSel.innerHTML = '<option value="">请选择安装人</option>' + list.map((u) => {
+                    const label = escapeHtml((u.fullname || '').trim() || u.username || `用户${u.id}`);
+                    return `<option value="${escapeHtml(u.username || '')}" data-contact="${escapeHtml(u.contact || '')}">${label}</option>`;
+                }).join('');
+                maintainerSel.innerHTML = '<option value="">请选择维护人员</option>' + list.map((u) => {
+                    const label = escapeHtml((u.fullname || '').trim() || u.username || `用户${u.id}`);
+                    return `<option value="${u.id}" data-contact="${escapeHtml(u.contact || '')}">${label}</option>`;
+                }).join('');
+                installerSel.value = installerValue;
+                maintainerSel.value = maintainerValue;
+                return list;
+            } catch (error) {
+                console.error('加载人员列表失败:', error);
+                showToast('加载人员列表失败', 'error');
+                return [];
+            }
+        }
+
+        function onDeviceMaintainerChange() {
+            const sel = document.getElementById('deviceFormMaintainer');
+            const contactInput = document.getElementById('deviceFormContact');
+            if (!sel || !contactInput) return;
+            const opt = sel.options[sel.selectedIndex];
+            contactInput.value = opt?.dataset?.contact || '';
+        }
+
         async function showDeviceForm(deviceId = null) {
             document.getElementById('deviceForm').reset();
             document.getElementById('deviceFormId').value = deviceId || '';
             document.getElementById('deviceFormTitle').textContent = deviceId ? '编辑设备' : '新增设备';
             document.getElementById('deviceFormStatus').value = '正常';
+            await loadDevicePersonnelOptions();
 
             if (deviceId) {
                 try {
@@ -4879,13 +4924,17 @@
                     document.getElementById('deviceFormStatus').value = device.status || '正常';
                     document.getElementById('deviceFormAddress').value = device.address || '';
                     document.getElementById('deviceFormInstaller').value = device.installer || '';
+                    document.getElementById('deviceFormMaintainer').value = device.maintainer_user_id || '';
                     document.getElementById('deviceFormContact').value = device.contact || '';
                     document.getElementById('deviceFormInstallDate').value = device.install_date || '';
-                    document.getElementById('deviceFormMaintainer').value = device.maintainer_user_id || '';
                     document.getElementById('deviceFormRemark').value = device.remark || '';
                     if (Array.isArray(device.location) && device.location.length >= 2) {
                         document.getElementById('deviceFormLng').value = device.location[0] ?? '';
                         document.getElementById('deviceFormLat').value = device.location[1] ?? '';
+                    }
+                    onDeviceMaintainerChange();
+                    if (device.contact) {
+                        document.getElementById('deviceFormContact').value = device.contact;
                     }
                 } catch (error) {
                     console.error('加载设备详情失败:', error);
@@ -4894,6 +4943,8 @@
                 }
             }
 
+            const maintainerSel = document.getElementById('deviceFormMaintainer');
+            maintainerSel.onchange = onDeviceMaintainerChange;
             document.getElementById('deviceFormModal').style.display = 'block';
         }
 
@@ -4905,21 +4956,20 @@
             const name = document.getElementById('deviceFormName').value.trim();
             const lng = document.getElementById('deviceFormLng').value;
             const lat = document.getElementById('deviceFormLat').value;
+            const installer = document.getElementById('deviceFormInstaller').value.trim();
             const maintainer = document.getElementById('deviceFormMaintainer').value;
             const payload = {
                 name,
                 address: document.getElementById('deviceFormAddress').value.trim() || null,
                 status: document.getElementById('deviceFormStatus').value || '正常',
-                installer: document.getElementById('deviceFormInstaller').value.trim() || null,
+                installer,
                 contact: document.getElementById('deviceFormContact').value.trim() || null,
                 install_date: document.getElementById('deviceFormInstallDate').value || null,
                 remark: document.getElementById('deviceFormRemark').value.trim() || null,
+                maintainer_user_id: maintainer ? Number(maintainer) : null,
             };
             if (lng !== '' && lat !== '') {
                 payload.location = [Number(lng), Number(lat)];
-            }
-            if (maintainer) {
-                payload.maintainer_user_id = Number(maintainer);
             }
             if (isCreate) {
                 payload.images = [];
@@ -4930,8 +4980,18 @@
         async function saveDeviceForm() {
             const id = document.getElementById('deviceFormId').value;
             const name = document.getElementById('deviceFormName').value.trim();
+            const installer = document.getElementById('deviceFormInstaller').value.trim();
+            const maintainer = document.getElementById('deviceFormMaintainer').value;
             if (!name) {
                 showToast('请填写设备名称', 'error');
+                return;
+            }
+            if (!installer) {
+                showToast('请选择安装人员', 'error');
+                return;
+            }
+            if (!maintainer) {
+                showToast('请选择维护人员', 'error');
                 return;
             }
 
@@ -5020,12 +5080,16 @@
                         <td style="padding: 12px;"><span class="badge ${getDeviceStatusBadge(device.status)}">${device.status || '未知'}</span></td>
                     </tr>
                                     <tr style="border-bottom: 1px solid #e9ecef;">
-                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">联系方式</td>
-                        <td style="padding: 12px; color: #6c757d;">${device.contact || '-'}</td>
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">安装人</td>
+                        <td style="padding: 12px; color: #6c757d;">${escapeHtml(device.installer_fullname || device.installer || '-')}</td>
                     </tr>
                     <tr style="border-bottom: 1px solid #e9ecef;">
-                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">安装人</td>
-                        <td style="padding: 12px; color: #6c757d;">${device.installer || '-'}</td>
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">维护人员</td>
+                        <td style="padding: 12px; color: #6c757d;">${escapeHtml(device.maintainer_fullname || '-')}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e9ecef;">
+                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">维护电话</td>
+                        <td style="padding: 12px; color: #6c757d;">${escapeHtml(device.contact || '-')}</td>
                     </tr>
                     <tr style="border-bottom: 1px solid #e9ecef;">
                         <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">安装日期</td>
@@ -5039,13 +5103,9 @@
                         <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">设备图片</td>
                         <td style="padding: 12px; color: #6c757d;">${imageGrid}</td>
                     </tr>
-                    <tr style="border-bottom: 1px solid #e9ecef;">
-                        <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">创建用户ID</td>
-                        <td style="padding: 12px; color: #6c757d;">${device.created_by_user_id || '-'}</td>
-                    </tr>
                     <tr>
                         <td style="padding: 12px; font-weight: 600; color: #495057; background: #f8f9fa;">备注</td>
-                        <td style="padding: 12px; color: #6c757d;">${device.remark || '-'}</td>
+                        <td style="padding: 12px; color: #6c757d;">${escapeHtml(device.remark || '-')}</td>
                     </tr>
                 </table>
             `;

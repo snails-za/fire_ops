@@ -13,15 +13,13 @@ class DeviceIn(BaseModel):
     images: List[str] = Field(..., min_length=1, description="图片路径，至少1张")
     status: Optional[str] = Field(None, description="设备状态")
     install_date: Optional[date] = Field(None, description="安装日期")
-    installer: Optional[str] = Field(None, description="安装人")
+    installer: str = Field(..., min_length=1, description="安装人用户名")
     installer_contact: Optional[str] = Field(
         None, description="安装人联系方式（手机号）"
     )
     contact: Optional[str] = Field(None, description="维护人联系方式（手机号）")
     remark: Optional[str] = Field(None, description="备注")
-    maintainer_user_id: Optional[int] = Field(
-        None, description="设备负责人用户ID（不传则默认当前登录用户）"
-    )
+    maintainer_user_id: int = Field(..., description="设备维护人员用户ID")
 
     @field_validator("contact", "installer_contact")
     @classmethod

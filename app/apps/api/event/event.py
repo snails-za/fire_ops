@@ -96,7 +96,7 @@ async def get_event_list(
             maintainer_user = {
                 "id": mu.id,
                 "username": mu.username,
-                "fullname": mu.fullname,
+                "fullname": (mu.fullname or "").strip() or mu.username,
                 "role": mu.role,
                 "head": mu.head,
             }

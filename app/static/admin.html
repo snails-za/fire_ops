@@ -3369,6 +3369,12 @@
                     </span>
                     <span>公告管理</span>
                 </div>
+                <div class="menu-item" onclick="showPage('appVersions')" title="版本管理">
+                    <span class="icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </span>
+                    <span>版本管理</span>
+                </div>
             </div>
         </div>
 
@@ -3718,6 +3724,56 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- App 版本管理 -->
+                <div id="appVersions" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>App 版本管理</h2>
+                        </div>
+                        <div class="card-body">
+                            <p style="margin:0 0 16px;color:#6c757d;font-size:13px;line-height:1.6;">
+                                版本号由这里<strong>手动指定</strong>，与 App 的 manifest.json 无关。
+                                日常改页面/接口上传 <b>wgt</b>；改了原生权限/SDK 上传 <b>apk</b>。
+                                新版本的版本号（整数）须<strong>大于</strong>当前已上线版本，手机端才会提示更新。
+                            </p>
+                            <div class="table-controls">
+                                <div class="search-box inline-filters">
+                                    <select id="appVersionStatusFilter" onchange="loadAppVersions(1)">
+                                        <option value="">全部状态</option>
+                                        <option value="published">已上线</option>
+                                        <option value="archived">已归档</option>
+                                    </select>
+                                    <button class="btn btn-secondary" onclick="loadAppVersions(1)">刷新</button>
+                                </div>
+                                <div class="controls-right">
+                                    <button class="btn btn-primary" onclick="showAppVersionForm()">上线新版本</button>
+                                </div>
+                            </div>
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>版本名</th>
+                                            <th>版本号</th>
+                                            <th>包类型</th>
+                                            <th>强制更新</th>
+                                            <th>状态</th>
+                                            <th>大小</th>
+                                            <th>上线时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="appVersionsTableBody">
+                                        <tr><td colspan="9" class="empty-state"><p>暂无版本</p></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="pagination" id="appVersionsPagination"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -3863,6 +3919,56 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeDeviceForm()">取消</button>
                 <button type="button" class="btn btn-primary" onclick="saveDeviceForm()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App 版本上线模态框 -->
+    <div id="appVersionFormModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 640px;">
+            <div class="modal-header">
+                <h3>上线新版本</h3>
+                <span class="close" onclick="closeAppVersionForm()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="appVersionForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="appVersionName">版本名称 *</label>
+                            <input type="text" id="appVersionName" class="form-control" placeholder="如 1.0.1（自己定）" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="appVersionCode">版本号（整数）*</label>
+                            <input type="number" id="appVersionCode" class="form-control" min="1" placeholder="如 101，须大于当前已上线" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="appPackageType">包类型 *</label>
+                            <select id="appPackageType" class="form-control">
+                                <option value="wgt">wgt 热更新（日常推荐）</option>
+                                <option value="apk">apk 整包</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="appForceUpdate">强制更新</label>
+                            <select id="appForceUpdate" class="form-control">
+                                <option value="false">否（可稍后）</option>
+                                <option value="true">是（必须更新）</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="appVersionFile">安装包 *</label>
+                            <input type="file" id="appVersionFile" class="form-control" accept=".wgt,.apk" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="appChangelog">更新说明</label>
+                            <textarea id="appChangelog" class="form-control" rows="3" placeholder="本次更新内容"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAppVersionForm()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitAppVersionForm()">立即上线</button>
             </div>
         </div>
     </div>
@@ -4554,7 +4660,8 @@
                 'devices': '设备管理',
                 'documents': '文档管理',
                 'chat': '数据问答',
-                'announcements': '公告管理'
+                'announcements': '公告管理',
+                'appVersions': '版本管理'
             };
             document.getElementById('pageTitle').textContent = titles[pageName];
 
@@ -4571,6 +4678,8 @@
                 loadChatSessions();
             } else if (pageName === 'announcements') {
                 loadAnnouncements();
+            } else if (pageName === 'appVersions') {
+                loadAppVersions();
             }
         }
 
@@ -6212,6 +6321,8 @@
                 const keyword = document.getElementById('documentSearchInput').value.trim();
                 const status = document.getElementById('statusFilter').value;
                 loadDocuments(page, keyword, status);
+            } else if (type === 'appVersions') {
+                loadAppVersions(page);
             }
         }
 
@@ -7334,6 +7445,181 @@
         function changeAnnouncementPage(page) {
             announcementsPage = page;
             loadAnnouncements();
+        }
+
+        // ==================== App 版本管理 ====================
+        let appVersionsPage = 1;
+
+        async function loadAppVersions(page = 1) {
+            appVersionsPage = page;
+            const tbody = document.getElementById('appVersionsTableBody');
+            tbody.innerHTML = '<tr><td colspan="9" class="loading"></td></tr>';
+            const status = document.getElementById('appVersionStatusFilter').value;
+            let url = `/api/v1/app/version/list?page=${page}&page_size=10`;
+            if (status) url += `&status=${encodeURIComponent(status)}`;
+
+            try {
+                const response = await fetchWithAuth(url);
+                const result = await response.json();
+                if (result.code !== 200) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>加载失败</p></td></tr>';
+                    return;
+                }
+                const rows = result.data || [];
+                updatePagination('appVersions', page, result.total || 0, 10);
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>暂无版本</p></td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map((item) => `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td>${escapeHtml(item.version_name || '-')}</td>
+                        <td>${item.version_code || '-'}</td>
+                        <td>${item.package_type === 'wgt' ? 'wgt 热更新' : 'apk 整包'}</td>
+                        <td>${item.force_update ? '<span class="badge badge-danger">强制</span>' : '否'}</td>
+                        <td>${item.status === 'published' ? '<span class="badge badge-success">已上线</span>' : '<span class="badge badge-warning">已归档</span>'}</td>
+                        <td>${formatFileSize(item.file_size)}</td>
+                        <td>${item.published_at || '-'}</td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="action-btn view-btn" onclick="toggleAppForceUpdate(${item.id}, ${item.force_update ? 'false' : 'true'})">${item.force_update ? '取消强制' : '设强制'}</button>
+                                ${item.status === 'published' ? `<button class="action-btn reprocess-btn" onclick="archiveAppVersion(${item.id})">下线</button>` : ''}
+                                <button class="action-btn delete-btn" onclick="deleteAppVersion(${item.id})">删除</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('加载版本列表失败:', error);
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>加载失败</p></td></tr>';
+            }
+        }
+
+        function showAppVersionForm() {
+            document.getElementById('appVersionForm').reset();
+            document.getElementById('appPackageType').value = 'wgt';
+            document.getElementById('appForceUpdate').value = 'false';
+            // 自动填一个大于当前已上线的建议版本号，仍可手改
+            const rows = document.querySelectorAll('#appVersionsTableBody tr td:nth-child(3)');
+            let maxCode = 0;
+            rows.forEach((td) => {
+                const n = Number(td.textContent);
+                if (n > maxCode) maxCode = n;
+            });
+            if (maxCode > 0) {
+                document.getElementById('appVersionCode').value = String(maxCode + 1);
+            }
+            document.getElementById('appVersionFormModal').style.display = 'block';
+        }
+
+        function closeAppVersionForm() {
+            document.getElementById('appVersionFormModal').style.display = 'none';
+        }
+
+        async function submitAppVersionForm() {
+            const versionName = document.getElementById('appVersionName').value.trim();
+            const versionCode = Number(document.getElementById('appVersionCode').value);
+            const packageType = document.getElementById('appPackageType').value;
+            const forceUpdate = document.getElementById('appForceUpdate').value === 'true';
+            const changelog = document.getElementById('appChangelog').value.trim();
+            const fileInput = document.getElementById('appVersionFile');
+            const file = fileInput.files && fileInput.files[0];
+
+            if (!versionName || !versionCode) {
+                showToast('请填写版本名称和版本号', 'error');
+                return;
+            }
+            if (!file) {
+                showToast('请选择安装包文件', 'error');
+                return;
+            }
+            const lower = file.name.toLowerCase();
+            if (packageType === 'wgt' && !lower.endsWith('.wgt')) {
+                showToast('热更新请上传 .wgt 文件', 'error');
+                return;
+            }
+            if (packageType === 'apk' && !lower.endsWith('.apk')) {
+                showToast('整包请上传 .apk 文件', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('platform', 'android');
+            formData.append('version_name', versionName);
+            formData.append('version_code', String(versionCode));
+            formData.append('package_type', packageType);
+            formData.append('force_update', forceUpdate ? 'true' : 'false');
+            formData.append('changelog', changelog);
+
+            try {
+                showToast('正在上传上线…', 'info');
+                const response = await fetchWithAuth('/api/v1/app/version/publish', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.code === 200) {
+                    showToast('版本已上线', 'success');
+                    closeAppVersionForm();
+                    loadAppVersions(1);
+                } else {
+                    showToast(result.message || '上线失败', 'error');
+                }
+            } catch (error) {
+                console.error('上线版本失败:', error);
+                showToast('上线失败', 'error');
+            }
+        }
+
+        async function toggleAppForceUpdate(id, force) {
+            try {
+                const response = await fetchWithAuth(`/api/v1/app/version/${id}/force?force_update=${force}`, {
+                    method: 'PUT'
+                });
+                const result = await response.json();
+                if (result.code === 200) {
+                    showToast('已更新', 'success');
+                    loadAppVersions(appVersionsPage);
+                } else {
+                    showToast(result.message || '操作失败', 'error');
+                }
+            } catch (error) {
+                showToast('操作失败', 'error');
+            }
+        }
+
+        async function archiveAppVersion(id) {
+            if (!confirm('确定下线该版本？App 将不再提示此版本更新。')) return;
+            try {
+                const response = await fetchWithAuth(`/api/v1/app/version/${id}/archive`, { method: 'PUT' });
+                const result = await response.json();
+                if (result.code === 200) {
+                    showToast('已下线', 'success');
+                    loadAppVersions(appVersionsPage);
+                } else {
+                    showToast(result.message || '操作失败', 'error');
+                }
+            } catch (error) {
+                showToast('操作失败', 'error');
+            }
+        }
+
+        async function deleteAppVersion(id) {
+            if (!confirm('确定删除该版本记录及安装包？')) return;
+            try {
+                const response = await fetchWithAuth(`/api/v1/app/version/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.code === 200) {
+                    showToast('已删除', 'success');
+                    loadAppVersions(appVersionsPage);
+                } else {
+                    showToast(result.message || '删除失败', 'error');
+                }
+            } catch (error) {
+                showToast('删除失败', 'error');
+            }
         }
 
     </script>

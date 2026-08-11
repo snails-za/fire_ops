@@ -99,8 +99,16 @@ AVATAR_STORE_PATH = os.path.join(DATA_DIR, "head")
 # 设备存储路径
 DEVICE_STORE_PATH = os.path.join(DATA_DIR, "device")
 
+# App 安装包 / 热更新包存储路径
+APP_VERSION_STORE_PATH = os.path.join(DATA_DIR, "app_versions")
+
 # 确保存储目录存在
-for path in [DOCUMENT_STORE_PATH, AVATAR_STORE_PATH, DEVICE_STORE_PATH]:
+for path in [
+    DOCUMENT_STORE_PATH,
+    AVATAR_STORE_PATH,
+    DEVICE_STORE_PATH,
+    APP_VERSION_STORE_PATH,
+]:
     os.makedirs(path, exist_ok=True)
 
 

@@ -64,8 +64,9 @@ async def ensure_initial_admin():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Starting up...")
-    # 初始化 Tortoise ORM
+    # 初始化 Tortoise ORM（safe=True 只补缺失表，不改动已有表结构）
     await Tortoise.init(config=TORTOISE_ORM)
+    await Tortoise.generate_schemas(safe=True)
     await ensure_initial_admin()
     print("✅ 数据库初始化完成")
 

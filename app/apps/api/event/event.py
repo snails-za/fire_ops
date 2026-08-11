@@ -10,6 +10,7 @@ from tortoise.expressions import Q, RawSQL
 from tortoise.functions import Count
 
 from apps.dependencies.auth import get_current_user
+from apps.dependencies.permissions import is_privileged
 from apps.form.event.form import (
     EventUpdateForm,
     EventMessageForm,
@@ -45,7 +46,7 @@ async def get_event_list(
     elif not status:
         conditions.append(Q(status__in=["wait", "processing"]))
 
-    if user.role == "maintainer":
+    if not is_privileged(user):
         conditions.append(
             Q(device__created_by_user_id=user.id)
             | Q(device__maintainer_user_id=user.id)
@@ -129,7 +130,7 @@ async def get_event_detail(event_id: int, user: User = Depends(get_current_user)
     if not event:
         return response(code=404, message="事件不存在")
 
-    if user.role == "maintainer":
+    if not is_privileged(user):
         await event.fetch_related("device")
         if not event.device or (
             event.device.created_by_user_id != user.id
@@ -187,7 +188,7 @@ async def update_event(
     if not event:
         return response(code=404, message="事件不存在")
 
-    if user.role not in ["admin", "leader"]:
+    if not is_privileged(user):
         await event.fetch_related("device")
         if not event.device or (
             event.device.created_by_user_id != user.id
@@ -230,7 +231,7 @@ async def send_event_message(
     if not event:
         return response(code=404, message="事件不存在")
 
-    if user.role == "maintainer":
+    if not is_privileged(user):
         await event.fetch_related("device")
         if not event.device or (
             event.device.created_by_user_id != user.id
@@ -271,7 +272,7 @@ async def get_event_messages(
     if not event:
         return response(code=404, message="事件不存在")
 
-    if user.role == "maintainer":
+    if not is_privileged(user):
         await event.fetch_related("device")
         if not event.device or (
             event.device.created_by_user_id != user.id
@@ -315,7 +316,7 @@ async def get_communication_list(user: User = Depends(get_current_user)):
     """获取通讯列表：待处理/处理中的事件"""
     conditions = Q(status__in=["wait", "processing"])
 
-    if user.role == "maintainer":
+    if not is_privileged(user):
         conditions &= Q(device__created_by_user_id=user.id) | Q(
             device__maintainer_user_id=user.id
         )

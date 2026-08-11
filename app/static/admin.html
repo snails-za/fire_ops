@@ -6,15 +6,22 @@
     <title>后台管理 - 消安云管</title>
     <style>
         :root {
-            /* 固定后台主题 */
-            --primary-color: #374151;
-            --primary-hover: #111827;
-            --sidebar-bg: #111827;
-            --sidebar-active: #6b7280;
-            --card-bg: white;
-            --text-color: #333;
-            --border-color: #e9ecef;
-            --bg-color: #f8f9fa;
+            /* 浅色运维后台 */
+            --primary-color: #c62828;
+            --primary-hover: #a61f1f;
+            --sidebar-bg: #ffffff;
+            --sidebar-text: #334155;
+            --sidebar-muted: #64748b;
+            --sidebar-active-bg: #fff1f0;
+            --sidebar-active: #c62828;
+            --sidebar-border: #e8edf3;
+            --sidebar-width: 248px;
+            --sidebar-collapsed-width: 72px;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+            --bg-color: #f4f6f9;
+            --muted-text: #6b7280;
         }
 
         * {
@@ -64,86 +71,235 @@
 
         /* 侧边栏 */
         .sidebar {
-            width: 250px;
-            background: var(--sidebar-bg, linear-gradient(180deg, #667eea 0%, #764ba2 100%));
-            color: white;
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
             position: fixed;
             left: 0;
             top: 0;
             bottom: 0;
+            overflow-x: hidden;
             overflow-y: auto;
-            transition: all 0.3s;
+            transition: width 0.25s ease, box-shadow 0.25s ease;
             z-index: 1000;
+            border-right: 1px solid var(--sidebar-border);
+            box-shadow: 1px 0 0 rgba(15, 23, 42, 0.02);
         }
 
         .sidebar-header {
-            padding: 30px 20px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px 16px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--sidebar-border);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            min-height: 108px;
         }
 
         .system-logo {
-            width: 50px;
-            height: 50px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            width: 42px;
+            height: 42px;
+            margin-bottom: 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(198, 40, 40, 0.18);
+            transition: transform 0.2s ease;
         }
 
         .system-logo:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transform: scale(1.04);
         }
 
         .sidebar-header h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
+            font-size: 18px;
+            margin-bottom: 0;
+            color: #0f172a;
+            font-weight: 700;
+            white-space: nowrap;
         }
 
         .sidebar-header p {
             font-size: 12px;
-            opacity: 0.8;
+            color: var(--sidebar-muted);
+            opacity: 1;
+            white-space: nowrap;
         }
 
         .sidebar-menu {
-            padding: 20px 0;
+            padding: 14px 10px;
         }
 
         .menu-item {
-            padding: 15px 25px;
+            padding: 12px 14px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: background 0.2s, color 0.2s;
             display: flex;
             align-items: center;
             gap: 12px;
-            color: white;
+            color: var(--sidebar-text);
             text-decoration: none;
+            border-radius: 10px;
+            margin-bottom: 4px;
+            border-left: none;
         }
 
         .menu-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-            padding-left: 30px;
+            background: #f8fafc;
+            padding-left: 14px;
+            color: #0f172a;
         }
 
         .menu-item.active {
-            background: rgba(255, 255, 255, 0.2);
-            border-left: 4px solid var(--sidebar-active, white);
-            padding-left: 26px;
+            background: var(--sidebar-active-bg);
+            border-left: none;
+            padding-left: 14px;
+            color: var(--sidebar-active);
+            font-weight: 600;
+            box-shadow: inset 3px 0 0 var(--sidebar-active);
         }
 
         .menu-item .icon {
-            font-size: 20px;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .menu-item .icon svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .menu-item.active .icon {
+            background: rgba(198, 40, 40, 0.12);
+            color: var(--sidebar-active);
+        }
+
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        .sidebar.collapsed .sidebar-header {
+            align-items: center;
+            padding: 16px 8px 12px;
+            min-height: auto;
+        }
+
+        .sidebar.collapsed .sidebar-header h1,
+        .sidebar.collapsed .sidebar-header p,
+        .sidebar.collapsed .menu-item > span:not(.icon) {
+            display: none;
+        }
+
+        .sidebar.collapsed .menu-item {
+            justify-content: center;
+            padding: 10px 8px;
+            margin: 0 6px 6px;
+        }
+
+        .sidebar.collapsed .menu-item .icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            font-size: 11px;
+            background: #f8fafc;
+            border: 1px solid #eef2f7;
+        }
+
+        .sidebar.collapsed .menu-item .icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .sidebar.collapsed .menu-item.active .icon {
+            background: #fff1f0;
+            border-color: #fecaca;
+            color: var(--sidebar-active);
+            box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.08);
+        }
+
+        .sidebar.collapsed .menu-item.active {
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .sidebar.collapsed .sidebar-toggle {
+            display: none;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            right: -11px;
+            top: 86px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 1px solid var(--sidebar-border);
+            background: #fff;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+            z-index: 1001;
+        }
+
+        .sidebar-toggle:hover {
+            color: var(--sidebar-active);
+            border-color: #fecaca;
         }
 
         /* 主内容区 */
         .main-content {
-            margin-left: 250px;
+            margin-left: var(--sidebar-width);
             flex: 1;
-            transition: all 0.3s;
-            overflow-y: auto; /* 允许主内容区域垂直滚动 */
+            transition: margin-left 0.25s ease;
+            overflow-y: auto;
             overflow-x: hidden;
             max-height: 100vh;
+            background: var(--bg-color);
+        }
+
+        .admin-container.sidebar-collapsed .main-content {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .topbar-collapse-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--border-color);
+            background: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #475569;
+            font-size: 16px;
+        }
+
+        .topbar-collapse-btn:hover {
+            border-color: #fecaca;
+            color: var(--primary-color);
+            background: #fff7f7;
         }
 
         .topbar {
@@ -591,12 +747,16 @@
         }
 
         .btn-primary {
-            background: #374151;
+            background: var(--primary-color);
             color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
         .btn-primary:hover {
-            background: #111827;
+            background: var(--primary-hover);
         }
 
         .btn-success {
@@ -1459,16 +1619,17 @@
         .file-input-btn {
             display: inline-block;
             padding: 12px 30px;
-            background: #374151;
+            background: var(--primary-color);
             color: white;
-            border-radius: 25px;
+            border: none;
+            border-radius: 8px;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: background 0.2s;
             font-size: 16px;
         }
 
         .file-input-btn:hover {
-            background: #111827;
+            background: var(--primary-hover);
         }
 
         .upload-btn {
@@ -2242,17 +2403,28 @@
         /* 响应式 */
         @media (max-width: 768px) {
             .sidebar {
-                margin-left: -250px;
+                width: var(--sidebar-width);
+                margin-left: calc(-1 * var(--sidebar-width));
+                box-shadow: 4px 0 24px rgba(15, 23, 42, 0.12);
             }
 
-            .sidebar.active {
+            .sidebar.collapsed {
+                width: var(--sidebar-width);
+            }
+
+            .admin-container.sidebar-collapsed .sidebar,
+            .sidebar.mobile-open {
                 margin-left: 0;
             }
 
-            .main-content {
+            .main-content,
+            .admin-container.sidebar-collapsed .main-content {
                 margin-left: 0;
             }
 
+            .sidebar-toggle {
+                display: none;
+            }
         }
         /* 公告管理样式 */
         .announcement-title {
@@ -2344,16 +2516,16 @@
             display: block;
         }
 
-        /* 专业后台视觉覆盖：降低装饰性，统一为运维系统风格 */
+        /* 浅色主题覆盖：统一运维后台风格 */
         :root {
-            --primary-color: #374151;
-            --primary-hover: #111827;
-            --sidebar-bg: #111827;
-            --sidebar-active: #6b7280;
+            --primary-color: #c62828;
+            --primary-hover: #a61f1f;
+            --sidebar-bg: #ffffff;
+            --sidebar-active: #c62828;
             --card-bg: #ffffff;
-            --text-color: #111827;
+            --text-color: #1f2937;
             --border-color: #e5e7eb;
-            --bg-color: #f3f4f6;
+            --bg-color: #f4f6f9;
             --muted-text: #6b7280;
         }
 
@@ -2364,68 +2536,82 @@
 
         .sidebar {
             background: var(--sidebar-bg) !important;
-            border-right: 1px solid #0f172a;
+            border-right: 1px solid var(--sidebar-border, #e8edf3);
             box-shadow: none;
         }
 
         .sidebar-header {
-            padding: 22px 20px;
+            padding: 20px 16px 16px;
             text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid var(--sidebar-border, #e8edf3);
         }
 
         .system-logo {
-            width: 40px;
-            height: 40px;
-            margin: 0 0 12px 0;
-            box-shadow: none;
+            width: 42px;
+            height: 42px;
+            margin: 0;
+            box-shadow: 0 2px 8px rgba(198, 40, 40, 0.18);
         }
 
         .system-logo:hover {
-            transform: none;
-            box-shadow: none;
+            transform: scale(1.04);
+            box-shadow: 0 2px 8px rgba(198, 40, 40, 0.22);
         }
 
         .sidebar-header h1 {
             font-size: 18px;
             letter-spacing: 0;
+            color: #0f172a;
         }
 
         .sidebar-header p {
-            color: #9ca3af;
+            color: #64748b;
             opacity: 1;
         }
 
         .sidebar-menu {
-            padding: 12px 10px;
+            padding: 14px 10px;
         }
 
         .menu-item {
-            padding: 11px 14px;
-            border-radius: 6px;
-            gap: 10px;
-            color: #d1d5db !important;
+            padding: 12px 14px;
+            border-radius: 10px;
+            gap: 12px;
+            color: #334155 !important;
         }
 
         .menu-item:hover {
-            background: rgba(255, 255, 255, 0.06) !important;
+            background: #f8fafc !important;
             padding-left: 14px;
         }
 
         .menu-item.active {
-            background: #1f2937 !important;
-            border-left: 3px solid var(--sidebar-active);
-            padding-left: 11px;
-            color: #ffffff !important;
+            background: #fff1f0 !important;
+            border-left: none;
+            box-shadow: inset 3px 0 0 #c62828;
+            padding-left: 14px;
+            color: #c62828 !important;
         }
 
         .menu-item .icon,
         .dropdown-item .icon {
-            width: 22px;
+            width: 28px;
+            height: 28px;
             font-size: 12px;
-            color: #9ca3af;
+            color: #64748b;
             font-weight: 700;
             text-align: center;
+        }
+
+        .dropdown-item .icon svg,
+        .menu-item .icon svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .topbar {
@@ -2563,45 +2749,146 @@
 
         .chat-panel {
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 12px;
             height: calc(100vh - 150px);
             min-height: 520px;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             overflow: hidden;
             background: #ffffff;
         }
 
-        .chat-session-bar {
-            max-width: none;
-            margin: 0;
-            padding: 10px 12px;
-            background: #f9fafb;
-            border-bottom: 1px solid var(--border-color);
+        .chat-history {
+            width: 260px;
+            flex: 0 0 260px;
+            border-right: 1px solid var(--border-color);
+            background: #fbfcfd;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
         }
 
-        .chat-session-label {
-            color: var(--muted-text);
+        .chat-history-header {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-history-header .chat-session-btn {
+            flex: 1;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            color: #334155;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .chat-history-header .chat-session-btn.primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
+        }
+
+        .chat-history-header .chat-session-btn:hover {
+            border-color: #fecaca;
+            color: var(--primary-color);
+        }
+
+        .chat-history-header .chat-session-btn.primary:hover {
+            background: var(--primary-hover);
+            color: #fff;
+        }
+
+        .chat-history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .chat-history-item {
+            width: 100%;
+            text-align: left;
+            border: 1px solid transparent;
+            background: transparent;
+            border-radius: 10px;
+            padding: 10px 12px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            color: #334155;
+        }
+
+        .chat-history-item:hover {
+            background: #fff;
+            border-color: #eef2f7;
+        }
+
+        .chat-history-item.active {
+            background: #fff1f0;
+            border-color: #fecaca;
+            color: #9f1239;
+        }
+
+        .chat-history-item .title {
             font-size: 13px;
             font-weight: 600;
-            white-space: nowrap;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .chat-history-item .meta {
+            margin-top: 4px;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .chat-history-empty {
+            padding: 24px 12px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .chat-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }
+
+        .chat-session-bar {
+            display: none;
         }
 
         .chat-session-select {
-            height: 34px;
-            border-radius: 6px;
-            border-color: #d1d5db;
-        }
-
-        .chat-session-btn {
-            height: 34px;
-            border-radius: 6px;
+            display: none;
         }
 
         .chat-messages {
             max-width: none;
             padding: 0 18px;
             background: #ffffff;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        @media (max-width: 960px) {
+            .chat-panel {
+                flex-direction: column;
+            }
+            .chat-history {
+                width: 100%;
+                flex: 0 0 auto;
+                max-height: 180px;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
         }
 
         .message {
@@ -2663,12 +2950,17 @@
         .send-btn {
             height: 42px;
             padding: 0 18px;
-            background: #374151;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
             font-size: 14px;
         }
 
         .send-btn:hover {
-            background: #111827;
+            background: var(--primary-hover);
         }
 
         .send-btn:disabled {
@@ -3031,37 +3323,50 @@
     </style>
 </head>
 <body>
-    <div class="admin-container">
+    <div class="admin-container" id="adminContainer">
         <!-- 侧边栏 -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
+            <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="折叠/展开侧栏">‹</button>
             <div class="sidebar-header">
                 <img src="/static/images/system_logo.png" alt="系统Logo" class="system-logo">
                 <h1>消安云管</h1>
                 <p>消防设备运维平台</p>
             </div>
             <div class="sidebar-menu">
-                <div class="menu-item active" onclick="showPage('dashboard')">
-                    <span class="icon">OV</span>
+                <div class="menu-item active" onclick="showPage('dashboard')" title="仪表盘">
+                    <span class="icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                    </span>
                     <span>仪表盘</span>
                 </div>
-                <div class="menu-item" onclick="showPage('users')">
-                    <span class="icon">US</span>
+                <div class="menu-item" onclick="showPage('users')" title="用户管理">
+                    <span class="icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </span>
                     <span>用户管理</span>
                 </div>
-                <div class="menu-item" onclick="showPage('devices')">
-                    <span class="icon">DV</span>
+                <div class="menu-item" onclick="showPage('devices')" title="设备管理">
+                    <span class="icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+                    </span>
                     <span>设备管理</span>
                 </div>
-                <div class="menu-item" onclick="showPage('documents')">
-                    <span class="icon">DC</span>
+                <div class="menu-item" onclick="showPage('documents')" title="文档管理">
+                    <span class="icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h6"/></svg>
+                    </span>
                     <span>文档管理</span>
                 </div>
-                <div class="menu-item" onclick="showPage('chat')">
-                    <span class="icon">QA</span>
+                <div class="menu-item" onclick="showPage('chat')" title="数据问答">
+                    <span class="icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </span>
                     <span>数据问答</span>
                 </div>
-                <div class="menu-item" onclick="showPage('announcements')">
-                    <span class="icon">AN</span>
+                <div class="menu-item" onclick="showPage('announcements')" title="公告管理">
+                    <span class="icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h1l4 4V6L5 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg>
+                    </span>
                     <span>公告管理</span>
                 </div>
             </div>
@@ -3072,6 +3377,7 @@
             <!-- 顶部栏 -->
             <div class="topbar">
                 <div class="topbar-left">
+                    <button class="topbar-collapse-btn" onclick="toggleSidebar()" title="折叠/展开侧栏">☰</button>
                     <h2 id="pageTitle">仪表盘</h2>
                 </div>
                 <div class="topbar-right">
@@ -3086,11 +3392,15 @@
                                 <div class="user-email" id="dropdownUserEmail">-</div>
                             </div>
                             <a href="/static/profile.html" class="dropdown-item">
-                                <span class="icon">PF</span>
+                                <span class="icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                </span>
                                 <span>个人中心</span>
                             </a>
                             <div class="dropdown-item" onclick="logout()">
-                                <span class="icon">EX</span>
+                                <span class="icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                                </span>
                                 <span>退出登录</span>
                             </div>
                         </div>
@@ -3331,24 +3641,31 @@
                 <!-- 数据问答 -->
                 <div id="chat" class="page">
                     <div class="chat-panel">
-                        <div class="chat-session-bar">
-                            <label class="chat-session-label" for="chatSessionSelect">会话</label>
-                            <select class="chat-session-select" id="chatSessionSelect" onchange="selectChatSessionFromDropdown()">
+                        <aside class="chat-history">
+                            <div class="chat-history-header">
+                                <button class="chat-session-btn primary" onclick="startNewChatSession()">新建对话</button>
+                                <button class="chat-session-btn" onclick="loadChatSessions()">刷新</button>
+                            </div>
+                            <div class="chat-history-list" id="chatHistoryList">
+                                <div class="chat-history-empty">暂无历史会话</div>
+                            </div>
+                            <!-- 兼容旧逻辑：隐藏 select -->
+                            <select class="chat-session-select" id="chatSessionSelect" onchange="selectChatSessionFromDropdown()" hidden>
                                 <option value="">新的对话</option>
                             </select>
-                            <button class="chat-session-btn" onclick="startNewChatSession()">新建</button>
-                            <button class="chat-session-btn" onclick="loadChatSessions()">刷新</button>
-                        </div>
-                        <div class="chat-messages" id="chatMessages">
-                            <div class="empty-state">
-                                <p>暂无问答记录</p>
-                                <small>输入问题后，系统会基于业务数据和文档返回结果。</small>
+                        </aside>
+                        <div class="chat-main">
+                            <div class="chat-messages" id="chatMessages">
+                                <div class="empty-state">
+                                    <p>暂无问答记录</p>
+                                    <small>输入问题后，系统会基于业务数据和文档返回结果。</small>
+                                </div>
                             </div>
-                        </div>
-                        <div class="chat-input-area">
-                            <div class="chat-input-container">
-                                <textarea class="chat-input" id="chatInput" rows="1" placeholder="输入数据查询或文档检索问题"></textarea>
-                                <button class="send-btn" id="sendBtn" onclick="sendMessage()">提交</button>
+                            <div class="chat-input-area">
+                                <div class="chat-input-container">
+                                    <textarea class="chat-input" id="chatInput" rows="1" placeholder="输入数据查询或文档检索问题"></textarea>
+                                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">提交</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3446,13 +3763,20 @@
                             <input type="text" id="userFormUsername" class="form-control" required minlength="2" maxlength="20">
                         </div>
                         <div class="form-group">
+                            <label for="userFormFullname">姓名 *</label>
+                            <input type="text" id="userFormFullname" class="form-control" required minlength="1" maxlength="50">
+                        </div>
+                        <div class="form-group">
                             <label for="userFormRole">角色 *</label>
                             <select id="userFormRole" class="form-control">
-                                <option value="user">普通用户</option>
                                 <option value="maintainer">维护人员</option>
                                 <option value="leader">班长</option>
                                 <option value="admin">管理员</option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="userFormContact">手机号</label>
+                            <input type="text" id="userFormContact" class="form-control" maxlength="11" placeholder="可选">
                         </div>
                         <div class="form-group full-width">
                             <label for="userFormEmail">邮箱</label>
@@ -3636,6 +3960,7 @@
 
     <!-- 引入Marked.js库用于Markdown渲染 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/static/js/crypto-js.min.js"></script>
     
     <script>
         // 全局变量
@@ -3905,8 +4230,8 @@
                         TokenManager.clearToken();
                         window.location.href = 'login.html';
                         throw new Error('登录已失效，请重新登录');
-                    } else if (response.status === 402) {
-                        console.log('🔴 收到 402，权限不足');
+                    } else if (response.status === 402 || response.status === 400 || response.status === 422) {
+                        // 业务/校验错误：交还给调用方解析 body
                         return response;
                     } else if (response.status === 403) {
                         console.log('🔴 收到 403，尝试刷新 token');
@@ -4049,6 +4374,32 @@
         }
 
         // 切换用户下拉菜单
+        function toggleSidebar() {
+            const container = document.getElementById('adminContainer');
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            const collapsed = !container.classList.contains('sidebar-collapsed');
+            container.classList.toggle('sidebar-collapsed', collapsed);
+            sidebar.classList.toggle('collapsed', collapsed);
+            if (toggle) toggle.textContent = collapsed ? '›' : '‹';
+            try {
+                localStorage.setItem('admin_sidebar_collapsed', collapsed ? '1' : '0');
+            } catch (e) {}
+        }
+
+        function initSidebarState() {
+            try {
+                if (localStorage.getItem('admin_sidebar_collapsed') === '1') {
+                    document.getElementById('adminContainer').classList.add('sidebar-collapsed');
+                    document.getElementById('sidebar').classList.add('collapsed');
+                    const toggle = document.getElementById('sidebarToggle');
+                    if (toggle) toggle.textContent = '›';
+                }
+            } catch (e) {}
+        }
+
+        document.addEventListener('DOMContentLoaded', initSidebarState);
+
         function toggleUserDropdown() {
             const dropdown = document.getElementById('userDropdown');
             dropdown.classList.toggle('show');
@@ -4096,20 +4447,35 @@
             return btoa(binary);
         }
 
+        // HTTP 环境下优先 CryptoJS；失败则明文（后端会兜底）
         async function encryptAdminPassword(content) {
             if (!content) return '';
-            if (!window.crypto || !window.crypto.subtle) {
-                throw new Error('当前浏览器不支持本地密码加密');
+            try {
+                if (window.CryptoJS) {
+                    const key = CryptoJS.enc.Utf8.parse(ADMIN_AES_KEY);
+                    const encrypted = CryptoJS.AES.encrypt(content, key, {
+                        iv: key,
+                        mode: CryptoJS.mode.CBC,
+                        padding: CryptoJS.pad.Pkcs7
+                    });
+                    // 显式取 ciphertext，避免 OpenSSL Salted 格式
+                    return encrypted.ciphertext.toString(CryptoJS.enc.Base64);
+                }
+                if (window.crypto && window.crypto.subtle) {
+                    const encoder = new TextEncoder();
+                    const keyBytes = encoder.encode(ADMIN_AES_KEY);
+                    const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['encrypt']);
+                    const encrypted = await crypto.subtle.encrypt(
+                        { name: 'AES-CBC', iv: keyBytes },
+                        cryptoKey,
+                        encoder.encode(content)
+                    );
+                    return bytesToBase64(new Uint8Array(encrypted));
+                }
+            } catch (err) {
+                console.warn('密码加密失败，回退明文:', err);
             }
-            const encoder = new TextEncoder();
-            const keyBytes = encoder.encode(ADMIN_AES_KEY);
-            const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC' }, false, ['encrypt']);
-            const encrypted = await crypto.subtle.encrypt(
-                { name: 'AES-CBC', iv: keyBytes },
-                cryptoKey,
-                encoder.encode(content)
-            );
-            return bytesToBase64(new Uint8Array(encrypted));
+            return content;
         }
 
         // 加载仪表盘数据
@@ -4257,8 +4623,7 @@
             const roleMap = {
                 admin: '管理员',
                 leader: '班长',
-                maintainer: '维护人员',
-                user: '普通用户'
+                maintainer: '维护人员'
             };
             return roleMap[role] || role || '-';
         }
@@ -4268,6 +4633,7 @@
             document.getElementById('userFormId').value = userId || '';
             document.getElementById('userFormTitle').textContent = userId ? '编辑用户' : '新增用户';
             document.getElementById('userFormPassword').required = !userId;
+            document.getElementById('userFormRole').value = 'maintainer';
 
             if (userId) {
                 try {
@@ -4279,8 +4645,10 @@
                     }
                     const user = result.data;
                     document.getElementById('userFormUsername').value = user.username || '';
+                    document.getElementById('userFormFullname').value = user.fullname || '';
+                    document.getElementById('userFormContact').value = user.contact || '';
                     document.getElementById('userFormEmail').value = user.email || '';
-                    document.getElementById('userFormRole').value = user.role || 'user';
+                    document.getElementById('userFormRole').value = user.role || 'maintainer';
                 } catch (error) {
                     console.error('加载用户详情失败:', error);
                     showToast('用户详情加载失败', 'error');
@@ -4298,6 +4666,8 @@
         async function saveUserForm() {
             const id = document.getElementById('userFormId').value;
             const username = document.getElementById('userFormUsername').value.trim();
+            const fullname = document.getElementById('userFormFullname').value.trim();
+            const contact = document.getElementById('userFormContact').value.trim();
             const email = document.getElementById('userFormEmail').value.trim();
             const role = document.getElementById('userFormRole').value;
             const password = document.getElementById('userFormPassword').value;
@@ -4306,13 +4676,23 @@
                 showToast('请填写用户名', 'error');
                 return;
             }
+            if (!fullname) {
+                showToast('请填写姓名', 'error');
+                return;
+            }
             if (!id && password.length < 8) {
                 showToast('新增用户密码不能少于8位', 'error');
                 return;
             }
 
             try {
-                const payload = { username, email: email || null, role };
+                const payload = {
+                    username,
+                    fullname,
+                    email: email || null,
+                    contact: contact || null,
+                    role
+                };
                 if (password) {
                     payload.password = await encryptAdminPassword(password);
                 }
@@ -4322,18 +4702,21 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                const result = await response.json();
-                if (result.code === 200) {
+                const result = await response.json().catch(() => ({}));
+                if (response.ok && result.code === 200) {
                     showToast(id ? '用户更新成功' : '用户创建成功', 'success');
                     closeUserForm();
                     loadUsers(usersPage, document.getElementById('userSearchInput').value.trim());
                     loadDashboardData();
                 } else {
-                    showToast(result.message || '保存失败', 'error');
+                    const detail = Array.isArray(result.detail)
+                        ? result.detail.map((d) => d.msg || JSON.stringify(d)).join('; ')
+                        : (result.detail || result.message || `保存失败(${response.status})`);
+                    showToast(detail, 'error');
                 }
             } catch (error) {
                 console.error('保存用户失败:', error);
-                showToast('保存用户失败', 'error');
+                showToast(error.message || '保存用户失败', 'error');
             }
         }
 
@@ -5193,9 +5576,37 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function renderChatHistoryList() {
+            const list = document.getElementById('chatHistoryList');
+            if (!list) return;
+
+            if (!chatSessions.length) {
+                list.innerHTML = '<div class="chat-history-empty">暂无历史会话<br><small>发送问题后会自动出现在这里</small></div>';
+                return;
+            }
+
+            list.innerHTML = chatSessions.map((session) => {
+                const active = currentChatSessionId && Number(currentChatSessionId) === Number(session.id);
+                const name = escapeHtml(session.session_name || '新的对话');
+                const time = session.last_active || session.created_time || '';
+                const timeText = time ? escapeHtml(String(time).replace('T', ' ').slice(0, 19)) : '';
+                return `
+                    <button type="button" class="chat-history-item ${active ? 'active' : ''}" onclick="openChatSession(${session.id})">
+                        <div class="title">${name}</div>
+                        <div class="meta">${timeText || '最近对话'}</div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        async function openChatSession(sessionId) {
+            if (isWaitingForResponse) return;
+            await loadChatSessionMessages(Number(sessionId));
+            renderChatHistoryList();
+        }
+
         async function loadChatSessions(selectLatest = false) {
             const select = document.getElementById('chatSessionSelect');
-            if (!select) return;
 
             try {
                 const response = await fetchWithAuth('/api/v1/chat/sessions?page=1&page_size=50');
@@ -5209,15 +5620,20 @@
                     ? String(chatSessions[0].id)
                     : (currentChatSessionId ? String(currentChatSessionId) : '');
 
-                select.innerHTML = '<option value="">新的对话</option>' + chatSessions.map((session) => {
-                    const name = escapeHtml(session.session_name || '新的对话');
-                    const time = session.last_active || session.created_time || '';
-                    return `<option value="${session.id}">${name}${time ? ' · ' + escapeHtml(time) : ''}</option>`;
-                }).join('');
-                select.value = selectedId;
+                if (select) {
+                    select.innerHTML = '<option value="">新的对话</option>' + chatSessions.map((session) => {
+                        const name = escapeHtml(session.session_name || '新的对话');
+                        const time = session.last_active || session.created_time || '';
+                        return `<option value="${session.id}">${name}${time ? ' · ' + escapeHtml(time) : ''}</option>`;
+                    }).join('');
+                    select.value = selectedId;
+                }
+
+                renderChatHistoryList();
 
                 if (selectLatest && selectedId) {
                     await loadChatSessionMessages(Number(selectedId));
+                    renderChatHistoryList();
                 }
             } catch (error) {
                 console.error('加载聊天会话失败:', error);
@@ -5234,6 +5650,7 @@
                 return;
             }
             await loadChatSessionMessages(sessionId);
+            renderChatHistoryList();
         }
 
         async function loadChatSessionMessages(sessionId) {
@@ -5250,6 +5667,7 @@
                 currentChatSessionId = sessionId;
                 const select = document.getElementById('chatSessionSelect');
                 if (select) select.value = String(sessionId);
+                renderChatHistoryList();
 
                 const items = (result.data && result.data.items) || [];
                 messagesContainer.innerHTML = '';
@@ -5301,6 +5719,7 @@
             const select = document.getElementById('chatSessionSelect');
             if (select) select.value = '';
             renderChatEmptyState();
+            renderChatHistoryList();
         }
         
         async function sendMessage() {
@@ -5377,6 +5796,7 @@
                                             currentChatSessionId = data.session.id;
                                             const select = document.getElementById('chatSessionSelect');
                                             if (select) select.value = String(currentChatSessionId);
+                                            loadChatSessions();
                                         }
                                         break;
                                     case 'thought':

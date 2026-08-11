@@ -9,7 +9,7 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
 from apps.dependencies.auth import get_current_user
-from apps.dependencies.permissions import check_admin_permission
+from apps.dependencies.permissions import check_admin_permission, normalize_role
 from apps.form.users.form import UserCreate, UserUpdate, ProcessApplyRequest
 from apps.models.user import User, FriendRequest
 from apps.utils import response
@@ -20,6 +20,16 @@ from config import AES_KEY, STATIC_PATH, AVATAR_STORE_PATH
 router = APIRouter(prefix="/admin", tags=["用户管理"])
 
 User_Pydantic = pydantic_model_creator(User, name="User", exclude=("password",))
+
+
+def resolve_password(raw: str) -> str:
+    """优先 AES 解密；失败则按明文处理（兼容后台 HTTP 环境）。"""
+    if not raw:
+        raise ValueError("密码不能为空")
+    try:
+        return decrypt(AES_KEY, raw)
+    except Exception:
+        return raw
 
 
 @router.post(
@@ -76,7 +86,7 @@ async def user_list(username: Optional[str] = None, page: int = 1, page_size: in
 async def personnel_list(
     username: Optional[str] = None, page: int = 1, page_size: int = 100
 ):
-    conditions = [~Q(role__in=["admin", "管理员"])]
+    conditions = [~Q(role="admin")]
     if username:
         conditions.append(
             Q(username__icontains=username) | Q(fullname__icontains=username)
@@ -151,6 +161,7 @@ async def search_users(
     response_model=User_Pydantic,
     summary="注册用户",
     description="创建用户接口",
+    dependencies=[Depends(check_admin_permission)],
 )
 async def create_user(user: UserCreate):
     if await User.filter(Q(username=user.username)).exists():
@@ -158,23 +169,36 @@ async def create_user(user: UserCreate):
     if user.email and await User.filter(Q(email=user.email)).exists():
         return response(code=0, message="邮箱已经被注册！")
     try:
-        decrypt_pwd = decrypt(AES_KEY, user.password)
+        plain_pwd = resolve_password(user.password)
     except Exception:
         return response(code=0, message="密码参数错误！")
-    heads = os.listdir(os.path.join(STATIC_PATH, "images", "user", "demo"))
-    head = user.head or os.path.join(
-        "/", "static", "images", "user", "demo", random.choice(heads)
+    if len(plain_pwd) < 8:
+        return response(code=0, message="密码不能少于8位")
+
+    demo_dir = os.path.join(STATIC_PATH, "images", "user", "demo")
+    heads = (
+        [f for f in os.listdir(demo_dir) if not f.startswith(".")]
+        if os.path.isdir(demo_dir)
+        else []
     )
-    user_obj = await User.create(
-        username=user.username,
-        fullname=user.fullname,
-        email=user.email,
-        pinyin=get_pinyin(user.fullname or user.username),
-        contact=user.contact,
-        password=get_hash(decrypt_pwd),
-        head=head,
-        role=user.role,
+    head = user.head or (
+        os.path.join("/", "static", "images", "user", "demo", random.choice(heads))
+        if heads
+        else None
     )
+    try:
+        user_obj = await User.create(
+            username=user.username,
+            fullname=user.fullname,
+            email=user.email,
+            pinyin=get_pinyin(user.fullname or user.username),
+            contact=user.contact,
+            password=get_hash(plain_pwd),
+            head=head,
+            role=normalize_role(user.role),
+        )
+    except Exception as exc:
+        return response(code=0, message=f"创建用户失败: {exc}")
     data = await User_Pydantic.from_tortoise_orm(user_obj)
     return response(data=data.model_dump(), message="注册成功！")
 
@@ -202,15 +226,17 @@ async def update_user(user_id: int, user: UserUpdate):
         "contact": user.contact,
     }
     if user.role:
-        update_data["role"] = user.role
+        update_data["role"] = normalize_role(user.role)
 
     if user.head:
         update_data["head"] = user.head
 
     if user.password:
         try:
-            decrypt_pwd = decrypt(AES_KEY, user.password)
-            update_data["password"] = get_hash(decrypt_pwd)
+            plain_pwd = resolve_password(user.password)
+            if len(plain_pwd) < 8:
+                return response(code=0, message="密码不能少于8位")
+            update_data["password"] = get_hash(plain_pwd)
         except Exception:
             return response(code=0, message="密码参数错误！")
 

@@ -6,6 +6,7 @@ from redis import Redis
 from tortoise.contrib.pydantic import pydantic_model_creator
 
 from apps.dependencies.auth import get_token_str, get_current_user
+from apps.dependencies.permissions import effective_role, is_admin
 from apps.form.users.form import ChangePasswordForm, TokenResponse
 from apps.models.user import User
 from apps.utils import response
@@ -72,7 +73,7 @@ async def get_captcha(redis_client: Redis = Depends(get_redis_client)):
     "/login",
     summary="前台登录接口",
     response_model=TokenResponse,
-    description="前台登录接口（普通用户）",
+    description="前台登录接口（App：管理员/班长/维护人员）",
 )
 async def login(
     username: str = Form(...),
@@ -98,7 +99,11 @@ async def login(
         f"refresh_token-{login_time}-{user.id}", token, REFRESH_MAX_AGE
     )
 
-    resp = {"access_token": token, "token_type": "bearer", "user_role": user.role}
+    resp = {
+        "access_token": token,
+        "token_type": "bearer",
+        "user_role": effective_role(user),
+    }
     return response(data=resp, message="登录成功！")
 
 
@@ -125,9 +130,9 @@ async def admin_login(
         return response(code=401, message="验证码错误或已过期，请重新获取验证码！")
     await redis_client.delete(captcha_id)
 
-    if user.role != "admin":
+    if not is_admin(user):
         return response(
-            code=403, message="普通用户无法登录后台管理系统，请使用前台登录"
+            code=403, message="仅管理员可登录后台管理系统，请使用 App 登录"
         )
 
     login_time = time.time()
@@ -137,7 +142,11 @@ async def admin_login(
         f"refresh_token-{login_time}-{user.id}", token, REFRESH_MAX_AGE
     )
 
-    resp = {"access_token": token, "token_type": "bearer", "user_role": user.role}
+    resp = {
+        "access_token": token,
+        "token_type": "bearer",
+        "user_role": effective_role(user),
+    }
     return response(data=resp, message="登录成功！")
 
 

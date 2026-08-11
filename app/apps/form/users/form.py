@@ -39,12 +39,14 @@ class UserCreate(UserBase):
     password: str = Field(
         ...,
         min_length=8,
-        max_length=100,
+        max_length=500,
         title="密码",
-        description="密码长度在8到20之间",
+        description="密码（前端 AES 密文）",
     )
     role: Optional[str] = Field(
-        default="user", title="用户角色", description="用户角色: user, admin"
+        default="maintainer",
+        title="用户角色",
+        description="用户角色: admin, leader, maintainer",
     )
 
 
@@ -52,14 +54,14 @@ class UserUpdate(UserBase):
     password: Optional[str] = Field(
         None,
         min_length=8,
-        max_length=100,
+        max_length=500,
         title="密码",
-        description="密码长度在8到20之间，不修改密码时不传此字段",
+        description="密码（前端 AES 密文），不修改时不传",
     )
     role: Optional[str] = Field(
         default=None,
         title="用户角色",
-        description="用户角色: user, admin, leader, maintainer",
+        description="用户角色: admin, leader, maintainer",
     )
 
 

@@ -7,6 +7,7 @@ from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
 from apps.dependencies.auth import get_current_user
+from apps.dependencies.permissions import is_admin, is_privileged
 from apps.form.device.device import DeviceOut, DeviceIn, DeviceUpdate
 from apps.models.device import Device
 from apps.models.user import User
@@ -126,7 +127,7 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     :return:
     """
     # 检查设备是否存在（管理员和班长可以创建任意设备名；普通用户检查自己的设备）
-    if user.role in ["admin", "leader"]:
+    if is_privileged(user):
         exists = await Device.filter(name=device.name).exists()
     else:
         exists = await Device.filter(
@@ -157,7 +158,7 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     maintainer = await User.get_or_none(id=maintainer_id)
     if not maintainer:
         return response(code=400, message="维护人不存在")
-    if maintainer.role == "admin":
+    if is_admin(maintainer):
         return response(code=400, message="管理员不能作为维护人")
     device_data["maintainer_user_id"] = maintainer_id
     device_data["contact"] = maintainer.contact or None
@@ -165,7 +166,7 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     if device_data.get("installer"):
         installer_user = await User.get_or_none(username=device_data["installer"])
         if installer_user:
-            if installer_user.role == "admin":
+            if is_admin(installer_user):
                 return response(code=400, message="管理员不能作为安装人")
             device_data["installer_contact"] = installer_user.contact or None
 
@@ -197,7 +198,7 @@ async def update_device(
     :return:
     """
     # 查询设备是否存在（管理员和班长可以访问所有设备，其他用户只能访问自己创建的设备）
-    if user.role in ["admin", "leader"]:
+    if is_privileged(user):
         device_obj = await Device.get_or_none(id=device_id)
     else:
         device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
@@ -216,14 +217,14 @@ async def update_device(
         maintainer = await User.get_or_none(id=maintainer_id)
         if not maintainer:
             return response(code=400, message="维护人不存在")
-        if maintainer.role == "admin":
+        if is_admin(maintainer):
             return response(code=400, message="管理员不能作为维护人")
         device_obj.maintainer_user_id = maintainer_id
         update_data["contact"] = maintainer.contact or None
 
     if "installer" in update_data:
         installer_user = await User.get_or_none(username=update_data["installer"])
-        if installer_user and installer_user.role == "admin":
+        if installer_user and is_admin(installer_user):
             return response(code=400, message="管理员不能作为安装人")
         update_data["installer_contact"] = (
             installer_user.contact if installer_user else None
@@ -284,7 +285,7 @@ async def delete_device(device_id: int, user: User = Depends(get_current_user)):
     :return:
     """
     # 查询设备是否存在（管理员和班长可以访问所有设备，其他用户只能访问自己创建的设备）
-    if user.role in ["admin", "leader"]:
+    if is_privileged(user):
         device_obj = await Device.get_or_none(id=device_id)
     else:
         device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
@@ -313,7 +314,7 @@ async def device_detail(device_id: int, user: User = Depends(get_current_user)):
     :return:
     """
     # 查询设备是否存在（管理员和班长可以访问所有设备，其他用户只能访问自己创建的设备）
-    if user.role in ["admin", "leader"]:
+    if is_privileged(user):
         device_obj = await Device.get_or_none(id=device_id)
     else:
         device_obj = await Device.get_or_none(id=device_id, created_by_user_id=user.id)
@@ -367,7 +368,7 @@ async def device_list(
         conditions.append(~Q(status=exclude_status))
     # 如果不是管理员或班长，只查询与当前用户有关的设备：
     # 1）当前用户创建的设备 2）当前用户作为负责人维护的设备
-    if user.role not in ["admin", "leader"]:
+    if not is_privileged(user):
         conditions.append(Q(created_by_user_id=user.id) | Q(maintainer_user_id=user.id))
 
     query = Device.filter(*conditions).order_by("-id")
@@ -400,7 +401,7 @@ async def device_stats(user: User = Depends(get_current_user)):
     """
     # admin和leader可以看到所有设备，
     # maintainer只能看到与自己有关的设备（创建者或负责人）
-    if user.role in ["admin", "leader"]:
+    if is_privileged(user):
         total = await Device.all().count()
         alarm = await Device.filter(status="告警").count()
         abnormal = await Device.filter(status="异常").count()

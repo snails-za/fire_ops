@@ -20,8 +20,8 @@ class User(BaseModel):
     pinyin = fields.CharField(max_length=255, null=True, description="用户名首字母")
     role = fields.CharField(
         max_length=20,
-        default="user",
-        description="用户角色: user, admin, leader(班长), maintainer(维护人员)",
+        default="maintainer",
+        description="用户角色: admin(管理员), leader(班长), maintainer(维护人员)",
     )
 
 

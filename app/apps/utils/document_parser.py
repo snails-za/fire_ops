@@ -36,9 +36,11 @@ from pdf2image import convert_from_path
 from pdf2image import pdfinfo_from_path
 
 from apps.models.document import Document as DocumentModel, DocumentChunk
+from apps.utils.dp_client import DPClient, DPClientError
 from apps.utils.ocr_engines import get_ocr_engine
 from apps.utils.rag_helper import vector_search
 from config import (
+    DP_ENABLED,
     OCR_ENABLED,
     OCR_USE_GPU,
     OCR_MAX_CONCURRENT_PAGES,
@@ -497,8 +499,12 @@ class DocumentProcessor:
             document.status = "processing"
             await document.save()
 
-            # 2. 提取文档内容
-            content = await self.document_parser.extract_content(file_path, file_type)
+            # 2. 提取文档内容（优先 DP；关闭或失败策略见 _extract_document_content）
+            content = await self._extract_document_content(
+                file_path,
+                file_type,
+                original_filename=document.original_filename or document.filename,
+            )
             if not content or not content.strip():
                 raise Exception("文档内容为空或无法提取")
 
@@ -556,6 +562,36 @@ class DocumentProcessor:
             await document.save()
 
             return False
+
+    async def _extract_document_content(
+        self,
+        file_path: str,
+        file_type: str,
+        *,
+        original_filename: str,
+    ) -> str:
+        """DP 开启时走远程解析；否则用本地 DocumentParser。"""
+        if DP_ENABLED:
+            print(
+                f"🛰️ 使用 DP 解析文件 type={file_type} "
+                f"name={original_filename}"
+            )
+            try:
+                # httpx 为同步客户端，放到线程池避免阻塞事件循环
+                client = DPClient()
+                try:
+                    return await asyncio.to_thread(
+                        client.parse_file_to_markdown,
+                        file_path,
+                        filename=original_filename,
+                    )
+                finally:
+                    client.close()
+            except DPClientError as exc:
+                raise Exception(f"DP 解析失败：{exc}") from exc
+
+        print(f"📄 使用本地解析 type={file_type}")
+        return await self.document_parser.extract_content(file_path, file_type)
 
 
 # 全局实例 - 单例模式

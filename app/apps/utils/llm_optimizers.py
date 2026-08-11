@@ -11,7 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
 from pydantic import BaseModel, Field
 
-from config import OPENAI_API_KEY, OPENAI_BASE_URL
+from config import OPENAI_API_KEY, OPENAI_BASE_URL, MODEL
 
 
 # Pydantic模型定义
@@ -50,7 +50,7 @@ def initialize_question_optimizers() -> Tuple[Optional[object], Optional[object]
             api_key=OPENAI_API_KEY,
             base_url=OPENAI_BASE_URL,
             temperature=0.1,
-            model="gpt-3.5-turbo",
+            model=MODEL,
             max_tokens=500,  # 限制输出长度
         )
 

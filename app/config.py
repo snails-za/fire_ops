@@ -170,7 +170,20 @@ QDRANT_COLLECTION_NAME = config("QDRANT_COLLECTION_NAME", default="documents")
 QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 
 # =============================================================================
-# OCR配置
+# Document Process（DP）配置 — 文档解析主路径
+# =============================================================================
+
+# true：上传解析走 DP（pipeline/hybrid/mineru）；false：回退本地 EasyOCR/LangChain
+DP_ENABLED = config("DP_ENABLED", cast=bool, default=True)
+DP_BASE_URL = config("DP_BASE_URL", default="http://host.docker.internal:8890")
+DP_API_KEY = config("DP_API_KEY", default="")
+DP_DEFAULT_BACKEND = config("DP_DEFAULT_BACKEND", default="pipeline")
+DP_POLL_SECONDS = config("DP_POLL_SECONDS", cast=float, default=2.0)
+# 等待 DP 整文档完成的上限（秒）；大文档 hybrid 可能较长
+DP_TIMEOUT_SECONDS = config("DP_TIMEOUT_SECONDS", cast=float, default=7200.0)
+
+# =============================================================================
+# OCR配置（DP_ENABLED=false 时的本地回退）
 # =============================================================================
 
 OCR_ENABLED = config("OCR_ENABLED", cast=bool, default=True)

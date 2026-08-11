@@ -1952,13 +1952,102 @@
             padding: 25px;
             line-height: 1.8;
             color: #333;
-            white-space: pre-wrap;
             word-wrap: break-word;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             font-size: 14px;
             max-height: calc(95vh - 120px);
             overflow-y: auto;
             background: #fefefe;
+        }
+
+        /* DP markdown 预览 */
+        .document-content .md-preview {
+            white-space: normal;
+        }
+        .document-content .md-preview h1,
+        .document-content .md-preview h2,
+        .document-content .md-preview h3,
+        .document-content .md-preview h4 {
+            margin: 1.1em 0 0.5em;
+            line-height: 1.35;
+            color: #1a1a1a;
+        }
+        .document-content .md-preview h1 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+        .document-content .md-preview h2 { font-size: 1.3em; }
+        .document-content .md-preview h3 { font-size: 1.15em; }
+        .document-content .md-preview p { margin: 0.6em 0; }
+        .document-content .md-preview ul,
+        .document-content .md-preview ol { padding-left: 1.5em; margin: 0.6em 0; }
+        .document-content .md-preview blockquote {
+            margin: 0.8em 0;
+            padding: 0.4em 0.9em;
+            border-left: 4px solid #c9d6e8;
+            background: #f5f8fc;
+            color: #445;
+        }
+        .document-content .md-preview pre {
+            background: #f4f6f8;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+        .document-content .md-preview code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.92em;
+            background: #f0f2f5;
+            padding: 0.1em 0.35em;
+            border-radius: 3px;
+        }
+        .document-content .md-preview pre code {
+            background: transparent;
+            padding: 0;
+        }
+        .document-content .md-preview table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0.8em 0;
+            font-size: 13px;
+            display: block;
+            overflow-x: auto;
+        }
+        .document-content .md-preview th,
+        .document-content .md-preview td {
+            border: 1px solid #d8dee6;
+            padding: 8px 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+        .document-content .md-preview th {
+            background: #f3f6fa;
+            font-weight: 600;
+        }
+        .document-content .md-preview img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        .document-content .md-preview hr {
+            border: none;
+            border-top: 1px solid #e5e7eb;
+            margin: 1.2em 0;
+        }
+        .document-meta {
+            margin-bottom: 16px;
+            padding: 14px 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #eef0f3;
+        }
+        .document-meta h4 { margin: 0 0 10px 0; color: #333; }
+        .document-meta p { margin: 4px 0; font-size: 13px; color: #444; }
+        .document-preview-body {
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 16px 18px;
+            background: #fff;
+            max-height: calc(95vh - 280px);
+            overflow-y: auto;
         }
 
         .document-content::-webkit-scrollbar {
@@ -4981,7 +5070,7 @@
             }
         }
 
-        // 预览文档
+        // 预览文档（DP 解析后的 markdown 全文渲染）
         async function previewDocument(documentId) {
             console.log('预览文档被点击，文档ID:', documentId);
             
@@ -4995,22 +5084,26 @@
                     if (result.code === 200) {
                         const doc = result.data.document;
                         const chunksCount = result.data.chunks_count;
+                        const mdHtml = doc.content
+                            ? `<div class="md-preview">${renderMarkdown(doc.content)}</div>`
+                            : '<div style="color:#888;">暂无内容（文档可能仍在解析中）</div>';
+                        const pdfBtn = (doc.file_type || '').toLowerCase() === 'pdf'
+                            ? `<button class="action-btn view-btn" style="margin-left:8px;" onclick="openPdfStream(${doc.id})">打开原件 PDF</button>`
+                            : '';
                         
                         const previewContent = `
-                            <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <h4 style="margin: 0 0 10px 0; color: #333;">文档信息</h4>
-                                <p><strong>文件名:</strong> ${doc.original_filename}</p>
-                                <p><strong>文件类型:</strong> ${doc.file_type.toUpperCase()}</p>
+                            <div class="document-meta">
+                                <h4>文档信息</h4>
+                                <p><strong>文件名:</strong> ${escapeHtml(doc.original_filename || '')}</p>
+                                <p><strong>文件类型:</strong> ${escapeHtml((doc.file_type || '').toUpperCase())}</p>
                                 <p><strong>文件大小:</strong> ${formatFileSize(doc.file_size)}</p>
-                                <p><strong>处理状态:</strong> <span class="status-badge status-${doc.status}">${getStatusText(doc.status)}</span></p>
-                                <p><strong>上传时间:</strong> ${new Date(doc.upload_time).toLocaleString()}</p>
-                                <p><strong>文档块数:</strong> ${chunksCount} 个</p>
+                                <p><strong>处理状态:</strong> <span class="status-badge status-${escapeHtml(doc.status || '')}">${getStatusText(doc.status)}</span></p>
+                                <p><strong>上传时间:</strong> ${doc.upload_time ? new Date(doc.upload_time).toLocaleString() : '-'}</p>
+                                <p><strong>文档块数:</strong> ${chunksCount} 个 ${pdfBtn}</p>
                             </div>
                             <div>
-                                <h4 style="margin: 0 0 10px 0; color: #333;">内容预览</h4>
-                                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; background: white;">
-                                    ${doc.content ? doc.content.substring(0, 2000) + (doc.content.length > 2000 ? '...' : '') : '暂无内容'}
-                                </div>
+                                <h4 style="margin: 0 0 10px 0; color: #333;">解析内容（Markdown）</h4>
+                                <div class="document-preview-body">${mdHtml}</div>
                             </div>
                         `;
                         
@@ -5766,9 +5859,9 @@
                 modalTitle.innerHTML = `<div style="font-size: 18px; font-weight: 600;">${title}</div>`;
             }
             
-            // 设置内容
+            // 设置内容：高亮片段保持后端 HTML；全文走 markdown 渲染（DP 结果）
             if (isHighlighted) {
-                documentContent.innerHTML = content;
+                documentContent.innerHTML = `<div class="md-preview">${content}</div>`;
                 
                 // 滚动到第一个高亮位置
                 setTimeout(() => {
@@ -5781,7 +5874,7 @@
                     }
                 }, 100);
             } else {
-                documentContent.textContent = content;
+                documentContent.innerHTML = `<div class="md-preview">${renderMarkdown(content || '')}</div>`;
             }
             
             // 显示模态框

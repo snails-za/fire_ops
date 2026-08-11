@@ -10,7 +10,7 @@ class DeviceIn(BaseModel):
     location: Optional[List[float]] = Field(
         None, description="设备位置，经纬度 [lng, lat]"
     )
-    images: List[str] = Field(..., description="图片路径")
+    images: List[str] = Field(..., min_length=1, description="图片路径，至少1张")
     status: Optional[str] = Field(None, description="设备状态")
     install_date: Optional[date] = Field(None, description="安装日期")
     installer: Optional[str] = Field(None, description="安装人")

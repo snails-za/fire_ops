@@ -137,9 +137,14 @@ async def create_device(device: DeviceIn, user: User = Depends(get_current_user)
     if exists:
         return response(code=400, message="设备已存在")
 
+    images = [img for img in (device.images or []) if img]
+    if not images:
+        return response(code=400, message="设备必须至少上传1张图片")
+
     # 验证设备状态：只允许四种状态
     valid_statuses = ["告警", "异常", "离线", "正常"]
     device_data = device.model_dump(exclude_unset=True)
+    device_data["images"] = images
     device_status = device_data.get("status", "正常")  # 默认为正常
 
     if device_status and device_status not in valid_statuses:

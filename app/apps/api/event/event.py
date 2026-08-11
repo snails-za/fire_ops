@@ -231,6 +231,9 @@ async def send_event_message(
     if not event:
         return response(code=404, message="事件不存在")
 
+    if event.status == "closed":
+        return response(code=400, message="事件已关闭，不能继续沟通")
+
     if not is_privileged(user):
         await event.fetch_related("device")
         if not event.device or (
@@ -248,8 +251,10 @@ async def send_event_message(
         message_type="user",
     )
 
-    event.status = "processing"
-    await event.save()
+    # 仅未关闭事件：有新沟通则进入处理中
+    if event.status != "closed":
+        event.status = "processing"
+        await event.save()
 
     message_data = await EventMessage_Pydantic.from_tortoise_orm(message)
     return response(data=message_data.model_dump(), message="消息发送成功")

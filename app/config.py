@@ -114,7 +114,24 @@ for path in [
 
 # 文件处理限制
 MAX_FILE_SIZE = config("MAX_FILE_SIZE", cast=int, default=50 * 1024 * 1024)  # 50MB
-ALLOWED_FILE_TYPES = ["pdf", "docx", "doc", "xlsx", "xls", "txt"]
+ALLOWED_FILE_TYPES = [
+    "pdf",
+    "docx",
+    "doc",
+    "pptx",
+    "ppt",
+    "xlsx",
+    "xls",
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "bmp",
+    "tif",
+    "tiff",
+    "txt",
+    "md",
+]
 
 # =============================================================================
 # RAG系统配置
@@ -181,36 +198,13 @@ QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 # Document Process（DP）配置 — 文档解析主路径
 # =============================================================================
 
-# true：上传解析走 DP（pipeline/hybrid/mineru）；false：回退本地 EasyOCR/LangChain
-DP_ENABLED = config("DP_ENABLED", cast=bool, default=True)
+# 文档解析全部交给 DP（pipeline/hybrid），fire_ops 不再做本地抽文本
 DP_BASE_URL = config("DP_BASE_URL", default="http://host.docker.internal:8890")
 DP_API_KEY = config("DP_API_KEY", default="")
 DP_DEFAULT_BACKEND = config("DP_DEFAULT_BACKEND", default="pipeline")
 DP_POLL_SECONDS = config("DP_POLL_SECONDS", cast=float, default=2.0)
 # 等待 DP 整文档完成的上限（秒）；大文档 hybrid 可能较长
 DP_TIMEOUT_SECONDS = config("DP_TIMEOUT_SECONDS", cast=float, default=7200.0)
-
-# =============================================================================
-# OCR配置（DP_ENABLED=false 时的本地回退）
-# =============================================================================
-
-OCR_ENABLED = config("OCR_ENABLED", cast=bool, default=True)
-OCR_USE_GPU = config("OCR_USE_GPU", cast=bool, default=True)
-# OCR模型缓存路径
-OCR_MODEL_PATH = config(
-    "OCR_MODEL_PATH", default=os.path.join(BASE_PATH, "models", "easyocr")
-)
-
-# OCR并发处理配置
-OCR_MAX_CONCURRENT_PAGES = config("OCR_MAX_CONCURRENT_PAGES", cast=int, default=1)
-# 说明：
-# 1 = 串行处理（最省内存，推荐内存 < 2GB）
-# 2 = 并发2页（需要更多内存，推荐内存 2-4GB）
-# 3+ = 更高并发（需要 4GB+ 内存）
-
-# OCR分批处理配置（节省内存）
-OCR_BATCH_SIZE = config("OCR_BATCH_SIZE", cast=int, default=5)  # 每批处理页数
-OCR_DPI = config("OCR_DPI", cast=int, default=150)  # 降低DPI节省内存
 
 # =============================================================================
 # Celery异步任务配置

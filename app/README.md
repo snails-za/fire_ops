@@ -2,7 +2,7 @@
 
 `fire_ops/app` 是消安云管系统的后端服务，基于 FastAPI 构建，负责用户认证、后台管理、设备事件、好友通讯、公告、文档解析、向量检索和智能问答。
 
-新的 Web 后台在同级项目 `fire-admin` 中维护；本项目内的 `static/` 主要是后端静态资源和历史静态页面。
+新的 Web 后台在同级项目 `fire-admin` 中维护；本项目 `static/` 仅保留 API 文档等后端静态资源。
 
 ## 项目位置
 
@@ -21,8 +21,8 @@ code/
 - 数据库：PostgreSQL
 - 缓存和任务队列：Redis
 - 异步任务：Celery
-- 文档解析：LangChain loaders、PyMuPDF、docx2txt、openpyxl、EasyOCR
-- 向量检索：Qdrant / Chroma
+- 文档解析：Document Process（DP，`pipeline` / `hybrid`）
+- 向量检索：Qdrant
 - 大模型调用：LangChain OpenAI 兼容接口
 - 智能问答：XML ReAct + FastMCP 工具
 

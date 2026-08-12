@@ -95,12 +95,10 @@ dependencies = [
     # 与 langchain==0.3.7 兼容的 numpy 版本（<2.0）。1.26.4 为最后一个 1.x 版本
     "numpy==1.26.4",
     "tiktoken==0.8.0",
-    # OCR相关依赖 - 使用EasyOCR
-    "pdf2image==1.17.0", # PDF转图片
-    "opencv-python-headless==4.10.0.84", # 图像处理（无GUI依赖）
-    "easyocr==1.7.0", # EasyOCR多语言OCR
-    "torch>=2.0.0", # PyTorch深度学习框架（GPU支持）
-    "torchvision>=0.15.0", # 计算机视觉工具包
+    # 向量/嵌入相关（sentence-transformers 等）
+    "opencv-python-headless==4.10.0.84",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
     "setuptools>=80.9.0",
     "celery>=5.5.3",
     "psycopg2-binary>=2.9.10",

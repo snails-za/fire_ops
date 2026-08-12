@@ -1,15 +1,18 @@
 import os
 import traceback
 import uuid
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, UploadFile, File, Query
+from fastapi.responses import Response
 from tortoise.contrib.pydantic import pydantic_model_creator
 from tortoise.expressions import Q
 
 from apps.models.document import Document, DocumentChunk
 from apps.utils import response
 from apps.utils.celery_utils import celery_task_manager
+from apps.utils.dp_client import DPClient, DPClientError
 from apps.utils.rag_helper import vector_search
 from celery_tasks.task import process_document_task
 from config import DOCUMENT_STORE_PATH
@@ -33,8 +36,25 @@ async def upload_document(
 ):
     """上传文档"""
     try:
-        # 检查文件类型
-        allowed_types = ["pdf", "docx", "doc", "xlsx", "xls", "txt", "md"]
+        # 与 DP 支持的格式对齐（解析由 DP 完成）
+        allowed_types = [
+            "pdf",
+            "docx",
+            "doc",
+            "pptx",
+            "ppt",
+            "xlsx",
+            "xls",
+            "png",
+            "jpg",
+            "jpeg",
+            "webp",
+            "bmp",
+            "tif",
+            "tiff",
+            "txt",
+            "md",
+        ]
         file_extension = file.filename.split(".")[-1].lower()
 
         if file_extension not in allowed_types:
@@ -71,14 +91,7 @@ async def upload_document(
         await document.save()
 
         data = await Document_Pydantic.from_tortoise_orm(document)
-
-        # 根据文件类型提供不同的处理提示
-        if file_extension == "pdf":
-            message = "PDF文档上传成功！系统将自动识别文本内容，如果是扫描件将使用OCR技术处理..."
-        else:
-            message = "文档上传成功，正在处理中..."
-
-        return response(data=data.model_dump(), message=message)
+        return response(data=data.model_dump(), message="文档上传成功，已提交 DP 解析…")
 
     except Exception as e:
         traceback.print_exc()
@@ -111,7 +124,9 @@ async def get_documents(
         data = []
         for doc in documents:
             doc_data = await Document_Pydantic.from_tortoise_orm(doc)
-            data.append(doc_data.model_dump())
+            payload = doc_data.model_dump()
+            payload.pop("content", None)  # 列表不回传全文 markdown
+            data.append(payload)
 
         total_page = (total + page_size - 1) // page_size
 
@@ -246,6 +261,7 @@ async def reprocess_document(
         document.task_id = None
         document.process_time = None
         document.error_message = None
+        document.dp_document_id = None
         await document.save()
 
         # 使用Celery重新处理文档
@@ -373,74 +389,102 @@ async def preview_document(document_id: int):
 
 
 @router.get(
-    "/{document_id}/view",
-    summary="查看文档内容(匿名)",
-    description="查看文档内容并支持高亮显示（无需登录）",
+    "/{document_id}/pages",
+    summary="文档页列表(匿名)",
+    description="获取 DP 解析后的页列表，供页图预览",
 )
-async def view_document_content(
-    document_id: int,
-    highlight: Optional[str] = Query(None, description="需要高亮的文本"),
-    chunk_id: Optional[int] = Query(None, description="特定文档块ID"),
-):
-    """查看文档内容"""
+async def list_document_pages(document_id: int):
+    """页图预览：返回页码列表与代理图片 URL。"""
     try:
         document = await Document.get_or_none(id=document_id)
         if not document:
             return response(code=404, message="文档不存在")
-
-        # 如果指定了chunk_id，返回特定块的内容
-        if chunk_id:
-            chunk = await DocumentChunk.get_or_none(
-                id=chunk_id, document_id=document_id
+        if not document.dp_document_id:
+            return response(
+                code=404,
+                message="该文档尚无 DP 页图（请重新处理后再预览）",
             )
-            if not chunk:
-                return response(code=404, message="文档块不存在")
 
-            content = chunk.content
-            chunk_info = {
-                "chunk_id": chunk.id,
-                "chunk_index": chunk.chunk_index,
-                "content_length": chunk.content_length,
-            }
-        else:
-            # 返回完整文档内容
-            content = document.content
-            chunk_info = None
+        client = DPClient()
+        try:
+            data = await asyncio.to_thread(client.list_pages, document.dp_document_id)
+        finally:
+            client.close()
 
-        # 如果需要高亮，处理高亮文本
-        highlighted_content = content
-        if highlight and highlight.strip():
-            import re
-
-            # 分割多个关键词（支持空格分隔）
-            keywords = [kw.strip() for kw in highlight.strip().split() if kw.strip()]
-
-            # 对每个关键词进行高亮处理
-            for keyword in keywords:
-                if len(keyword) >= 1:  # 至少1个字符才高亮
-                    # 使用正则表达式进行不区分大小写的高亮
-                    pattern = re.compile(re.escape(keyword), re.IGNORECASE)
-                    highlighted_content = pattern.sub(
-                        lambda m: f'<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; font-weight: bold;">{m.group()}</mark>',
-                        highlighted_content,
-                    )
+        page_count = int(data.get("page_count") or 0)
+        pages = []
+        for item in data.get("pages") or []:
+            if not isinstance(item, dict):
+                continue
+            page_no = item.get("page_no")
+            if page_no is None:
+                continue
+            try:
+                page_no = int(page_no)
+            except (TypeError, ValueError):
+                continue
+            pages.append(
+                {
+                    "page_no": page_no,
+                    "image_available": bool(item.get("image_available", True)),
+                    "image_url": f"/api/v1/documents/{document_id}/pages/{page_no}/image",
+                }
+            )
+        if not pages and page_count > 0:
+            pages = [
+                {
+                    "page_no": n,
+                    "image_available": True,
+                    "image_url": f"/api/v1/documents/{document_id}/pages/{n}/image",
+                }
+                for n in range(1, page_count + 1)
+            ]
 
         return response(
             data={
-                "document": {
-                    "id": document.id,
-                    "filename": document.original_filename,
-                    "file_type": document.file_type,
-                    "upload_time": document.upload_time,
-                    "status": document.status,
-                },
-                "content": content,
-                "highlighted_content": highlighted_content,
-                "highlight_text": highlight,
-                "chunk_info": chunk_info,
-                "has_highlight": bool(highlight and highlight.strip()),
+                "document_id": document_id,
+                "dp_document_id": document.dp_document_id,
+                "page_count": page_count or len(pages),
+                "pages": pages,
             }
         )
-
+    except DPClientError as e:
+        return response(code=502, message=f"获取页列表失败: {e}")
     except Exception as e:
-        return response(code=500, message=f"查看文档失败: {str(e)}")
+        return response(code=500, message=f"获取页列表失败: {str(e)}")
+
+
+@router.get(
+    "/{document_id}/pages/{page_no}/image",
+    summary="文档页图(匿名)",
+    description="代理返回 DP 渲染的页面图片",
+)
+async def get_document_page_image(document_id: int, page_no: int):
+    """代理 DP 页图，浏览器可直接 <img src>。"""
+    try:
+        if page_no < 1:
+            return response(code=400, message="页码无效")
+
+        document = await Document.get_or_none(id=document_id)
+        if not document:
+            return response(code=404, message="文档不存在")
+        if not document.dp_document_id:
+            return response(code=404, message="该文档尚无 DP 页图")
+
+        client = DPClient()
+        try:
+            content, media_type = await asyncio.to_thread(
+                client.get_page_image, document.dp_document_id, page_no
+            )
+        finally:
+            client.close()
+
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={"Cache-Control": "private, max-age=3600"},
+        )
+    except DPClientError as e:
+        return response(code=502, message=f"获取页图失败: {e}")
+    except Exception as e:
+        return response(code=500, message=f"获取页图失败: {str(e)}")

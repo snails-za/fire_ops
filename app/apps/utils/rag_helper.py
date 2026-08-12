@@ -1,23 +1,8 @@
 """
-RAG (Retrieval-Augmented Generation) 系统核心模块
+RAG 检索增强：向量检索 + LLM 生成。
 
-该模块包含三个主要组件：
-1. DocumentProcessor: 文档处理器，负责文档分块和向量化
-2. VectorSearch: 向量搜索引擎，基于Chroma数据库进行语义相似度搜索
-3. RAGGenerator: RAG生成器，集成LangChain和OpenAI进行智能问答
-
-技术栈：
-- 文档解析: 独立的DocumentParser模块
-- 文本分割: LangChain RecursiveCharacterTextSplitter
-- 向量化: Sentence Transformers
-- 向量存储: ChromaDB
-- 智能问答: LangChain + OpenAI GPT
-
-架构说明：
-- 文档解析功能已拆分到独立的document_parser模块
-- 本模块专注于向量化、搜索和生成功能
-- 通过依赖注入的方式使用文档解析器
-- 现在支持LangChain集成，提供更强大的文档处理能力
+文档解析/切分由 DocumentProcessor（DP）完成；本模块负责检索与问答生成。
+向量库由 vector_db_selector 按配置选择（当前为 Qdrant）。
 """
 
 import traceback

@@ -11,7 +11,12 @@ class Document(BaseModel):
     file_path = fields.CharField(max_length=500, description="文件路径")
     file_size = fields.IntField(description="文件大小(字节)")
     file_type = fields.CharField(max_length=50, description="文件类型")
-    content = fields.TextField(description="文档内容")
+    content = fields.TextField(description="文档内容（DP markdown 备份，预览用页图）")
+    dp_document_id = fields.CharField(
+        max_length=255,
+        null=True,
+        description="Document Process 侧文档 ID（页图预览用，不存坐标）",
+    )
     status = fields.CharField(
         max_length=20,
         default="queued",

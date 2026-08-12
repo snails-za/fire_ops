@@ -30,6 +30,9 @@ def process_document_task(self, document_id: int, file_path: str, file_type: str
     async def _process_document():
         # 初始化 Tortoise ORM 连接
         await Tortoise.init(config=config.TORTOISE_ORM)
+        from apps.utils.db_migrate import ensure_document_columns
+
+        await ensure_document_columns()
 
         try:
             print(f"🔄 开始后台处理文档 {document_id} ({file_type})")

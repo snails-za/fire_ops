@@ -17,6 +17,7 @@ from tortoise import Tortoise
 from apps.utils.redis_ import RedisManager
 from apps.models.user import User
 from apps.utils.common import get_hash, get_pinyin
+from apps.utils.db_migrate import ensure_document_columns
 from apps import create_app
 from config import (
     INITIAL_ADMIN_FULLNAME,
@@ -66,6 +67,8 @@ async def lifespan(app: FastAPI):
     print("Starting up...")
     # 初始化 Tortoise ORM（safe=True 只补缺失表，不改动已有表结构）
     await Tortoise.init(config=TORTOISE_ORM)
+    # 先补已有表缺列，再 generate_schemas（否则索引/约束会因缺列启动失败）
+    await ensure_document_columns()
     await Tortoise.generate_schemas(safe=True)
     await ensure_initial_admin()
     print("✅ 数据库初始化完成")
@@ -85,12 +88,15 @@ async def lifespan(app: FastAPI):
 app = create_app(lifespan=lifespan)
 
 
-# 添加根路径重定向到登录页面
+# 管理端 UI 由 fire_ops_deploy/front_html（fire-admin）提供
 @app.get("/", include_in_schema=False)
 async def root():
-    from fastapi.responses import RedirectResponse
-
-    return RedirectResponse(url="/static/admin.html")
+    return {
+        "code": 200,
+        "message": "fire_ops API",
+        "docs": "/docs",
+        "admin": "fire_ops_deploy front_html (fire-admin)",
+    }
 
 
 @app.get("/docs", include_in_schema=False)

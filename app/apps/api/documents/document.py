@@ -426,6 +426,8 @@ async def list_document_pages(document_id: int):
             pages.append(
                 {
                     "page_no": page_no,
+                    "width": item.get("width"),
+                    "height": item.get("height"),
                     "image_available": bool(item.get("image_available", True)),
                     "image_url": f"/api/v1/documents/{document_id}/pages/{page_no}/image",
                 }
@@ -434,6 +436,8 @@ async def list_document_pages(document_id: int):
             pages = [
                 {
                     "page_no": n,
+                    "width": None,
+                    "height": None,
                     "image_available": True,
                     "image_url": f"/api/v1/documents/{document_id}/pages/{n}/image",
                 }

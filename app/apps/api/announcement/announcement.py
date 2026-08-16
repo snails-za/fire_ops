@@ -85,6 +85,87 @@ async def get_announcement_list(
     )
 
 
+@router.post("/{announcement_id}/publish", dependencies=[Depends(get_current_user)])
+async def publish_announcement(announcement_id: int):
+    announcement = await Announcement.get_or_none(id=announcement_id)
+    if not announcement:
+        return response(code=404, message="公告不存在")
+
+    announcement.status = "published"
+    if not announcement.publish_time:
+        announcement.publish_time = datetime.now()
+
+    await announcement.save()
+
+    data = await Announcement_Pydantic.from_tortoise_orm(announcement)
+    return response(data=data.model_dump(), message="公告发布成功")
+
+
+@router.post(
+    "/{announcement_id}/archive",
+    summary="归档公告",
+    dependencies=[Depends(get_current_user)],
+)
+async def archive_announcement(announcement_id: int):
+    announcement = await Announcement.get_or_none(id=announcement_id)
+    if not announcement:
+        return response(code=404, message="公告不存在")
+
+    announcement.status = "archived"
+    await announcement.save()
+
+    data = await Announcement_Pydantic.from_tortoise_orm(announcement)
+    return response(data=data.model_dump(), message="公告归档成功")
+
+
+@router.get(
+    "/public/list",
+    summary="获取公开公告列表",
+    dependencies=[Depends(get_current_user)],
+)
+async def get_public_announcement_list(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    keyword: Optional[str] = Query(None),
+):
+    """移动端首页/公告列表：仅返回已发布且在有效期内的公告。"""
+    now = datetime.now().astimezone()
+    conditions = [
+        Q(status="published"),
+        Q(publish_time=None) | Q(publish_time__lte=now),
+        Q(expire_time=None) | Q(expire_time__gt=now),
+    ]
+
+    if keyword:
+        conditions.append(Q(title__icontains=keyword) | Q(content__icontains=keyword))
+
+    query_condition = conditions[0]
+    for condition in conditions[1:]:
+        query_condition &= condition
+    query = Announcement.filter(query_condition).order_by("-publish_time", "-created_at")
+
+    total = await query.count()
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    announcement_list = await Announcement_Pydantic.from_queryset(query)
+    total_page = (total + page_size - 1) // page_size
+
+    data = []
+    for announcement in announcement_list:
+        announcement_dict = announcement.model_dump()
+        try:
+            user = await User.get_or_none(id=announcement_dict["created_by_user_id"])
+            announcement_dict["created_by_username"] = (
+                user.username if user else "未知用户"
+            )
+        except Exception:
+            announcement_dict["created_by_username"] = "未知用户"
+        data.append(announcement_dict)
+
+    return response(
+        data=data, total=total, total_page=total_page, message="获取公开公告列表成功"
+    )
+
+
 @router.get(
     "/{announcement_id}",
     response_model=Announcement_Pydantic,
@@ -129,82 +210,3 @@ async def delete_announcement(announcement_id: int):
     await announcement.delete()
 
     return response(message="公告删除成功")
-
-
-@router.post("/{announcement_id}/publish", dependencies=[Depends(get_current_user)])
-async def publish_announcement(announcement_id: int):
-    announcement = await Announcement.get_or_none(id=announcement_id)
-    if not announcement:
-        return response(code=404, message="公告不存在")
-
-    announcement.status = "published"
-    if not announcement.publish_time:
-        announcement.publish_time = datetime.now()
-
-    await announcement.save()
-
-    data = await Announcement_Pydantic.from_tortoise_orm(announcement)
-    return response(data=data.model_dump(), message="公告发布成功")
-
-
-@router.post(
-    "/{announcement_id}/archive",
-    summary="归档公告",
-    dependencies=[Depends(get_current_user)],
-)
-async def archive_announcement(announcement_id: int):
-    announcement = await Announcement.get_or_none(id=announcement_id)
-    if not announcement:
-        return response(code=404, message="公告不存在")
-
-    announcement.status = "archived"
-    await announcement.save()
-
-    data = await Announcement_Pydantic.from_tortoise_orm(announcement)
-    return response(data=data.model_dump(), message="公告归档成功")
-
-
-@router.get(
-    "/public/list", summary="获取公开公告列表", dependencies=[Depends(get_current_user)]
-)
-async def get_public_announcement_list(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    keyword: Optional[str] = Query(None),
-):
-    # 构建查询条件（只查询已发布的公告）
-    conditions = [Q(status="published")]
-
-    # 关键词搜索
-    if keyword:
-        conditions.append(Q(title__icontains=keyword) | Q(content__icontains=keyword))
-
-    # 执行查询
-    if conditions:
-        query_condition = conditions[0]
-        for condition in conditions[1:]:
-            query_condition &= condition
-        query = Announcement.filter(query_condition).order_by("-created_at")
-    else:
-        query = Announcement.filter(Q(status="published")).order_by("-created_at")
-
-    total = await query.count()
-    query = query.offset((page - 1) * page_size).limit(page_size)
-    announcement_list = await Announcement_Pydantic.from_queryset(query)
-    total_page = (total + page_size - 1) // page_size
-
-    data = []
-    for announcement in announcement_list:
-        announcement_dict = announcement.model_dump()
-        try:
-            user = await User.get_or_none(id=announcement_dict["created_by_user_id"])
-            announcement_dict["created_by_username"] = (
-                user.username if user else "未知用户"
-            )
-        except Exception:
-            announcement_dict["created_by_username"] = "未知用户"
-        data.append(announcement_dict)
-
-    return response(
-        data=data, total=total, total_page=total_page, message="获取公开公告列表成功"
-    )

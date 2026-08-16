@@ -205,6 +205,8 @@ DP_DEFAULT_BACKEND = config("DP_DEFAULT_BACKEND", default="pipeline")
 DP_POLL_SECONDS = config("DP_POLL_SECONDS", cast=float, default=2.0)
 # 等待 DP 整文档完成的上限（秒）；大文档 hybrid 可能较长
 DP_TIMEOUT_SECONDS = config("DP_TIMEOUT_SECONDS", cast=float, default=7200.0)
+# fire-admin 同源反代 Viewer 的前缀，用于拼 iframe embed_url
+DP_VIEWER_PUBLIC_PATH = config("DP_VIEWER_PUBLIC_PATH", default="/dp")
 
 # =============================================================================
 # Celery异步任务配置

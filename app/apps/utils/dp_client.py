@@ -145,6 +145,23 @@ class DPClient:
             raise DPClientError("DP 返回的 pages 无效")
         return data
 
+    def mint_embed_token(
+        self,
+        document_id: str,
+        *,
+        ttl_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """签发短时嵌入预览令牌。"""
+        body: dict[str, Any] = {"document_id": document_id}
+        if ttl_seconds is not None:
+            body["ttl_seconds"] = ttl_seconds
+        response = self._client.post("/v1/embed/tokens", json=body)
+        payload = self._envelope(response)
+        data = payload.get("data")
+        if not isinstance(data, dict) or not data.get("token"):
+            raise DPClientError("DP 未返回嵌入令牌")
+        return data
+
     def get_page_image(self, document_id: str, page_no: int) -> tuple[bytes, str]:
         """拉取单页渲染图，返回 (bytes, media_type)。"""
         response = self._client.get(

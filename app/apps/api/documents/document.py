@@ -15,7 +15,7 @@ from apps.utils.celery_utils import celery_task_manager
 from apps.utils.dp_client import DPClient, DPClientError
 from apps.utils.rag_helper import vector_search
 from celery_tasks.task import process_document_task
-from config import DOCUMENT_STORE_PATH
+from config import DOCUMENT_STORE_PATH, DP_VIEWER_PUBLIC_PATH
 
 router = APIRouter(prefix="/documents", tags=["文档管理"])
 
@@ -386,6 +386,56 @@ async def preview_document(document_id: int):
 
     except Exception as e:
         return response(code=500, message=f"预览文档失败: {str(e)}")
+
+
+@router.get(
+    "/{document_id}/dp-preview",
+    summary="DP 嵌入预览地址(匿名)",
+    description="签发短时 embed token，返回 fire-admin 同源 /dp/ iframe 地址",
+)
+async def dp_preview(document_id: int):
+    """返回可嵌入兰台文档工作区的 URL。"""
+    try:
+        document = await Document.get_or_none(id=document_id)
+        if not document:
+            return response(code=404, message="文档不存在")
+        if document.status != "completed":
+            return response(code=400, message="文档尚未解析完成，请稍后再预览")
+        if not document.dp_document_id:
+            return response(
+                code=404,
+                message="该文档尚无 DP 任务（请重新解析后再预览）",
+            )
+
+        client = DPClient()
+        try:
+            minted = await asyncio.to_thread(
+                client.mint_embed_token,
+                document.dp_document_id,
+            )
+        finally:
+            client.close()
+
+        token = str(minted.get("token") or "")
+        dp_id = str(minted.get("document_id") or document.dp_document_id)
+        if not token:
+            return response(code=500, message="DP 未返回嵌入令牌")
+
+        base = (DP_VIEWER_PUBLIC_PATH or "/dp").rstrip("/") or "/dp"
+        embed_url = f"{base}/#/embed/documents/{dp_id}?token={token}"
+        return response(
+            data={
+                "embed_url": embed_url,
+                "dp_document_id": dp_id,
+                "expires_at": minted.get("expires_at"),
+            },
+            message="已生成预览地址",
+        )
+    except DPClientError as e:
+        return response(code=500, message=f"签发预览令牌失败: {e}")
+    except Exception as e:
+        traceback.print_exc()
+        return response(code=500, message=f"获取预览地址失败: {str(e)}")
 
 
 @router.get(

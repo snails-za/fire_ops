@@ -14,6 +14,12 @@ from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+# DeepSeek-R1 / Qwen3 等推理模型常见的 thinking 块，须在解析 <step> 前剔除
+_REASONING_BLOCK_RE = re.compile(
+    r"<(?:redacted_)?think(?:ing)?>\s*.*?\s*</(?:redacted_)?think(?:ing)?>",
+    re.DOTALL | re.IGNORECASE,
+)
+
 
 @dataclass
 class ReactStep:
@@ -128,6 +134,12 @@ class XmlReactSession:
         )
 
     @staticmethod
+    def _strip_reasoning_blocks(text: str) -> str:
+        """去掉模型 reasoning/thinking 标签，避免干扰 <step> 解析。"""
+        cleaned = _REASONING_BLOCK_RE.sub("", text)
+        return cleaned.strip()
+
+    @staticmethod
     def _strip_fence(text: str) -> str:
         s = text.strip()
         if not s.startswith("```"):
@@ -151,6 +163,7 @@ class XmlReactSession:
     @classmethod
     def parse_step(cls, raw_xml: str) -> ReactStep:
         """把模型输出解析成结构化 step，调用方无需关心 XML 标签。"""
+        raw_xml = cls._strip_reasoning_blocks(raw_xml)
         body_xml = cls._step_inner(raw_xml)
         thought = cls._extract_tag(body_xml, "thought")
         final_answer = cls._extract_tag(body_xml, "final_answer")

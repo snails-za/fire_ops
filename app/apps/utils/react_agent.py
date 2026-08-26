@@ -14,6 +14,7 @@ from langchain_openai import ChatOpenAI
 from mcp.server.fastmcp import FastMCP
 from pydantic import SecretStr
 
+from apps.utils.react_trace_log import persist_react_trace
 from apps.utils.xml_react import XmlReactSession
 from apps.utils.mcp_tools.mcp_bridge import (
     SOURCES_EXTRA_KEY,
@@ -97,6 +98,25 @@ class ReactAgent:
             return
 
         extra_token = chat_task_extra.set(dict(tool_context or {}))
+        trace: List[Dict[str, Any]] = []
+        meta_finish: Dict[str, Any] = {
+            "agent_used": True,
+            "pattern": "react_xml_sql",
+            "react_trace": trace,
+        }
+        trace_error: Optional[str] = None
+
+        def _flush_trace_log(meta: Optional[Dict[str, Any]] = None) -> None:
+            persist_react_trace(
+                task=task,
+                model=self.config.model,
+                trace=trace,
+                meta=meta or meta_finish,
+                tool_context=tool_context,
+                conversation_history=conversation_history,
+                error=trace_error,
+            )
+
         try:
             _, names_sorted = await langchain_mcp_bridge.openai_tools_bundle(
                 self.mcp_server_app
@@ -114,12 +134,6 @@ class ReactAgent:
             )
 
             history_xml = conversation_history.strip()
-            trace: List[Dict[str, Any]] = []
-            meta_finish: Dict[str, Any] = {
-                "agent_used": True,
-                "pattern": "react_xml_sql",
-                "react_trace": trace,
-            }
             last_react_doc_sources: List[Dict[str, Any]] = []
 
             def _sync_sources() -> None:
@@ -161,6 +175,7 @@ class ReactAgent:
                     meta_finish["final_answer"] = parsed_step.final_answer
                     meta_finish["react_steps"] = len(trace)
                     meta_finish["sources"] = last_react_doc_sources
+                    _flush_trace_log(meta_finish)
                     yield {"event": "done", "meta": meta_finish}
                     return
 
@@ -247,10 +262,13 @@ class ReactAgent:
             meta_finish["final_answer"] = final_answer
             meta_finish["react_steps"] = len(trace)
             meta_finish["sources"] = last_react_doc_sources
+            _flush_trace_log(meta_finish)
             yield {"event": "done", "meta": meta_finish}
 
         except Exception as e:
             traceback.print_exc()
+            trace_error = str(e)
+            _flush_trace_log({"error": trace_error, "agent_used": False})
             yield {"event": "error", "message": str(e)}
             yield {"event": "done", "meta": {"error": str(e), "agent_used": False}}
         finally:

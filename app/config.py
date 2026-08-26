@@ -142,6 +142,13 @@ OPENAI_API_KEY = config("OPENAI_API_KEY", default="sk-026f821a221b49d3a674d15bd8
 OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.deepseek.com")
 MODEL = config("MODEL", default="deepseek-chat")
 
+# ReAct 推理链路调试落盘（完整步骤链 JSON，默认关闭）
+REACT_TRACE_LOG_ENABLED = config("REACT_TRACE_LOG_ENABLED", cast=bool, default=False)
+REACT_TRACE_LOG_DIR = config(
+    "REACT_TRACE_LOG_DIR",
+    default=os.path.join(BASE_PATH, "logs", "react_trace"),
+)
+
 # 嵌入模型配置
 # 全局禁用 tokenizers 的并行分词
 os.environ["TOKENIZERS_PARALLELISM"] = "false"

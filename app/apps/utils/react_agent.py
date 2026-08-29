@@ -22,7 +22,7 @@ from apps.utils.mcp_tools.mcp_bridge import (
     langchain_mcp_bridge,
 )
 from apps.utils.mcp_tools.tools import TOOL_PROMPTS
-from config import MODEL
+from config import MODEL, LLM_ENABLE_THINKING
 
 
 @dataclass
@@ -128,6 +128,7 @@ class ReactAgent:
                 model=self.config.model,
                 temperature=self.config.temperature,
                 max_tokens=self.config.max_tokens,
+                extra_body={"chat_template_kwargs": {"enable_thinking": LLM_ENABLE_THINKING}}
             )
             system_prompt = (
                 SYSTEM_PROMPT + TOOL_PROMPTS + "\n\n" + _tool_names_line(names_sorted)

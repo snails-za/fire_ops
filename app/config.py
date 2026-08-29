@@ -141,6 +141,8 @@ ALLOWED_FILE_TYPES = [
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="sk-026f821a221b49d3a674d15bd8d2d248")
 OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.deepseek.com")
 MODEL = config("MODEL", default="deepseek-chat")
+# 是否开启推理模式（thinking）
+LLM_ENABLE_THINKING = config("LLM_ENABLE_THINKING", cast=bool, default=False)
 
 # ReAct 推理链路调试落盘（完整步骤链 JSON，默认关闭）
 REACT_TRACE_LOG_ENABLED = config("REACT_TRACE_LOG_ENABLED", cast=bool, default=False)

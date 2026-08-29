@@ -162,6 +162,23 @@ async def list_chat_messages(
     )
 
 
+@router.delete(
+    "/sessions/{session_id}",
+    summary="删除聊天会话",
+    description="删除当前用户的聊天会话及其全部消息",
+    dependencies=[Depends(get_current_user)],
+)
+async def delete_chat_session(
+    session_id: int,
+    user: User = Depends(get_current_user),
+):
+    session = await ChatSession.get_or_none(id=session_id, user_id=user.id)
+    if not session:
+        return response(code=0, message="会话不存在或无权访问")
+    await session.delete()
+    return response(message="会话删除成功")
+
+
 @router.get(
     "/search",
     summary="文档搜索",

@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
-from tortoise.contrib.pydantic import pydantic_model_creator
 
 from apps.dependencies.auth import get_current_user
 from apps.dependencies.permissions import check_admin_permission
@@ -18,7 +17,6 @@ from apps.utils import response
 from config import APP_VERSION_STORE_PATH, BASE_PATH
 
 router = APIRouter(prefix="/app/version", tags=["App版本管理"])
-AppVersion_Pydantic = pydantic_model_creator(AppVersion, name="AppVersionOut")
 
 ALLOWED_PACKAGE_TYPES = {"apk", "wgt"}
 ALLOWED_PLATFORMS = {"android"}

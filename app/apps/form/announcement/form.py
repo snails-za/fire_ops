@@ -39,12 +39,3 @@ class AnnouncementUpdateForm(BaseModel):
         if v and v not in ["draft", "published", "archived"]:
             raise ValueError("状态必须是 draft、published 或 archived")
         return v
-
-
-class AnnouncementQueryForm(BaseModel):
-    """公告查询表单"""
-
-    page: int = Field(default=1, ge=1, description="页码")
-    page_size: int = Field(default=20, ge=1, le=100, description="每页数量")
-    status: Optional[str] = Field(None, description="状态筛选")
-    keyword: Optional[str] = Field(None, description="关键词搜索")

@@ -63,10 +63,6 @@ async def get_sql_pool() -> asyncpg.Pool:
     return await sql_connection.get_pool()
 
 
-def normalize_pg_dsn(url: str) -> str:
-    return SqlConnectionPlugin.normalize_pg_dsn(url)
-
-
 @dataclass
 class SqlToolConfig:
     readonly: bool = True

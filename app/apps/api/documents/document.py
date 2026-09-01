@@ -13,7 +13,7 @@ from apps.models.document import Document, DocumentChunk
 from apps.utils import response
 from apps.utils.celery_utils import celery_task_manager
 from apps.utils.dp_client import DPClient, DPClientError
-from apps.utils.rag_helper import vector_search
+from apps.utils.vector_db_selector import vector_search
 from celery_tasks.task import process_document_task
 from config import DOCUMENT_STORE_PATH, DP_VIEWER_PUBLIC_PATH
 
@@ -224,7 +224,7 @@ async def delete_document(
             os.remove(document.file_path)
 
         # 删除相关数据（级联删除）
-        # 先删除 Chroma 中对应向量
+        # 先删除向量库中对应数据
         await vector_search.delete_document(document_id)
         await document.delete()
 
@@ -252,7 +252,7 @@ async def reprocess_document(
         if document.task_id:
             celery_task_manager.revoke_task(document.task_id, terminate=True)
 
-        # 删除现有的分块与 Chroma 向量数据
+        # 删除现有的分块与向量库数据
         await DocumentChunk.filter(document_id=document_id).delete()
         await vector_search.delete_document(document_id)
 

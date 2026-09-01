@@ -22,7 +22,7 @@ from apps.utils.mcp_tools.mcp_bridge import (
     langchain_mcp_bridge,
 )
 from apps.utils.mcp_tools.tools import TOOL_PROMPTS
-from config import MODEL, LLM_ENABLE_THINKING
+from config import MODEL
 
 
 @dataclass
@@ -30,6 +30,8 @@ class ReactAgentConfig:
     model: str = MODEL
     max_iterations: int = 10
     temperature: float = 0.1
+    top_p: float = 0.8
+    top_k: int = 20
     max_tokens: int = 2500
 
 
@@ -122,13 +124,21 @@ class ReactAgent:
                 self.mcp_server_app
             )
 
+            llm_kwargs: Dict[str, Any] = {}
+            if "qwen" in self.config.model.casefold():
+                llm_kwargs["extra_body"] = {
+                    "top_k": self.config.top_k,
+                    "chat_template_kwargs": {"enable_thinking": False},
+                }
+
             llm = ChatOpenAI(
                 api_key=SecretStr(self.openai_api_key),
                 base_url=self.openai_base_url,
                 model=self.config.model,
                 temperature=self.config.temperature,
+                top_p=self.config.top_p,
                 max_tokens=self.config.max_tokens,
-                extra_body={"chat_template_kwargs": {"enable_thinking": LLM_ENABLE_THINKING}}
+                **llm_kwargs,
             )
             system_prompt = (
                 SYSTEM_PROMPT + TOOL_PROMPTS + "\n\n" + _tool_names_line(names_sorted)

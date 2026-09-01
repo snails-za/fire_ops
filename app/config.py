@@ -112,27 +112,6 @@ for path in [
     os.makedirs(path, exist_ok=True)
 
 
-# 文件处理限制
-MAX_FILE_SIZE = config("MAX_FILE_SIZE", cast=int, default=50 * 1024 * 1024)  # 50MB
-ALLOWED_FILE_TYPES = [
-    "pdf",
-    "docx",
-    "doc",
-    "pptx",
-    "ppt",
-    "xlsx",
-    "xls",
-    "png",
-    "jpg",
-    "jpeg",
-    "webp",
-    "bmp",
-    "tif",
-    "tiff",
-    "txt",
-    "md",
-]
-
 # =============================================================================
 # RAG系统配置
 # =============================================================================
@@ -141,8 +120,6 @@ ALLOWED_FILE_TYPES = [
 OPENAI_API_KEY = config("OPENAI_API_KEY", default="sk-026f821a221b49d3a674d15bd8d2d248")
 OPENAI_BASE_URL = config("OPENAI_BASE_URL", default="https://api.deepseek.com")
 MODEL = config("MODEL", default="deepseek-chat")
-# 是否开启推理模式（thinking）
-LLM_ENABLE_THINKING = config("LLM_ENABLE_THINKING", cast=bool, default=False)
 
 # ReAct 推理链路调试落盘（完整步骤链 JSON，默认关闭）
 REACT_TRACE_LOG_ENABLED = config("REACT_TRACE_LOG_ENABLED", cast=bool, default=False)
@@ -159,31 +136,13 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # 3. sentence-transformers/paraphrase-multilingual-mpnet-base-v2
 # 4. shibing624/text2vec-base-chinese
 EMBEDDING_MODEL = config("EMBEDDING_MODEL", default="BAAI/bge-small-zh-v1.5")
-EMBEDDING_DIMENSION = config("EMBEDDING_DIMENSION", cast=int, default=384)
 HF_HOME = config("HF_HOME", default=os.path.join(BASE_PATH, "models"))
 HF_OFFLINE = config("HF_OFFLINE", cast=bool, default=True)
 
-# 文本分割配置
-CHUNK_SIZE = config("CHUNK_SIZE", cast=int, default=1000)
-CHUNK_OVERLAP = config("CHUNK_OVERLAP", cast=int, default=200)
-
 # 搜索配置
 SIMILARITY_THRESHOLD = config("SIMILARITY_THRESHOLD", cast=float, default=0.7)
-DEFAULT_TOP_K = config("DEFAULT_TOP_K", cast=int, default=5)
 RERANK_ENABLED = config("RERANK_ENABLED", cast=bool, default=True)
 RERANK_MODEL = config("RERANK_MODEL", default="BAAI/bge-reranker-base")
-
-# 设备数据配置
-# 传递给LLM的设备详细列表的最大数量（用于控制上下文大小）
-# 统计信息不受此限制，始终包含完整统计
-MAX_DEVICES_FOR_LLM = config("MAX_DEVICES_FOR_LLM", cast=int, default=200)
-
-# =============================================================================
-# NLTK 配置
-# =============================================================================
-
-# NLTK 数据路径配置（避免网络下载）
-NLTK_DATA_PATH = config("NLTK_DATA_PATH", default=os.path.join(BASE_PATH, "nltk_data"))
 
 # =============================================================================
 # 向量数据库配置
@@ -201,7 +160,6 @@ CHROMA_COLLECTION = config("CHROMA_COLLECTION", default="documents")
 QDRANT_HOST = config("QDRANT_HOST", default="localhost")
 QDRANT_PORT = config("QDRANT_PORT", cast=int, default=16333)
 QDRANT_COLLECTION_NAME = config("QDRANT_COLLECTION_NAME", default="documents")
-QDRANT_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 
 # =============================================================================
 # Document Process（DP）配置 — 文档解析主路径

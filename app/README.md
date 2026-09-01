@@ -33,13 +33,13 @@ fire_ops/app/
 ├── apps/
 │   ├── api/                 # FastAPI 路由模块，自动挂载到 /api/v1
 │   │   ├── announcement/     # 公告接口
-│   │   ├── chat/             # 智能问答、会话、文档搜索
+│   │   ├── chat/             # 智能问答与会话管理
 │   │   ├── communication/    # 好友一对一通讯
 │   │   ├── device/           # 设备接口
 │   │   ├── documents/        # 文档上传、解析、下载、预览
 │   │   ├── event/            # 事件和事件消息
 │   │   ├── users/            # 认证、用户、联系人
-│   │   └── common.py         # 菜单和系统资源
+│   │   └── common.py         # 健康检查和系统资源
 │   ├── dependencies/         # 登录鉴权、角色权限
 │   ├── form/                 # 请求参数模型
 │   ├── models/               # Tortoise ORM 数据模型
@@ -48,7 +48,6 @@ fire_ops/app/
 ├── data/                     # 运行期数据：上传文件、头像、设备图片
 ├── docs/                     # 项目说明文档
 ├── models/                   # 本地离线模型缓存
-├── nltk_data/                # NLTK 离线数据
 ├── static/                   # 静态资源和历史页面
 ├── asgi.py                   # FastAPI 应用入口
 ├── config.py                 # 全局配置
@@ -59,7 +58,7 @@ fire_ops/app/
 说明：
 
 - `migrations/` 是 Aerich 配置的迁移目录，当前仓库里不一定已经生成。
-- `data/`、`models/`、`nltk_data/` 通常包含运行期数据或模型缓存，提交前要确认是否需要纳入版本管理。
+- `data/`、`models/` 通常包含运行期数据或模型缓存，提交前要确认是否需要纳入版本管理。
 
 ## 应用启动流程
 
@@ -287,4 +286,3 @@ docs/技术说明文档.md
 - `sources` 中是否包含 `document_id`。
 - `/api/v1/documents/{document_id}/download` 是否能访问原文件。
 - `data/documents` 下文件是否存在。
-

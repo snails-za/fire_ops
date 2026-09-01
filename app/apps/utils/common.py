@@ -1,25 +1,8 @@
-import base64
 import hashlib
 import os
 from typing import Optional
 
 from pypinyin import lazy_pinyin
-
-
-class Base64Util:
-    @staticmethod
-    def encode(data: str) -> str:
-        """对数据进行 Base64 编码"""
-        byte_data = data.encode("utf-8")
-        encoded_data = base64.b64encode(byte_data)
-        return encoded_data.decode("utf-8")
-
-    @staticmethod
-    def decode(encoded_data: str) -> str:
-        """对 Base64 编码的数据进行解码"""
-        byte_data = encoded_data.encode("utf-8")
-        decoded_data = base64.b64decode(byte_data)
-        return decoded_data.decode("utf-8")
 
 
 def get_hash(keyword: str) -> str:

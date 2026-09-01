@@ -12,7 +12,7 @@ from datetime import datetime
 
 from apps.models.document import Document as DocumentModel, DocumentChunk
 from apps.utils.dp_client import DPClient, DPClientError, DPParseResult
-from apps.utils.rag_helper import vector_search
+from apps.utils.vector_db_selector import vector_search
 from config import HF_HOME, HF_OFFLINE
 
 

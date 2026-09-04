@@ -187,6 +187,7 @@ docker run -e GUNICORN_WORKERS=8 fire_ops:latest
 - `AES_KEY`: AES 加密密钥
 - `OPENAI_API_KEY`: OpenAI API 密钥
 - `OPENAI_BASE_URL`: OpenAI API 基础URL
+- `MODEL`: OpenAI 兼容接口使用的模型 UID
 - `EMBEDDING_MODEL`: 嵌入模型名称
 - `VECTOR_DB_TYPE`: 向量数据库类型
 - `QDRANT_HOST`: Qdrant 主机

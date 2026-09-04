@@ -123,8 +123,9 @@ export REDIS_PORT=16379
 export REDIS_PASSWORD=
 export REDIS_DB=0
 
-export OPENAI_API_KEY=your_api_key
-export OPENAI_BASE_URL=https://api.deepseek.com
+export OPENAI_API_KEY=not-needed
+export OPENAI_BASE_URL=http://10.10.0.42:8894/v1
+export MODEL=Qwen3.8-27B-FP8
 
 export VECTOR_DB_TYPE=qdrant
 export QDRANT_HOST=localhost
